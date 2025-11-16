@@ -1,0 +1,61 @@
+# Python / Virtualenv
+great-awareness-backend/.venv/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Flutter / Dart
+great-awareness-frontend/.dart_tool/
+great-awareness-frontend/.flutter-plugins
+great-awareness-frontend/.flutter-plugins-dependencies
+great-awareness-frontend/.packages
+great-awareness-frontend/.pub-cache/
+great-awareness-frontend/.pub/
+great-awareness-frontend/build/
+great-awareness-frontend/flutter_*.png
+great-awareness-frontend/linked_*.ds
+great-awareness-frontend/unlinked.ds
+great-awareness-frontend/unlinked_spec.ds
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local env files
+great-awareness-backend/.env
+great-awareness-frontend/.env
+
+# --- Global build/cache folders ---
+**/.venv/
+**/build/
+**/.gradle/
+**/local.properties
+**/GeneratedPluginRegistrant.java
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Pods/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+**/android/app/src/main/java/io/flutter/plugins/
+**/android/local.properties
