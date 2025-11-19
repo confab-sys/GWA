@@ -1,66 +1,91 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../utils/storage.dart';
-import '../models/user.dart';
+import 'dart:async';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-  bool _loading = false;
-  String? _error;
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  bool _showFirstText = true;
 
-  Future<void> _onLogin() async {
-    setState(() {
-      _loading = true;
-      _error = null;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat();
+    
+    // Switch text every 2 seconds
+    Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (mounted) {
+        setState(() {
+          _showFirstText = !_showFirstText;
+        });
+      }
     });
-    final api = ApiService();
-    final User? user = await api.login(_email.text.trim(), _password.text.trim());
-    if (!mounted) return;
-    if (user?.token != null && user!.token!.isNotEmpty) {
-      await Storage.saveToken(user.token!);
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else {
-      setState(() {
-        _error = 'Login failed';
-        _loading = false;
-      });
-    }
+
+    // Navigate to welcome screen after 10 seconds
+    Timer(const Duration(seconds: 10), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/welcome');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      backgroundColor: Colors.black,
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Login', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 24),
-            TextField(controller: _email, decoration: const InputDecoration(labelText: 'Email')),
-            const SizedBox(height: 12),
-            TextField(controller: _password, decoration: const InputDecoration(labelText: 'Password'), obscureText: true),
-            const SizedBox(height: 24),
-            if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _onLogin,
-                child: _loading ? const CircularProgressIndicator() : const Text('Login'),
+            Image.asset(
+              'assets/images/logo man 2.png',
+              height: 150,
+              width: 150,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'GREAT AWARENESS',
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2.0,
               ),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pushReplacementNamed('/signup');
-              },
-              child: const Text('Create account'),
+            const SizedBox(height: 15),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              child: Text(
+                _showFirstText ? 'Empowering Minds' : 'Deconstructing Reality',
+                key: ValueKey<bool>(_showFirstText),
+                style: GoogleFonts.judson(
+                  textStyle: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              strokeWidth: 2,
             ),
           ],
         ),

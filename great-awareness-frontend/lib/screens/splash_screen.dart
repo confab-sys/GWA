@@ -17,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _bootstrap() async {
     final token = await Storage.getToken();
     if (!mounted) return;
-    final target = token != null && token.isNotEmpty ? '/home' : '/login';
+    final target = '/login';
     Navigator.of(context).pushReplacementNamed(target);
   }
 
