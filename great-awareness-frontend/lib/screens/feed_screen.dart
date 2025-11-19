@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'mainfeed_screen.dart';
 import 'books_screen.dart';
 import 'videopodcast_screen.dart';
+import 'qa_screen.dart';
 import '../utils/custom_transitions.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -282,7 +283,7 @@ class _FeedScreenState extends State<FeedScreen> {
       case 2:
         return const BooksScreen();
       case 3:
-        return const Center(child: Text('Q&A'));
+        return const QAScreen();
       default:
         return Center(
           key: ValueKey<int>(_selectedIndex),
