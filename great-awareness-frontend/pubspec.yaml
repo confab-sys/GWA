@@ -15,6 +15,7 @@ dependencies:
   device_info_plus: ^10.1.0
   intl: ^0.18.1
   image_picker: ^1.0.4
+  table_calendar: ^3.0.9
 
 dev_dependencies:
   flutter_test:

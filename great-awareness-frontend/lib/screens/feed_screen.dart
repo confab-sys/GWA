@@ -4,6 +4,8 @@ import 'mainfeed_screen.dart';
 import 'books_screen.dart';
 import 'videopodcast_screen.dart';
 import 'qa_screen.dart';
+import 'settings_screen.dart';
+import 'booking_screen.dart';
 import '../utils/custom_transitions.dart';
 
 class FeedScreen extends StatefulWidget {
@@ -340,7 +342,12 @@ class _FeedScreenState extends State<FeedScreen> {
             icon: const Icon(Icons.calendar_today, color: Colors.black),
             tooltip: 'Book Therapy',
             onPressed: () {
-              // Navigate to Book Therapy
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BookingScreen(),
+                ),
+              );
             },
           ),
           IconButton(
@@ -354,7 +361,12 @@ class _FeedScreenState extends State<FeedScreen> {
             icon: const Icon(Icons.settings, color: Colors.black),
             tooltip: 'Settings',
             onPressed: () {
-              // Navigate to Settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
             },
           ),
         ],
