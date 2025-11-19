@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'mainfeed_screen.dart';
+import 'books_screen.dart';
+import '../utils/custom_transitions.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -275,6 +277,29 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
+  Widget _buildCentralPanelContent() {
+    switch (_selectedIndex) {
+      case 0:
+        return const MainFeedScreen();
+      case 1:
+        return const BooksScreen();
+      default:
+        return Center(
+          key: ValueKey<int>(_selectedIndex),
+          child: Text(
+            _menuItems[_selectedIndex]['title'],
+            style: GoogleFonts.judson(
+              textStyle: const TextStyle(
+                color: Colors.black,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -362,9 +387,11 @@ class _FeedScreenState extends State<FeedScreen> {
                     itemBuilder: (context, index) {
                       return InkWell(
                         onTap: () {
-                          setState(() {
-                            _selectedIndex = index;
-                          });
+                          if (_selectedIndex != index) {
+                            setState(() {
+                              _selectedIndex = index;
+                            });
+                          }
                         },
                         child: Container(
                           padding: EdgeInsets.symmetric(
@@ -372,7 +399,7 @@ class _FeedScreenState extends State<FeedScreen> {
                             horizontal: _isPanelExpanded ? 16 : 8
                           ),
                           color: _selectedIndex == index 
-                            ? const Color(0xFFD3E4DE).withValues(alpha: 0.3)
+                            ? const Color(0xFFD3E4DE).withOpacity(0.3)
                             : Colors.transparent,
                           child: Row(
                             children: [
@@ -387,8 +414,8 @@ class _FeedScreenState extends State<FeedScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        _menuItems[index]['title'],
+                                      AnimatedDefaultTextStyle(
+                                        duration: const Duration(milliseconds: 300),
                                         style: GoogleFonts.judson(
                                           textStyle: TextStyle(
                                             color: _selectedIndex == index ? Colors.black : Colors.grey[600],
@@ -396,15 +423,17 @@ class _FeedScreenState extends State<FeedScreen> {
                                             fontWeight: _selectedIndex == index ? FontWeight.bold : FontWeight.normal,
                                           ),
                                         ),
+                                        child: Text(_menuItems[index]['title']),
                                       ),
-                                      Text(
-                                        _menuItems[index]['subtitle'],
+                                      AnimatedDefaultTextStyle(
+                                        duration: const Duration(milliseconds: 300),
                                         style: GoogleFonts.judson(
                                           textStyle: TextStyle(
                                             color: _selectedIndex == index ? Colors.grey[700] : Colors.grey[500],
                                             fontSize: 12,
                                           ),
                                         ),
+                                        child: Text(_menuItems[index]['subtitle']),
                                       ),
                                     ],
                                   ),
@@ -424,19 +453,26 @@ class _FeedScreenState extends State<FeedScreen> {
           Expanded(
             child: Container(
               color: const Color(0xFFD3E4DE),
-              child: _selectedIndex == 0
-                      ? const MainFeedScreen()
-                      : Center(
-                          child: Text(
-                            _menuItems[_selectedIndex]['title'],
-                            style: GoogleFonts.judson(
-                              textStyle: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                          ),
-                        ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                switchInCurve: Curves.easeInOutCubic,
+                switchOutCurve: Curves.easeInOutCubic.flipped,
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.1, 0),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      )),
+                      child: child,
+                    ),
+                  );
+                },
+                child: _buildCentralPanelContent(),
               ),
             ),
           ),
