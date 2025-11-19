@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'feed_screen.dart';
 
 class Login1Screen extends StatefulWidget {
   const Login1Screen({super.key});
@@ -133,6 +134,7 @@ class _Login1ScreenState extends State<Login1Screen> {
                       child: ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
+                            FeedScreen.setShowSubscriptionPopup(true); // Set flag to show popup on feed screen
                             Navigator.of(context).pushReplacementNamed('/home');
                           }
                         },

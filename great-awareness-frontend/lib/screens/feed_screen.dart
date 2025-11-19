@@ -5,6 +5,14 @@ import 'mainfeed_screen.dart';
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
+  // Static flag to track if popup should be shown
+  static bool _shouldShowSubscriptionPopup = false;
+
+  // Static method to set flag when navigating from login
+  static void setShowSubscriptionPopup(bool show) {
+    _shouldShowSubscriptionPopup = show;
+  }
+
   @override
   State<FeedScreen> createState() => _FeedScreenState();
 }
@@ -14,7 +22,6 @@ class _FeedScreenState extends State<FeedScreen> {
   bool _isPanelExpanded = true;
 
   final List<Map<String, dynamic>> _menuItems = [
-    {'title': 'Home Feed', 'subtitle': 'Mental health & updates', 'icon': Icons.home},
     {'title': 'Main Feed', 'subtitle': 'Psychology topics & discussions', 'icon': Icons.psychology},
     {'title': 'Books', 'subtitle': 'Read books', 'icon': Icons.book},
     {'title': 'Podcast Space', 'subtitle': 'Listen to latest podcasts', 'icon': Icons.podcasts},
@@ -24,6 +31,249 @@ class _FeedScreenState extends State<FeedScreen> {
     {'title': 'Therapy Booking', 'subtitle': 'Book therapy sessions', 'icon': Icons.calendar_today},
     {'title': 'Settings', 'subtitle': 'App preferences', 'icon': Icons.settings},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Show subscription popup only when navigating from login
+    if (FeedScreen._shouldShowSubscriptionPopup) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showSubscriptionDialog();
+        FeedScreen._shouldShowSubscriptionPopup = false; // Reset flag after showing
+      });
+    }
+  }
+
+  void _showSubscriptionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User must make a choice
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.white24, width: 1),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title
+                Text(
+                  'Great Awareness',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Main text
+                Text(
+                  'Great Awareness platform is more than content, it\'s a living ecosystem that demands attention and effort to maintain it. Supporting its upkeep requires a monthly investment of 100ksh, giving you full access to every tool, content and resources. Keeping your path to mastery uninterrupted.',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Ready to join?',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Not Ready button
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showTemporaryAccessDialog();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          'Not Ready?',
+                          style: GoogleFonts.judson(
+                            textStyle: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Yes button
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showWelcomeDialog();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD3E4DE),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          'Yes',
+                          style: GoogleFonts.judson(
+                            textStyle: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showTemporaryAccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Colors.white24, width: 1),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Your access expires in 30 days',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD3E4DE),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showWelcomeDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Colors.white24, width: 1),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Welcome to the journey of self improvement',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD3E4DE),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Get Started',
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,39 +424,7 @@ class _FeedScreenState extends State<FeedScreen> {
           Expanded(
             child: Container(
               color: const Color(0xFFD3E4DE),
-              child: _selectedIndex == 0 
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/images/main logo man.png',
-                          width: 80,
-                          height: 80,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Great Awareness',
-                          style: GoogleFonts.judson(
-                            textStyle: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Mental health & updates',
-                          style: GoogleFonts.judson(
-                            textStyle: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : _selectedIndex == 1
+              child: _selectedIndex == 0
                       ? const MainFeedScreen()
                       : Center(
                           child: Text(

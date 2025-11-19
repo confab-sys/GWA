@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'post_detail_screen.dart';
 
 class MainFeedScreen extends StatefulWidget {
   const MainFeedScreen({super.key});
@@ -270,6 +271,20 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     );
   }
 
+  void _openPostDetail(Map<String, dynamic> post, int index) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PostDetailScreen(
+          post: post,
+          postIndex: index,
+          onLikeToggle: _toggleLike,
+          onSaveToggle: _toggleSave,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -372,20 +387,23 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                       }
                       
                       final post = _filteredPosts[index];
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
+                      return InkWell(
+                        onTap: () => _openPostDetail(post, index),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Post Header with modern design
@@ -668,6 +686,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                             const SizedBox(height: 12),
                           ],
                         ),
+                      ),
                       );
                     },
                   ),
