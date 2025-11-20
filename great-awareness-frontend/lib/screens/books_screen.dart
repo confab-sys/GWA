@@ -190,30 +190,30 @@ class _BooksScreenState extends State<BooksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFFD3E4DE),
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white,
         title: Text(
           'Books',
           style: GoogleFonts.judson(
             textStyle: const TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? const Center(child: CircularProgressIndicator(color: Colors.black))
           : books.isEmpty
               ? Center(
                   child: Text(
                     'No books available',
                     style: GoogleFonts.judson(
-                      textStyle: const TextStyle(color: Colors.white, fontSize: 18),
+                      textStyle: const TextStyle(color: Colors.black, fontSize: 18),
                     ),
                   ),
                 )
@@ -238,17 +238,17 @@ class _BooksScreenState extends State<BooksScreen> {
     return Hero(
       tag: 'book_${book.id}',
       child: Card(
-        color: Colors.grey[900],
+        color: Colors.white,
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Colors.white24, width: 1),
+          side: const BorderSide(color: Colors.black12, width: 1),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            // Navigate to book reader or details screen
-            _showBookDetails(book);
+            // Book card tapped - no popup dialog
+            // You can add navigation to a book reader here if needed
           },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,7 +276,7 @@ class _BooksScreenState extends State<BooksScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
+                          color: Colors.black.withValues(alpha: 0.6),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -288,7 +288,7 @@ class _BooksScreenState extends State<BooksScreen> {
                                 curve: Curves.easeInOutCubic,
                                 child: LinearProgressIndicator(
                                   value: book.readingProgress / 100,
-                                  backgroundColor: Colors.grey[700],
+                                  backgroundColor: Colors.grey[300],
                                   valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
                                   minHeight: 4,
                                 ),
@@ -320,7 +320,7 @@ class _BooksScreenState extends State<BooksScreen> {
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                           decoration: BoxDecoration(
-                            color: book.isDownloaded ? Colors.green.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.8),
+                            color: book.isDownloaded ? Colors.green.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.6),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -342,7 +342,7 @@ class _BooksScreenState extends State<BooksScreen> {
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.8),
+                            color: Colors.black.withValues(alpha: 0.6),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -379,7 +379,7 @@ class _BooksScreenState extends State<BooksScreen> {
                       book.title,
                       style: GoogleFonts.judson(
                         textStyle: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -391,7 +391,7 @@ class _BooksScreenState extends State<BooksScreen> {
                       book.description,
                       style: GoogleFonts.judson(
                         textStyle: TextStyle(
-                          color: Colors.grey[400],
+                          color: Colors.grey[600],
                           fontSize: 10,
                         ),
                       ),

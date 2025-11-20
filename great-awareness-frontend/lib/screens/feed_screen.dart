@@ -6,7 +6,6 @@ import 'videopodcast_screen.dart';
 import 'qa_screen.dart';
 import 'settings_screen.dart';
 import 'booking_screen.dart';
-import '../utils/custom_transitions.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -303,6 +302,103 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  void _showNavigationMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Text(
+                'Navigation',
+                style: GoogleFonts.judson(
+                  textStyle: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Navigation options
+              ListTile(
+                leading: const Icon(Icons.calendar_today, color: Colors.black),
+                title: Text(
+                  'Calendar & Booking',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const BookingScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.spa, color: Colors.black),
+                title: Text(
+                  'Wellness',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Add navigation to wellness screen when available
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings, color: Colors.black),
+                title: Text(
+                  'Settings',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -335,38 +431,14 @@ class _FeedScreenState extends State<FeedScreen> {
             icon: const Icon(Icons.notifications, color: Colors.black),
             tooltip: 'Notifications',
             onPressed: () {
-              // Navigate to Notifications
+              // Add navigation to notifications screen when available
             },
           ),
           IconButton(
-            icon: const Icon(Icons.calendar_today, color: Colors.black),
-            tooltip: 'Book Therapy',
+            icon: const Icon(Icons.menu, color: Colors.black),
+            tooltip: 'Navigation Menu',
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BookingScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.health_and_safety, color: Colors.black),
-            tooltip: 'Wellness App',
-            onPressed: () {
-              // Navigate to Wellness App
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.black),
-            tooltip: 'Settings',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
-              );
+              _showNavigationMenu();
             },
           ),
         ],
