@@ -1,11 +1,7 @@
-import os
-from dotenv import load_dotenv
+# Legacy config file - import from core.config instead
+from app.core.config import settings
 
-load_dotenv()
-
-class Settings:
-    SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
-    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
-
-settings = Settings()
+# Re-export for backward compatibility
+SECRET_KEY = settings.secret_key
+DATABASE_URL = settings.sqlalchemy_database_uri
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes

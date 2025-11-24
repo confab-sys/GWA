@@ -1,6 +1,5 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.config import settings
+# Legacy database file - import from core.database instead
+from app.core.database import engine, SessionLocal, Base, get_db, init_db, check_db_connection
 
-engine = create_engine(settings.DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Re-export for backward compatibility
+__all__ = ['engine', 'SessionLocal', 'Base', 'get_db', 'init_db', 'check_db_connection']

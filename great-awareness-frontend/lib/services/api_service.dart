@@ -25,13 +25,26 @@ class ApiService {
     return null;
   }
 
-  Future<User?> signup(String name, String email, String password) async {
-    final uri = Uri.parse('$apiBaseUrl/auth/signup');
+  Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
+    final uri = Uri.parse('$apiBaseUrl/auth/register');
     final deviceId = await getDeviceId();
+    
+    // Generate username from email (before @ symbol)
+    final username = email.split('@')[0];
+    
     final res = await _client.post(
       uri,
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({'name': name, 'email': email, 'password': password, 'device_id': deviceId}),
+      body: json.encode({
+        'username': username,
+        'first_name': firstName,
+        'last_name': lastName,
+        'email': email,
+        'phone_number': phone,
+        'county': county,
+        'password': password,
+        'device_id': deviceId
+      }),
     );
     if (res.statusCode == 200 || res.statusCode == 201) {
       final data = json.decode(res.body);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/api_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -128,7 +129,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  void _submitForm() {
+  void _submitForm() async {
     if (_passwordController.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password must be at least 8 characters')),
@@ -143,15 +144,42 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
     
-    // Handle signup logic here
+    // Show loading indicator
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Account created successfully!')),
+      const SnackBar(content: Text('Creating account...')),
     );
     
-    // Navigate to login page after successful signup
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.of(context).pushReplacementNamed('/login1');
-    });
+    try {
+      // Call API service to register user
+      final apiService = ApiService();
+      final user = await apiService.signup(
+        _firstNameController.text,
+        _lastNameController.text,
+        _emailController.text,
+        _phoneController.text,
+        _selectedCounty!,
+        _passwordController.text,
+      );
+      
+      if (user != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully!')),
+        );
+        
+        // Navigate to login page after successful signup
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.of(context).pushReplacementNamed('/login1');
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create account. Please try again.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
   @override
