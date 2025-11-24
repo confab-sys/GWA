@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
+import 'admin_posting_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,11 +19,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _userEmail = 'john.doe@example.com';
   String _accountType = 'Premium'; // Can be 'Premium', 'Trial', or 'Free'
   int _trialDaysLeft = 7; // Only relevant for trial accounts
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
     super.initState();
     _loadUserSettings();
+  }
+
+  void _navigateToAdminPosting() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AdminPostingScreen(),
+      ),
+    );
+    
+    // Show feedback if a post was created
+    if (result != null && result is Map<String, dynamic>) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('New post created successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Future<void> _loadUserSettings() async {
@@ -561,6 +583,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 24),
+            
+            // Admin Section (only visible to admins)
+            if (_authService.isAdmin) ...[
+              _buildSettingsSection(
+                'Admin Tools',
+                [
+                  _buildSettingsItem(
+                    icon: Icons.post_add,
+                    title: 'Create Post',
+                    subtitle: 'Add new content to the feed',
+                    onTap: () => _navigateToAdminPosting(),
+                  ),
+                  _buildSettingsItem(
+                    icon: Icons.manage_accounts,
+                    title: 'Manage Users',
+                    subtitle: 'View and manage user accounts',
+                    onTap: () {
+                      // Navigate to user management screen
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('User management coming soon!')),
+                      );
+                    },
+                  ),
+                  _buildSettingsItem(
+                    icon: Icons.analytics,
+                    title: 'Content Analytics',
+                    subtitle: 'View post performance metrics',
+                    onTap: () {
+                      // Navigate to analytics screen
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Analytics coming soon!')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
             
             _buildSettingsSection(
               'Content & Privacy',

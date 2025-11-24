@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'post_detail_screen.dart';
+import 'admin_posting_screen.dart';
+import '../services/auth_service.dart';
 
 class MainFeedScreen extends StatefulWidget {
   const MainFeedScreen({super.key});
@@ -16,6 +18,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
   bool _showSearch = false;
+  final AuthService _authService = AuthService();
 
   final List<String> _psychologyTopics = [
     'Addictions',
@@ -43,6 +46,9 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     _loadInitialPosts();
     _scrollController.addListener(_onScroll);
     _searchController.addListener(_onSearchChanged);
+    
+    // Mock admin login for testing - remove this in production
+    _authService.mockAdminLogin();
   }
 
   @override
@@ -191,6 +197,30 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     );
   }
 
+  void _navigateToAdminPosting() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AdminPostingScreen(),
+      ),
+    );
+    
+    // If a new post was created, add it to the feed
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        _posts.insert(0, result);
+        _filterPosts();
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('New post created successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
   void _showComments(int index) {
     final post = _filteredPosts[index];
     showModalBottomSheet(
@@ -315,6 +345,13 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                 ),
               ),
         actions: [
+          // Admin posting button (visible only to admins)
+          if (_authService.isAdmin)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, color: Colors.black),
+              onPressed: () => _navigateToAdminPosting(),
+              tooltip: 'Create New Post',
+            ),
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search),
             onPressed: () {
