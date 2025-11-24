@@ -9,7 +9,7 @@ class ApiService {
   final http.Client _client = http.Client();
 
   Future<User?> login(String email, String password) async {
-    final uri = Uri.parse('$apiBaseUrl/auth/login');
+    final uri = Uri.parse('$apiBaseUrl/api/auth/login');
     final deviceId = await getDeviceId();
     final res = await _client.post(
       uri,
@@ -26,7 +26,7 @@ class ApiService {
   }
 
   Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
-    final uri = Uri.parse('$apiBaseUrl/auth/register');
+    final uri = Uri.parse('$apiBaseUrl/api/auth/register');
     final deviceId = await getDeviceId();
     
     // Generate username from email (before @ symbol)

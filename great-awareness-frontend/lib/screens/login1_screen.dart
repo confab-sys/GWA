@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'feed_screen.dart';
+import '../services/api_service.dart';
+import '../models/user.dart';
 
 class Login1Screen extends StatefulWidget {
   const Login1Screen({super.key});
@@ -14,12 +16,53 @@ class _Login1ScreenState extends State<Login1Screen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
+  final ApiService _apiService = ApiService();
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final user = await _apiService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+
+      if (user != null && mounted) {
+        // Login successful, navigate to home
+        FeedScreen.setShowSubscriptionPopup(true);
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else {
+        setState(() {
+          _errorMessage = 'Invalid email or password';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Login failed. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -128,16 +171,23 @@ class _Login1ScreenState extends State<Login1Screen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            FeedScreen.setShowSubscriptionPopup(true); // Set flag to show popup on feed screen
-                            Navigator.of(context).pushReplacementNamed('/home');
-                          }
-                        },
+                        onPressed: _isLoading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black,
                           foregroundColor: Colors.white,
@@ -145,15 +195,24 @@ class _Login1ScreenState extends State<Login1Screen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: Text(
-                          'Sign In',
-                          style: GoogleFonts.judson(
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                'Sign In',
+                                style: GoogleFonts.judson(
+                                  textStyle: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
