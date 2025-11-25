@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../models/content.dart';
 
 class PostDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> post;
+  final Content post;
   final int postIndex;
   final Function(int) onLikeToggle;
   final Function(int) onSaveToggle;
 
   const PostDetailScreen({
-    Key? key,
+    super.key,
     required this.post,
     required this.postIndex,
     required this.onLikeToggle,
     required this.onSaveToggle,
-  }) : super(key: key);
+  });
 
   @override
   State<PostDetailScreen> createState() => _PostDetailScreenState();
@@ -38,11 +39,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               onPressed: () => Navigator.pop(context),
             ),
             flexibleSpace: FlexibleSpaceBar(
-              background: post['image'] != null && !post['isTextOnly']
+              background: post.imagePath != null && !post.isTextOnly
                   ? Container(
                       decoration: BoxDecoration(
                         image: DecorationImage(
-                          image: AssetImage(post['image']),
+                          image: AssetImage(post.imagePath!),
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -86,7 +87,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                       ),
                       child: CircleAvatar(
-                        backgroundImage: AssetImage(post['authorAvatar']),
+                        backgroundImage: AssetImage(post.authorAvatar ?? 'assets/images/main logo man.png'),
                         radius: 24,
                         backgroundColor: Colors.white,
                       ),
@@ -98,7 +99,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            post['author'],
+                            post.authorName,
                             style: GoogleFonts.judson(
                               textStyle: const TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -110,7 +111,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                           Row(
                             children: [
                               Text(
-                                _formatTimestamp(post['timestamp']),
+                                _formatTimestamp(post.createdAt),
                                 style: GoogleFonts.judson(
                                   textStyle: const TextStyle(
                                     color: Colors.grey,
@@ -126,7 +127,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  post['topic'],
+                                  post.topic,
                                   style: GoogleFonts.judson(
                                     textStyle: const TextStyle(
                                       fontSize: 11,
@@ -153,7 +154,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    post['title'],
+                    post.title,
                     style: GoogleFonts.judson(
                       textStyle: const TextStyle(
                         fontSize: 24,
@@ -164,9 +165,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (post['content'] != null && post['content'].isNotEmpty) ...[
+                  if (post.body.isNotEmpty) ...[
                     Text(
-                      post['content'],
+                      post.body,
                       style: GoogleFonts.judson(
                         textStyle: const TextStyle(
                           fontSize: 16,
@@ -202,7 +203,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'This post explores ${post['topic'].toLowerCase()} concepts and insights. Join the discussion to share your thoughts and learn from others in our psychology community.',
+                          'This post explores ${post.topic.toLowerCase()} concepts and insights. Join the discussion to share your thoughts and learn from others in our psychology community.',
                           style: GoogleFonts.judson(
                             textStyle: const TextStyle(
                               fontSize: 14,
@@ -230,9 +231,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildInteractionButton(
-                        icon: post['isLiked'] ? Icons.favorite : Icons.favorite_border,
-                        label: '${post['likes']} Likes',
-                        color: post['isLiked'] ? Colors.red : Colors.grey,
+                        icon: Icons.favorite_border, // TODO: Implement like state
+                        label: '${post.likesCount} Likes',
+                        color: Colors.grey, // TODO: Implement like state
                         onTap: () {
                           widget.onLikeToggle(widget.postIndex);
                           setState(() {});
@@ -240,7 +241,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                       _buildInteractionButton(
                         icon: Icons.chat_bubble_outline,
-                        label: '${post['comments']} Comments',
+                        label: '${post.commentsCount} Comments',
                         color: Colors.grey,
                         onTap: () => _showComments(),
                       ),
@@ -251,9 +252,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         onTap: () => _sharePost(),
                       ),
                       _buildInteractionButton(
-                        icon: post['isSaved'] ? Icons.bookmark : Icons.bookmark_border,
+                        icon: Icons.bookmark_border, // TODO: Implement save state
                         label: 'Save',
-                        color: post['isSaved'] ? const Color(0xFFD3E4DE) : Colors.grey,
+                        color: Colors.grey, // TODO: Implement save state
                         onTap: () {
                           widget.onSaveToggle(widget.postIndex);
                           setState(() {});
@@ -381,8 +382,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   void _sharePost() {
-    final post = widget.post;
-    final shareText = '${post['title']}\n\n${post['content']}\n\nShared from Great Awareness - Psychology Community';
+    // final post = widget.post; // Not used for now
+    // final shareText = '${post.title}\n\n${post.body}\n\nShared from Great Awareness - Psychology Community';
     
     showDialog(
       context: context,

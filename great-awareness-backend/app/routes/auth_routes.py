@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
+# Import models in dependency order (Content before User due to relationships)
+from app.models.content_model import Content
 from app.models.user_model import User
 from app.schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
 from app.core.database import get_db

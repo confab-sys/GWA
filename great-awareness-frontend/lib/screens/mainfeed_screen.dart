@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'post_detail_screen.dart';
 import 'admin_posting_screen.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
+import '../models/content.dart';
 
 class MainFeedScreen extends StatefulWidget {
   const MainFeedScreen({super.key});
@@ -12,32 +15,20 @@ class MainFeedScreen extends StatefulWidget {
 }
 
 class _MainFeedScreenState extends State<MainFeedScreen> {
-  final List<Map<String, dynamic>> _posts = [];
-  final List<Map<String, dynamic>> _filteredPosts = [];
+  final List<Content> _posts = [];
+  final List<Content> _filteredPosts = [];
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = false;
   bool _showSearch = false;
   final AuthService _authService = AuthService();
+  final ApiService _apiService = ApiService();
 
   final List<String> _psychologyTopics = [
     'Addictions',
     'Relationships', 
     'Trauma',
     'Emotional Intelligence'
-  ];
-
-  final List<String> _sampleContent = [
-    'Understanding the psychology behind addiction and recovery processes.',
-    'Building healthy relationships through effective communication.',
-    'Healing from trauma: A journey towards mental wellness.',
-    'Developing emotional intelligence for better life management.',
-    'The science of addiction: How our brains respond to substances.',
-    'Navigating relationship challenges with psychological insights.',
-    'Trauma-informed care: Approaches to healing and growth.',
-    'Emotional regulation techniques for everyday life.',
-    'Breaking free from addictive patterns through mindfulness.',
-    'The role of attachment in adult relationships.'
   ];
 
   @override
@@ -77,88 +68,89 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       } else {
         _filteredPosts.clear();
         _filteredPosts.addAll(_posts.where((post) => 
-          post['title'].toLowerCase().contains(query) ||
-          post['content'].toLowerCase().contains(query) ||
-          post['topic'].toLowerCase().contains(query)
+          post.title.toLowerCase().contains(query) ||
+          post.body.toLowerCase().contains(query) ||
+          post.topic.toLowerCase().contains(query)
         ));
       }
     });
   }
 
-  void _loadInitialPosts() {
+  Future<void> _loadInitialPosts() async {
     setState(() {
       _isLoading = true;
     });
 
-    Future.delayed(const Duration(seconds: 1), () {
-      final newPosts = _generatePosts(10);
+    try {
+      // Get current user and token
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.currentUser?.token;
+      
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      // Fetch posts from backend
+      final posts = await _apiService.fetchFeed(token);
+      
       setState(() {
-        _posts.addAll(newPosts);
-        _filteredPosts.addAll(newPosts);
+        _posts.clear();
+        _filteredPosts.clear();
+        _posts.addAll(posts);
+        _filteredPosts.addAll(posts);
         _isLoading = false;
       });
-    });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading posts: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      
+      // Don't fallback to mock data - just show error
+      print('Failed to load posts: $e');
+    }
   }
 
-  void _loadMorePosts() {
+  Future<void> _loadMorePosts() async {
     if (_isLoading) return;
     
     setState(() {
       _isLoading = true;
     });
 
-    Future.delayed(const Duration(seconds: 2), () {
-      final newPosts = _generatePosts(5);
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.currentUser?.token;
+      
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      // Fetch more posts from backend with pagination
+      final morePosts = await _apiService.fetchFeed(token, skip: _posts.length);
+      
       setState(() {
-        _posts.addAll(newPosts);
+        _posts.addAll(morePosts);
         if (_searchController.text.isEmpty) {
-          _filteredPosts.addAll(newPosts);
+          _filteredPosts.addAll(morePosts);
         }
         _isLoading = false;
       });
-    });
-  }
-
-  List<Map<String, dynamic>> _generatePosts(int count) {
-    final posts = <Map<String, dynamic>>[];
-    final random = DateTime.now().millisecond;
-    
-    // Available psychology images for posts
-    final postImages = [
-      'assets/images/The power within, the secret behind emotions that you didnt know.png',
-      'assets/images/Unlocking the primal brainThe hidden force shaping your thoughts and emotions.png',
-      'assets/images/no more confusion, the real reason why you avent found your calling yet.png',
-      null, // Some posts will be text-only
-      'assets/images/main logo man.png',
-      null,
-    ];
-    
-    for (int i = 0; i < count; i++) {
-      final topicIndex = (random + i) % _psychologyTopics.length;
-      final contentIndex = (random + i) % _sampleContent.length;
-      final hoursAgo = (random + i) % 24 + 1;
-      final imageIndex = (random + i) % postImages.length;
-      final isTextOnly = postImages[imageIndex] == null;
-      
-      posts.add({
-        'id': 'post_${_posts.length + i}',
-        'title': '${_psychologyTopics[topicIndex]}: ${_sampleContent[contentIndex].split(' ').take(3).join(' ')}',
-        'content': _sampleContent[contentIndex],
-        'topic': _psychologyTopics[topicIndex],
-        'likes': (random + i) % 100 + 5,
-        'comments': (random + i) % 50 + 2,
-        'isLiked': false,
-        'isSaved': false,
-        'timestamp': DateTime.now().subtract(Duration(hours: hoursAgo)),
-        'author': 'Dr. Sarah Johnson',
-        'authorAvatar': 'assets/images/main logo man.png',
-        'image': postImages[imageIndex],
-        'isTextOnly': isTextOnly,
-        'postType': isTextOnly ? 'text' : 'image'
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
       });
+      print('Failed to load more posts: $e');
     }
-    
-    return posts;
   }
 
   String _formatTimestamp(DateTime timestamp) {
@@ -178,23 +170,37 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
 
   void _toggleLike(int index) {
     setState(() {
-      final post = _filteredPosts[index];
-      post['isLiked'] = !post['isLiked'];
-      post['likes'] += post['isLiked'] ? 1 : -1;
+      // For now, just update the local state
+      // In a real implementation, you would call an API to update the like status
+      // final post = _filteredPosts[index]; // Commented out for now
+      // This would need to be implemented with proper like tracking
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Like functionality will be implemented soon!')),
+        );
+      }
     });
   }
 
   void _toggleSave(int index) {
     setState(() {
-      _filteredPosts[index]['isSaved'] = !_filteredPosts[index]['isSaved'];
+      // For now, just show a snackbar
+      // In a real implementation, you would call an API to save/unsave the post
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Save functionality will be implemented soon!')),
+        );
+      }
     });
   }
 
   void _sharePost(int index) {
     final post = _filteredPosts[index];
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sharing: ${post["title"]}')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sharing: ${post.title}')),
+      );
+    }
   }
 
   void _navigateToAdminPosting() async {
@@ -206,7 +212,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     );
     
     // If a new post was created, add it to the feed
-    if (result != null && result is Map<String, dynamic>) {
+    if (result != null && result is Content) {
       setState(() {
         _posts.insert(0, result);
         _filterPosts();
@@ -231,7 +237,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Comments on ${post["title"]}',
+              'Comments on ${post.title}',
               style: GoogleFonts.judson(
                 textStyle: const TextStyle(
                   fontSize: 18,
@@ -242,7 +248,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                itemCount: 3,
+                itemCount: post.commentsCount,
                 itemBuilder: (context, commentIndex) => Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Padding(
@@ -261,7 +267,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'This is a great insight about ${post["topic"].toLowerCase()}. Very helpful!',
+                          'This is a great insight about ${post.topic.toLowerCase()}. Very helpful!',
                           style: GoogleFonts.judson(),
                         ),
                       ],
@@ -301,7 +307,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     );
   }
 
-  void _openPostDetail(Map<String, dynamic> post, int index) {
+  void _openPostDetail(Content post, int index) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -457,7 +463,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                       ),
                                     ),
                                     child: CircleAvatar(
-                                      backgroundImage: AssetImage(post['authorAvatar']),
+                                      backgroundImage: AssetImage(post.authorAvatar ?? 'assets/images/main logo man.png'),
                                       radius: 22,
                                       backgroundColor: Colors.white,
                                     ),
@@ -468,7 +474,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          post['author'],
+                                          post.authorName,
                                           style: GoogleFonts.judson(
                                             textStyle: const TextStyle(
                                               fontWeight: FontWeight.bold,
@@ -480,7 +486,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                         Row(
                                           children: [
                                             Text(
-                                              _formatTimestamp(post['timestamp']),
+                                              _formatTimestamp(post.createdAt),
                                               style: GoogleFonts.judson(
                                                 textStyle: const TextStyle(
                                                   color: Colors.grey,
@@ -496,7 +502,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                                 borderRadius: BorderRadius.circular(10),
                                               ),
                                               child: Text(
-                                                post['topic'],
+                                                post.topic,
                                                 style: GoogleFonts.judson(
                                                   textStyle: const TextStyle(
                                                     fontSize: 11,
@@ -553,7 +559,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                             ),
                             
                             // Post Image (if available)
-                            if (!post['isTextOnly'] && post['image'] != null) ...[
+                            if (!post.isTextOnly && post.imagePath != null) ...[
                               Container(
                                 height: 200,
                                 width: double.infinity,
@@ -561,7 +567,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                   image: DecorationImage(
-                                    image: AssetImage(post['image']),
+                                    image: AssetImage(post.imagePath!),
                                     fit: BoxFit.cover,
                                   ),
                                 ),
@@ -577,7 +583,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                 children: [
                                   // Post Title
                                   Text(
-                                    post['title'],
+                                    post.title,
                                     style: GoogleFonts.judson(
                                       textStyle: const TextStyle(
                                         fontSize: 18,
@@ -588,10 +594,10 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                     ),
                                   ),
                                   
-                                  if (post['content'] != null && post['content'].isNotEmpty) ...[
+                                  if (post.body.isNotEmpty) ...[
                                     const SizedBox(height: 8),
                                     Text(
-                                      post['content'],
+                                      post.body,
                                       style: GoogleFonts.judson(
                                         textStyle: const TextStyle(
                                           fontSize: 14,
@@ -599,7 +605,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                           color: Colors.black54,
                                         ),
                                       ),
-                                      maxLines: post['isTextOnly'] ? 4 : 3,
+                                      maxLines: post.isTextOnly ? 4 : 3,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
@@ -632,17 +638,17 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                       child: Row(
                                         children: [
                                           Icon(
-                                            post['isLiked'] ? Icons.favorite : Icons.favorite_border,
-                                            color: post['isLiked'] ? Colors.red : Colors.grey,
+                                            Icons.favorite_border,
+                                            color: Colors.grey,
                                             size: 20,
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
-                                            '${post["likes"]}',
+                                            '${post.likesCount}',
                                             style: GoogleFonts.judson(
-                                              textStyle: TextStyle(
-                                                color: post['isLiked'] ? Colors.red : Colors.grey,
-                                                fontWeight: post['isLiked'] ? FontWeight.w600 : FontWeight.normal,
+                                              textStyle: const TextStyle(
+                                                color: Colors.grey,
+                                                fontWeight: FontWeight.normal,
                                               ),
                                             ),
                                           ),
@@ -666,7 +672,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
-                                            '${post["comments"]}',
+                                            '${post.commentsCount}',
                                             style: GoogleFonts.judson(
                                               textStyle: const TextStyle(
                                                 color: Colors.grey,
@@ -711,8 +717,8 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                       child: Icon(
-                                        post['isSaved'] ? Icons.bookmark : Icons.bookmark_border,
-                                        color: post['isSaved'] ? const Color(0xFFD3E4DE) : Colors.grey,
+                                        Icons.bookmark_border,
+                                        color: Colors.grey,
                                         size: 20,
                                       ),
                                     ),

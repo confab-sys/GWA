@@ -171,13 +171,13 @@ class _SignupScreenState extends State<SignupScreen> {
           Navigator.of(context).pushReplacementNamed('/login1');
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create account. Please try again.')),
-        );
+        // This shouldn't happen if the API service is working correctly
+        throw Exception('Account creation failed - no user data returned');
       }
     } catch (e) {
+      print('Signup error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
   }

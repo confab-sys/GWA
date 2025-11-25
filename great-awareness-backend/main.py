@@ -6,9 +6,11 @@ import logging
 
 from app.core.config import settings
 from app.core.database import engine, Base, get_db, init_db, check_db_connection
+# Import models in dependency order (Content before User due to relationships)
+from app.models.content_model import Content
 from app.models.user_model import User
 from app.schemas.user_schema import UserCreate, UserResponse
-from app.routes import auth_routes
+from app.routes import auth_routes, content_routes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO if settings.debug else logging.WARNING)
@@ -34,6 +36,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["authentication"])
+app.include_router(content_routes.router, prefix="/api/content", tags=["content"])
 
 @app.on_event("startup")
 async def startup_event():

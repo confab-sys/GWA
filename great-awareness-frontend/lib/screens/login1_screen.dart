@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'feed_screen.dart';
 import '../services/api_service.dart';
-import '../models/user.dart';
+import '../services/auth_service.dart';
+
 
 class Login1Screen extends StatefulWidget {
   const Login1Screen({super.key});
@@ -44,17 +46,30 @@ class _Login1ScreenState extends State<Login1Screen> {
       );
 
       if (user != null && mounted) {
-        // Login successful, navigate to home
+        // Login successful - update AuthService
+        print('Login successful, updating AuthService...');
+        final authService = Provider.of<AuthService>(context, listen: false);
+        authService.login(user);
+        
+        // Navigate to home
+        print('Navigating to home...');
+        // Temporarily disable subscription popup to test if that's the issue
         FeedScreen.setShowSubscriptionPopup(true);
-        Navigator.of(context).pushReplacementNamed('/home');
+        Navigator.of(context).pushReplacementNamed('/home').then((_) {
+          print('Navigation to home completed');
+        }).catchError((error) {
+          print('Navigation error: $error');
+        });
       } else {
+        print('Login failed: user is null');
         setState(() {
           _errorMessage = 'Invalid email or password';
         });
       }
     } catch (e) {
+      print('Login exception: $e');
       setState(() {
-        _errorMessage = 'Login failed. Please try again.';
+        _errorMessage = 'Login failed: ${e.toString()}';
       });
     } finally {
       if (mounted) {

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 class AdminPostingScreen extends StatefulWidget {
   const AdminPostingScreen({super.key});
@@ -51,52 +54,74 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
         _isLoading = true;
       });
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+      try {
+        // Get current user and token
+        final authService = Provider.of<AuthService>(context, listen: false);
+        final token = authService.currentUser?.token;
+        
+        if (token == null) {
+          throw Exception('No authentication token found');
+        }
 
-      // Create post data matching the main feed format
-      final newPost = {
-        'id': 'post_admin_${DateTime.now().millisecondsSinceEpoch}',
-        'title': _titleController.text,
-        'content': _contentController.text,
-        'topic': _selectedTopic,
-        'likes': 0,
-        'comments': 0,
-        'isLiked': false,
-        'isSaved': false,
-        'timestamp': DateTime.now(),
-        'author': _authorController.text.isEmpty ? 'Admin' : _authorController.text,
-        'authorAvatar': 'assets/images/main logo man.png',
-        'image': _selectedPostType == 'image' ? _selectedImagePath : null,
-        'isTextOnly': _selectedPostType == 'text',
-        'postType': _selectedPostType,
-      };
+        // Create content using API service
+        final apiService = ApiService();
+        final newContent = await apiService.createContent(
+          token,
+          title: _titleController.text,
+          body: _contentController.text,
+          topic: _selectedTopic,
+          postType: _selectedPostType,
+          imagePath: _selectedPostType == 'image' ? _selectedImagePath : null,
+          isTextOnly: _selectedPostType == 'text',
+          status: 'published',
+        );
 
-      setState(() {
-        _isLoading = false;
-      });
+        setState(() {
+          _isLoading = false;
+        });
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Post created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        if (newContent != null) {
+          // Show success message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Post created successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
 
-      // Clear form
-      _formKey.currentState!.reset();
-      _titleController.clear();
-      _contentController.clear();
-      _authorController.clear();
-      setState(() {
-        _selectedImagePath = null;
-        _selectedPostType = 'text';
-        _selectedTopic = 'Addictions';
-      });
+          // Clear form
+          _formKey.currentState!.reset();
+          _titleController.clear();
+          _contentController.clear();
+          _authorController.clear();
+          setState(() {
+            _selectedImagePath = null;
+            _selectedPostType = 'text';
+            _selectedTopic = 'Addictions';
+          });
 
-      // Return to previous screen
-      Navigator.pop(context, newPost);
+          // Return to previous screen with the created content
+          Navigator.pop(context, newContent);
+        } else {
+          throw Exception('Failed to create content');
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Show error message
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error creating post: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+      }
     }
   }
 
@@ -164,7 +189,7 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
             ),
           ],
         );
@@ -214,7 +239,6 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedTopic,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
@@ -267,7 +291,6 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedPostType,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
