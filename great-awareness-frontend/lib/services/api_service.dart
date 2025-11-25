@@ -195,4 +195,65 @@ class ApiService {
     );
     return res.statusCode == 204;
   }
+
+  Future<Content?> likeContent(String token, int contentId) async {
+    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/like');
+    final res = await _client.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return Content.fromJson(data as Map<String, dynamic>);
+    }
+    return null;
+  }
+
+  Future<Content?> unlikeContent(String token, int contentId) async {
+    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/unlike');
+    final res = await _client.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return Content.fromJson(data as Map<String, dynamic>);
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> createComment(String token, int contentId, String text) async {
+    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/comments');
+    final res = await _client.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'text': text}),
+    );
+    
+    if (res.statusCode == 201) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>?> getComments(String token, int contentId, {int skip = 0}) async {
+    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/comments?skip=$skip');
+    final res = await _client.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      final items = data['items'] ?? [];
+      return List<Map<String, dynamic>>.from(items.map((item) => item as Map<String, dynamic>));
+    }
+    return null;
+  }
 }

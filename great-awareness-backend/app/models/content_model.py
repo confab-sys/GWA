@@ -41,6 +41,7 @@ class Content(Base):
     
     # Relationships
     creator = relationship("User", back_populates="created_contents")
+    comments = relationship("Comment", back_populates="content", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Content(id={self.id}, title='{self.title}', topic='{self.topic}', status='{self.status}')>"

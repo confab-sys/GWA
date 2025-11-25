@@ -36,6 +36,7 @@ class User(Base):
     
     # Relationships
     created_contents = relationship("Content", back_populates="creator")
+    comments = relationship("Comment", back_populates="user")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}', role='{self.role}')>"

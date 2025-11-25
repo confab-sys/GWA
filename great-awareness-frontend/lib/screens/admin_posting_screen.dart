@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 
@@ -19,6 +23,8 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
   String _selectedTopic = 'Addictions';
   String _selectedPostType = 'text';
   String? _selectedImagePath;
+  Uint8List? _selectedImageBytes; // For web image data
+  bool _isDeviceImage = false; // Track if image is from device or assets
   bool _isLoading = false;
 
   final List<String> _psychologyTopics = [
@@ -50,6 +56,17 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
 
   Future<void> _submitPost() async {
     if (_formKey.currentState!.validate()) {
+      // Validate image selection for image posts
+      if (_selectedPostType == 'image' && _selectedImagePath == null && _selectedImageBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select an image for your post'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _isLoading = true;
       });
@@ -63,6 +80,10 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
           throw Exception('No authentication token found');
         }
 
+        // For device images, we might need to upload them first
+        // For now, we'll pass the path as is - the backend should handle it
+        String? finalImagePath = _selectedPostType == 'image' ? _selectedImagePath : null;
+
         // Create content using API service
         final apiService = ApiService();
         final newContent = await apiService.createContent(
@@ -71,7 +92,7 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
           body: _contentController.text,
           topic: _selectedTopic,
           postType: _selectedPostType,
-          imagePath: _selectedPostType == 'image' ? _selectedImagePath : null,
+          imagePath: finalImagePath,
           isTextOnly: _selectedPostType == 'text',
           status: 'published',
         );
@@ -98,6 +119,8 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
           _authorController.clear();
           setState(() {
             _selectedImagePath = null;
+            _selectedImageBytes = null; // Clear image bytes
+            _isDeviceImage = false;
             _selectedPostType = 'text';
             _selectedTopic = 'Addictions';
           });
@@ -126,74 +149,170 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
   }
 
   void _selectImage() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Select Image',
-            style: GoogleFonts.judson(
-              textStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Select Image Source',
+              style: GoogleFonts.judson(
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-          content: Container(
-            width: double.maxFinite,
-            child: GridView.builder(
-              shrinkWrap: true,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1,
-              ),
-              itemCount: _availableImages.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedImagePath = _availableImages[index];
-                    });
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: _selectedImagePath == _availableImages[index]
-                            ? Colors.blue
-                            : Colors.grey,
-                        width: _selectedImagePath == _availableImages[index] ? 3 : 1,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.asset(
-                        _availableImages[index],
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.image, size: 40),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                );
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: Text('Choose from Gallery', style: GoogleFonts.judson()),
+              onTap: () async {
+                Navigator.pop(context);
+                await _pickImageFromGallery();
               },
             ),
-          ),
-          actions: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: Text('Take a Photo', style: GoogleFonts.judson()),
+              onTap: () async {
+                Navigator.pop(context);
+                await _pickImageFromCamera();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder),
+              title: Text('Choose from App Assets', style: GoogleFonts.judson()),
+              onTap: () {
+                Navigator.pop(context);
+                _showAssetImageSelector();
+              },
+            ),
+            const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
           ],
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImageFromGallery() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    
+    if (image != null) {
+      if (kIsWeb) {
+        // On web, read the image bytes
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImagePath = null; // Clear path for web
+          _isDeviceImage = true;
+        });
+      } else {
+        // On mobile/desktop, use the file path
+        setState(() {
+          _selectedImagePath = image.path;
+          _selectedImageBytes = null; // Clear bytes for mobile
+          _isDeviceImage = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+    
+    if (image != null) {
+      if (kIsWeb) {
+        // On web, read the image bytes
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImagePath = null; // Clear path for web
+          _isDeviceImage = true;
+        });
+      } else {
+        // On mobile/desktop, use the file path
+        setState(() {
+          _selectedImagePath = image.path;
+          _selectedImageBytes = null; // Clear bytes for mobile
+          _isDeviceImage = true;
+        });
+      }
+    }
+  }
+
+  void _showAssetImageSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Select App Image',
+          style: GoogleFonts.judson(),
+        ),
+        content: SizedBox(
+          width: double.infinity,
+          height: 300,
+          child: GridView.builder(
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 1,
+            ),
+            itemCount: _availableImages.length,
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedImagePath = _availableImages[index];
+                    _isDeviceImage = false;
+                  });
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: _selectedImagePath == _availableImages[index]
+                          ? Colors.blue
+                          : Colors.grey,
+                      width: _selectedImagePath == _availableImages[index] ? 3 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.asset(
+                      _availableImages[index],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.image, size: 40),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -321,6 +440,8 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
                     _selectedPostType = value!;
                     if (value == 'text') {
                       _selectedImagePath = null;
+                      _selectedImageBytes = null; // Clear image bytes
+                      _isDeviceImage = false;
                     }
                   });
                 },
@@ -349,20 +470,49 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.grey[300]!),
                     ),
-                    child: _selectedImagePath != null
+                    child: (_selectedImagePath != null || _selectedImageBytes != null)
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(6),
-                            child: Image.asset(
-                              _selectedImagePath!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.broken_image, size: 40),
-                                );
-                              },
-                            ),
+                            child: _isDeviceImage
+                                ? (kIsWeb && _selectedImageBytes != null
+                                    ? Image.memory(
+                                        _selectedImageBytes!,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.broken_image, size: 40),
+                                          );
+                                        },
+                                      )
+                                    : (!kIsWeb && _selectedImagePath != null
+                                        ? Image.file(
+                                            File(_selectedImagePath!),
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Container(
+                                                color: Colors.grey[200],
+                                                child: const Icon(Icons.broken_image, size: 40),
+                                              );
+                                            },
+                                          )
+                                        : Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.broken_image, size: 40),
+                                          )))
+                                : Image.asset(
+                                    _selectedImagePath!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[200],
+                                        child: const Icon(Icons.broken_image, size: 40),
+                                      );
+                                    },
+                                  ),
                           )
                         : Center(
                             child: Column(

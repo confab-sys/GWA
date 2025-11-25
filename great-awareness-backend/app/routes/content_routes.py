@@ -5,7 +5,9 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user_model import User
 from app.models.content_model import Content
+from app.models.comment_model import Comment
 from app.schemas.content_schema import ContentCreate, ContentUpdate, ContentResponse, ContentListResponse
+from app.schemas.comment_schema import CommentCreate, CommentResponse, CommentListResponse
 from datetime import datetime
 
 router = APIRouter()
@@ -211,3 +213,104 @@ async def unlike_content(
     db.refresh(content)
     
     return content
+
+
+# Comment endpoints
+@router.post("/{content_id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+async def create_comment(
+    content_id: int,
+    comment: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create a comment on content"""
+    # Verify content exists
+    content = db.query(Content).filter(Content.id == content_id).first()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content not found"
+        )
+    
+    # Create new comment
+    new_comment = Comment(
+        content_id=content_id,
+        user_id=current_user.id,
+        text=comment.text
+    )
+    
+    db.add(new_comment)
+    
+    # Increment comment count
+    content.comments_count += 1
+    
+    db.commit()
+    db.refresh(new_comment)
+    
+    return new_comment
+
+
+@router.get("/{content_id}/comments", response_model=CommentListResponse)
+async def get_comments(
+    content_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get comments for content"""
+    # Verify content exists
+    content = db.query(Content).filter(Content.id == content_id).first()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Content not found"
+        )
+    
+    # Get comments with pagination
+    query = db.query(Comment).filter(Comment.content_id == content_id)
+    total = query.count()
+    comments = query.order_by(Comment.created_at.desc()).offset(skip).limit(limit).all()
+    
+    return CommentListResponse(
+        items=[comment.to_dict() for comment in comments],
+        total=total,
+        page=skip // limit + 1,
+        size=limit,
+        has_next=(skip + limit) < total,
+        has_prev=skip > 0
+    )
+
+
+@router.delete("/{content_id}/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_comment(
+    content_id: int,
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a comment (requires ownership or admin role)"""
+    comment = db.query(Comment).filter(
+        Comment.id == comment_id,
+        Comment.content_id == content_id
+    ).first()
+    
+    if not comment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Comment not found"
+        )
+    
+    # Check permissions
+    if not (current_user.is_admin or comment.user_id == current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to delete this comment"
+        )
+    
+    # Decrement comment count
+    content = db.query(Content).filter(Content.id == content_id).first()
+    if content:
+        content.comments_count = max(0, content.comments_count - 1)
+    
+    db.delete(comment)
+    db.commit()

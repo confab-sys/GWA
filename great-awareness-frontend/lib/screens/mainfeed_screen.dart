@@ -23,6 +23,9 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
   bool _showSearch = false;
   final AuthService _authService = AuthService();
   final ApiService _apiService = ApiService();
+  final Set<int> _likedPosts = {}; // Track locally liked posts
+  final Map<int, List<dynamic>> _postComments = {}; // Cache comments for each post
+  final Map<int, bool> _loadingComments = {}; // Track loading state for each post
 
   final List<String> _psychologyTopics = [
     'Addictions',
@@ -40,6 +43,140 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     
     // Mock admin login for testing - remove this in production
     _authService.mockAdminLogin();
+  }
+
+  Future<void> _loadComments(int postId) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.currentUser?.token;
+    
+    if (token == null) return;
+    
+    setState(() {
+      _loadingComments[postId] = true;
+    });
+    
+    try {
+      final comments = await _apiService.getComments(token, postId);
+      if (mounted) {
+        setState(() {
+          _postComments[postId] = comments ?? [];
+          _loadingComments[postId] = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingComments[postId] = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading comments: ${e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _addComment(int postId, String text) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.currentUser?.token;
+    
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to add comments'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    
+    try {
+      final newComment = await _apiService.createComment(token, postId, text);
+      if (newComment != null && mounted) {
+        // Add the new comment to the cache
+        setState(() {
+          if (_postComments[postId] == null) {
+            _postComments[postId] = [];
+          }
+          _postComments[postId]!.add(newComment);
+          
+          // Update the comment count in the post
+          final postIndex = _posts.indexWhere((p) => p.id == postId);
+          if (postIndex != -1) {
+            _posts[postIndex] = Content(
+              id: _posts[postIndex].id,
+              title: _posts[postIndex].title,
+              body: _posts[postIndex].body,
+              topic: _posts[postIndex].topic,
+              postType: _posts[postIndex].postType,
+              imagePath: _posts[postIndex].imagePath,
+              isTextOnly: _posts[postIndex].isTextOnly,
+              authorName: _posts[postIndex].authorName,
+              authorAvatar: _posts[postIndex].authorAvatar,
+              likesCount: _posts[postIndex].likesCount,
+              commentsCount: _posts[postIndex].commentsCount + 1,
+              status: _posts[postIndex].status,
+              isFeatured: _posts[postIndex].isFeatured,
+              createdAt: _posts[postIndex].createdAt,
+              updatedAt: _posts[postIndex].updatedAt,
+              publishedAt: _posts[postIndex].publishedAt,
+              createdBy: _posts[postIndex].createdBy,
+            );
+            
+            final filteredIndex = _filteredPosts.indexWhere((p) => p.id == postId);
+            if (filteredIndex != -1) {
+              _filteredPosts[filteredIndex] = Content(
+                id: _filteredPosts[filteredIndex].id,
+                title: _filteredPosts[filteredIndex].title,
+                body: _filteredPosts[filteredIndex].body,
+                topic: _filteredPosts[filteredIndex].topic,
+                postType: _filteredPosts[filteredIndex].postType,
+                imagePath: _filteredPosts[filteredIndex].imagePath,
+                isTextOnly: _filteredPosts[filteredIndex].isTextOnly,
+                authorName: _filteredPosts[filteredIndex].authorName,
+                authorAvatar: _filteredPosts[filteredIndex].authorAvatar,
+                likesCount: _filteredPosts[filteredIndex].likesCount,
+                commentsCount: _filteredPosts[filteredIndex].commentsCount + 1,
+                status: _filteredPosts[filteredIndex].status,
+                isFeatured: _filteredPosts[filteredIndex].isFeatured,
+                createdAt: _filteredPosts[filteredIndex].createdAt,
+                updatedAt: _filteredPosts[filteredIndex].updatedAt,
+                publishedAt: _filteredPosts[filteredIndex].publishedAt,
+                createdBy: _filteredPosts[filteredIndex].createdBy,
+              );
+            }
+          }
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comment added successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding comment: ${e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  String _formatCommentTime(String? createdAt) {
+    if (createdAt == null) return '';
+    
+    try {
+      final dateTime = DateTime.parse(createdAt);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+      
+      if (difference.inDays > 0) {
+        return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      return '';
+    }
   }
 
   @override
@@ -168,18 +305,71 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     }
   }
 
-  void _toggleLike(int index) {
-    setState(() {
-      // For now, just update the local state
-      // In a real implementation, you would call an API to update the like status
-      // final post = _filteredPosts[index]; // Commented out for now
-      // This would need to be implemented with proper like tracking
+  void _toggleLike(int index) async {
+    final post = _filteredPosts[index];
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.currentUser?.token;
+    
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to like posts'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      Content? updatedPost;
+      
+      if (_likedPosts.contains(post.id)) {
+        // Unlike the post
+        updatedPost = await _apiService.unlikeContent(token, post.id);
+        if (updatedPost != null && mounted) {
+          setState(() {
+            _likedPosts.remove(post.id);
+            _posts[_posts.indexWhere((p) => p.id == post.id)] = updatedPost!;
+            _filteredPosts[index] = updatedPost!;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Post unliked!'),
+              backgroundColor: Colors.grey,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      } else {
+        // Like the post
+        updatedPost = await _apiService.likeContent(token, post.id);
+        if (updatedPost != null && mounted) {
+          setState(() {
+            _likedPosts.add(post.id);
+            _posts[_posts.indexWhere((p) => p.id == post.id)] = updatedPost!;
+            _filteredPosts[index] = updatedPost!;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Post liked!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Like functionality will be implemented soon!')),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    });
+    }
   }
 
   void _toggleSave(int index) {
@@ -229,79 +419,119 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
 
   void _showComments(int index) {
     final post = _filteredPosts[index];
+    final TextEditingController commentController = TextEditingController();
+    
+    // Load comments when the modal opens
+    _loadComments(post.id);
+    
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Comments on ${post.title}',
-              style: GoogleFonts.judson(
-                textStyle: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+      isScrollControlled: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: const EdgeInsets.all(16),
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Comments on ${post.title}',
+                style: GoogleFonts.judson(
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: post.commentsCount,
-                itemBuilder: (context, commentIndex) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'User ${commentIndex + 1}',
-                          style: GoogleFonts.judson(
-                            textStyle: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+              const SizedBox(height: 16),
+              Expanded(
+                child: _loadingComments[post.id] == true
+                    ? const Center(child: CircularProgressIndicator())
+                    : _postComments[post.id]?.isEmpty ?? true
+                        ? Center(
+                            child: Text(
+                              'No comments yet. Be the first to comment!',
+                              style: GoogleFonts.judson(
+                                textStyle: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
+                          )
+                        : ListView.builder(
+                            itemCount: _postComments[post.id]?.length ?? 0,
+                            itemBuilder: (context, commentIndex) {
+                              final comment = _postComments[post.id]![commentIndex];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        comment['user']?['username'] ?? 'Anonymous',
+                                        style: GoogleFonts.judson(
+                                          textStyle: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        comment['text'] ?? '',
+                                        style: GoogleFonts.judson(),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatCommentTime(comment['created_at']),
+                                        style: GoogleFonts.judson(
+                                          textStyle: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'This is a great insight about ${post.topic.toLowerCase()}. Very helpful!',
-                          style: GoogleFonts.judson(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Add a comment...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: commentController,
+                      decoration: InputDecoration(
+                        hintText: 'Add a comment...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
+                      style: GoogleFonts.judson(),
                     ),
-                    style: GoogleFonts.judson(),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Comment added!')),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.send),
+                    onPressed: () async {
+                      if (commentController.text.trim().isNotEmpty) {
+                        await _addComment(post.id, commentController.text.trim());
+                        commentController.clear();
+                        // Reload comments and update modal state
+                        await _loadComments(post.id);
+                        setModalState(() {});
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -638,8 +868,8 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                       child: Row(
                                         children: [
                                           Icon(
-                                            Icons.favorite_border,
-                                            color: Colors.grey,
+                                            _likedPosts.contains(post.id) ? Icons.favorite : Icons.favorite_border,
+                                            color: _likedPosts.contains(post.id) ? Colors.red : Colors.grey,
                                             size: 20,
                                           ),
                                           const SizedBox(width: 6),
