@@ -290,7 +290,205 @@ class ApiService {
     if (res.statusCode == 200) {
       final data = json.decode(res.body);
       final items = data['items'] ?? [];
-      return List<Map<String, dynamic>>.from(items.map((item) => item as Map<String, dynamic>));
+      
+      // Transform the API data to match the expected format in the main feed
+      return List<Map<String, dynamic>>.from(items.map((comment) => {
+        'id': comment['id'],
+        'text': comment['text'], // API uses 'text', app expects 'text'
+        'user': comment['user'] ?? {'username': 'Anonymous'}, // API uses 'user', app expects 'user'
+        'created_at': comment['created_at'] ?? 'Just now', // API uses 'created_at', app expects 'created_at'
+        'is_anonymous': comment['is_anonymous'] ?? false,
+      }));
+    }
+    return null;
+  }
+
+  // Q&A related methods
+  Future<List<Map<String, dynamic>>?> getQuestions(String token, {int skip = 0, String? category}) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions?skip=$skip${category != null ? '&category=$category' : ''}');
+    final res = await _client.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      final questions = data['questions'] ?? [];
+      
+      // Transform the API data to match the expected format
+      return List<Map<String, dynamic>>.from(questions.map((question) => {
+        'id': question['id'],
+        'category': question['category'],
+        'title': question['title'], // Keep title for the card header
+        'question': question['content'], // API uses 'content', app expects 'question' (full content)
+        'author': question['author_name'], // API uses 'author_name', app expects 'author'
+        'time': question['created_at'], // API uses 'created_at', app expects 'time'
+        'likes': question['likes_count'] ?? 0, // API uses 'likes_count', app expects 'likes'
+        'comments': question['comments_count'] ?? 0, // API uses 'comments_count', app expects 'comments'
+        'isLiked': false, // Default value, could be enhanced with user-specific data
+        'isSaved': false, // Default value, could be enhanced with user-specific data
+        'hasImage': question['has_image'] ?? false, // API uses 'has_image', app expects 'hasImage'
+      }));
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getQuestion(String token, int questionId) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId');
+    final res = await _client.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> likeQuestion(String token, int questionId) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId/like');
+    final res = await _client.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> createQuestionComment(String token, int questionId, String text, {bool isAnonymous = false}) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId/comments');
+    final res = await _client.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'text': text,
+        'is_anonymous': isAnonymous,
+      }),
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>?> getQuestionComments(String token, int questionId, {int page = 1, int perPage = 20}) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId/comments?page=$page&per_page=$perPage');
+    final res = await _client.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      final comments = data['comments'] ?? [];
+      
+      // Transform the API data to match the expected format in the app
+      return List<Map<String, dynamic>>.from(comments.map((comment) => {
+        'id': comment['id'],
+        'comment': comment['text'], // API uses 'text', app expects 'comment'
+        'author': comment['user']?['username'] ?? (comment['is_anonymous'] ? 'Anonymous' : 'Unknown'), // Use actual user data when available
+        'time': comment['created_at'] ?? 'Just now', // API uses 'created_at', app expects 'time'
+        'isAnonymous': comment['is_anonymous'] ?? false,
+      }));
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> createQuestion(String token, {
+    required String title,
+    required String body,
+    String? category,
+    String? imagePath,
+    bool isAnonymous = false,
+  }) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions');
+    final res = await _client.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        'title': title,
+        'content': body,
+        'category': category,
+        'image_path': imagePath,
+        'is_anonymous': isAnonymous,
+      }),
+    );
+    
+    debugPrint('createQuestion response status: ${res.statusCode}');
+    debugPrint('createQuestion response body: ${res.body}');
+    
+    if (res.statusCode == 201 || res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    } else {
+      final errorData = json.decode(res.body);
+      throw Exception('API Error ${res.statusCode}: ${errorData['detail'] ?? 'Unknown error'}');
+    }
+  }
+
+  Future<Map<String, dynamic>?> unlikeQuestion(String token, int questionId) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId/unlike');
+    final res = await _client.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> saveQuestion(String token, int questionId) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId/save');
+    final res = await _client.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> unsaveQuestion(String token, int questionId) async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId/unsave');
+    final res = await _client.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return data as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<List<String>?> getQuestionCategories() async {
+    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/categories');
+    final res = await _client.get(uri);
+    
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body);
+      return List<String>.from(data.map((item) => item as String));
     }
     return null;
   }

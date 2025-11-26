@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import '../services/api_service.dart';
+import '../services/auth_service.dart';
+
 
 class QAScreen extends StatefulWidget {
   const QAScreen({super.key});
@@ -10,64 +14,20 @@ class QAScreen extends StatefulWidget {
 }
 
 class _QAScreenState extends State<QAScreen> {
-  final List<Map<String, dynamic>> _posts = [
-    {
-      'id': 1,
-      'category': 'Addiction',
-      'question': 'How do I help a family member with alcohol addiction?',
-      'author': 'Anonymous User',
-      'time': '2 hours ago',
-      'likes': 15,
-      'comments': 8,
-      'isLiked': false,
-      'isSaved': false,
-      'hasImage': false,
-    },
-    {
-      'id': 2,
-      'category': 'Trauma',
-      'question': 'What are the best coping strategies for childhood trauma?',
-      'author': 'Seeking Help',
-      'time': '5 hours ago',
-      'likes': 23,
-      'comments': 12,
-      'isLiked': true,
-      'isSaved': false,
-      'hasImage': true,
-    },
-    {
-      'id': 3,
-      'category': 'Relationships',
-      'question': 'How to build trust after being cheated on?',
-      'author': 'Heart Broken',
-      'time': '1 day ago',
-      'likes': 31,
-      'comments': 19,
-      'isLiked': false,
-      'isSaved': true,
-      'hasImage': false,
-    },
-    {
-      'id': 4,
-      'category': 'Addiction',
-      'question': 'Is social media addiction real? I can\'t stop scrolling',
-      'author': 'Worried Parent',
-      'time': '2 days ago',
-      'likes': 18,
-      'comments': 6,
-      'isLiked': false,
-      'isSaved': false,
-      'hasImage': false,
-    },
-  ];
-
-  final List<String> _categories = ['All', 'Addiction', 'Trauma', 'Relationships', 'Anxiety', 'Depression'];
+  final ApiService _apiService = ApiService();
+  late List<Map<String, dynamic>> _questions = [];
+  bool _isLoading = true;
   String _selectedCategory = 'All';
 
+  final List<String> _categoryList = ['All', 'Addiction', 'Trauma', 'Relationships', 'Anxiety', 'Depression'];
+
   void _showNewQuestionDialog() {
-    final TextEditingController questionController = TextEditingController();
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController contentController = TextEditingController();
     final TextEditingController categoryController = TextEditingController();
     XFile? selectedImage;
+    bool isAnonymous = false;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
@@ -110,7 +70,7 @@ class _QAScreenState extends State<QAScreen> {
                         child: DropdownButton<String>(
                           value: categoryController.text.isEmpty ? 'Addiction' : categoryController.text,
                           isExpanded: true,
-                          items: _categories.skip(1).map((String category) {
+                          items: _categoryList.skip(1).map((String category) {
                             return DropdownMenuItem<String>(
                               value: category,
                               child: Text(category),
@@ -126,6 +86,46 @@ class _QAScreenState extends State<QAScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
+                      'Question Title',
+                      style: GoogleFonts.judson(
+                        textStyle: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: titleController,
+                      maxLines: 1,
+                      decoration: InputDecoration(
+                        hintText: 'Enter a brief title...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: isAnonymous,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              isAnonymous = value ?? false;
+                            });
+                          },
+                        ),
+                        Text(
+                          'Post anonymously',
+                          style: GoogleFonts.judson(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
                       'Your Question',
                       style: GoogleFonts.judson(
                         textStyle: const TextStyle(fontSize: 14),
@@ -133,7 +133,7 @@ class _QAScreenState extends State<QAScreen> {
                     ),
                     const SizedBox(height: 8),
                     TextField(
-                      controller: questionController,
+                      controller: contentController,
                       maxLines: 4,
                       decoration: InputDecoration(
                         hintText: 'Type your question here...',
@@ -214,28 +214,106 @@ class _QAScreenState extends State<QAScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    if (questionController.text.trim().isNotEmpty) {
-                      _addNewQuestion(
-                        questionController.text.trim(),
-                        categoryController.text.isEmpty ? 'General' : categoryController.text,
-                        selectedImage != null,
-                      );
-                      Navigator.pop(context);
-                    }
-                  },
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          // Store context at the beginning of async function
+                          final currentContext = context;
+                          
+                          if (titleController.text.trim().isNotEmpty && contentController.text.trim().isNotEmpty) {
+                            // Check minimum length for title
+                            if (titleController.text.trim().length < 10) {
+                              ScaffoldMessenger.of(currentContext).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Title must be at least 10 characters long'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              return;
+                            }
+                            
+                            setState(() {
+                              isSubmitting = true;
+                            });
+                            
+                            try {
+                              final authService = Provider.of<AuthService>(context, listen: false);
+                              final user = authService.currentUser;
+                              final token = user?.token;
+                              
+                              if (token != null) {
+                                final titleText = titleController.text;
+                                final contentText = contentController.text;
+                                final categoryText = categoryController.text;
+                                
+                                debugPrint('Posting question with:');
+                                debugPrint('Title: ${titleText.trim()}');
+                                debugPrint('Content: ${contentText.trim()}');
+                                debugPrint('Category: ${categoryText.isEmpty ? 'General' : categoryText}');
+                                debugPrint('Is Anonymous: $isAnonymous');
+                                
+                                await _apiService.createQuestion(
+                                  token,
+                                  title: titleText.trim(),
+                                  body: contentText.trim(),
+                                  category: categoryText.isEmpty ? 'General' : categoryText,
+                                  isAnonymous: isAnonymous,
+                                );
+                                
+                                // Close the dialog first
+                                Navigator.of(currentContext, rootNavigator: true).pop();
+                                
+                                // Then reload questions and show success message
+                                await _loadQuestions();
+                                
+                                if (mounted) {
+                                  ScaffoldMessenger.of(currentContext).showSnackBar(
+                                    const SnackBar(content: Text('Question posted successfully!')),
+                                  );
+                                }
+                              } else {
+                                ScaffoldMessenger.of(currentContext).showSnackBar(
+                                  const SnackBar(content: Text('Please log in to post questions')),
+                                );
+                              }
+                            } catch (e) {
+                              debugPrint('Error posting question: $e');
+                              ScaffoldMessenger.of(currentContext).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to post question: $e'),
+                                  backgroundColor: Colors.red,
+                                  duration: const Duration(seconds: 5),
+                                ),
+                              );
+                            } finally {
+                              setState(() {
+                                isSubmitting = false;
+                              });
+                            }
+                          } else {
+                            ScaffoldMessenger.of(currentContext).showSnackBar(
+                              const SnackBar(content: Text('Please enter both title and question content')),
+                            );
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD3E4DE),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: Text(
-                    'Post Question',
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(color: Colors.black),
-                    ),
-                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(
+                          'Post Question',
+                          style: GoogleFonts.judson(
+                            textStyle: const TextStyle(color: Colors.black),
+                          ),
+                        ),
                 ),
               ],
             );
@@ -245,28 +323,48 @@ class _QAScreenState extends State<QAScreen> {
     );
   }
 
-  void _addNewQuestion(String question, String category, bool hasImage) {
-    setState(() {
-      _posts.insert(0, {
-        'id': _posts.length + 1,
-        'category': category,
-        'question': question,
-        'author': 'You',
-        'time': 'Just now',
-        'likes': 0,
-        'comments': 0,
-        'isLiked': false,
-        'isSaved': false,
-        'hasImage': hasImage,
-      });
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadQuestions();
+  }
+
+  Future<void> _loadQuestions() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = authService.currentUser;
+      final token = user?.token;
+
+      if (token != null) {
+        final questions = await _apiService.getQuestions(token);
+        if (mounted) {
+          setState(() {
+            _questions = questions ?? [];
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading questions: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   List<Map<String, dynamic>> _getFilteredPosts() {
     if (_selectedCategory == 'All') {
-      return _posts;
+      return _questions;
     }
-    return _posts.where((post) => post['category'] == _selectedCategory).toList();
+    return _questions.where((post) => post['category'] == _selectedCategory).toList();
   }
 
   @override
@@ -294,56 +392,58 @@ class _QAScreenState extends State<QAScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Category filter
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _categories.map((category) {
-                  final isSelected = category == _selectedCategory;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(
-                        category,
-                        style: GoogleFonts.judson(
-                          textStyle: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black,
-                            fontSize: 12,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // Category filter
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _categoryList.map((category) {
+                        final isSelected = category == _selectedCategory;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(
+                              category,
+                              style: GoogleFonts.judson(
+                                textStyle: TextStyle(
+                                  color: isSelected ? Colors.white : Colors.black,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: Colors.black,
+                            backgroundColor: Colors.grey[200],
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategory = category;
+                              });
+                            },
                           ),
-                        ),
-                      ),
-                      selected: isSelected,
-                      selectedColor: Colors.black,
-                      backgroundColor: Colors.grey[200],
-                      onSelected: (selected) {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                      },
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
-              ),
+                  ),
+                ),
+                // Posts list
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _getFilteredPosts().length,
+                    itemBuilder: (context, index) {
+                      final post = _getFilteredPosts()[index];
+                      return _buildQuestionCard(post);
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
-          // Posts list
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _getFilteredPosts().length,
-              itemBuilder: (context, index) {
-                final post = _getFilteredPosts()[index];
-                return _buildQuestionCard(post);
-              },
-            ),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showNewQuestionDialog,
         backgroundColor: Colors.black,
@@ -416,11 +516,21 @@ class _QAScreenState extends State<QAScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  post['question'],
+                  post['title'],
                   style: GoogleFonts.judson(
                     textStyle: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  post['question'],
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
                     ),
                   ),
                 ),
@@ -527,17 +637,42 @@ class _QAScreenState extends State<QAScreen> {
     );
   }
 
-  void _toggleLike(int postId) {
-    setState(() {
-      final post = _posts.firstWhere((p) => p['id'] == postId);
-      post['isLiked'] = !post['isLiked'];
-      post['likes'] = post['isLiked'] ? post['likes'] + 1 : post['likes'] - 1;
-    });
+  void _toggleLike(int postId) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.currentUser?.token;
+    
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to like questions'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final result = await _apiService.likeQuestion(token, postId);
+      if (result != null) {
+        setState(() {
+          final post = _questions.firstWhere((p) => p['id'] == postId);
+          post['isLiked'] = result['is_liked'] ?? !post['isLiked'];
+          post['likes'] = result['likes_count'] ?? post['likes'];
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error liking question: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _toggleSave(int postId) {
     setState(() {
-      final post = _posts.firstWhere((p) => p['id'] == postId);
+      final post = _questions.firstWhere((p) => p['id'] == postId);
       post['isSaved'] = !post['isSaved'];
     });
   }
@@ -551,20 +686,31 @@ class _QAScreenState extends State<QAScreen> {
     );
   }
 
-  void _showComments(Map<String, dynamic> post) {
+  void _showComments(Map<String, dynamic> post) async {
     final TextEditingController commentController = TextEditingController();
-    final List<Map<String, dynamic>> comments = [
-      {
-        'author': 'Dr. Sarah',
-        'comment': 'This is a very common concern. I recommend seeking professional help and joining support groups.',
-        'time': '1 hour ago',
-      },
-      {
-        'author': 'Mike Johnson',
-        'comment': 'I went through something similar. Feel free to DM me if you need someone to talk to.',
-        'time': '3 hours ago',
-      },
-    ];
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.currentUser?.token;
+    List<Map<String, dynamic>> comments = [];
+    bool isLoading = true;
+    bool isSubmitting = false;
+
+    // Load comments from API
+    if (token != null) {
+      try {
+        final loadedComments = await _apiService.getQuestionComments(token, post['id']);
+        if (loadedComments != null) {
+          comments = loadedComments;
+        }
+      } catch (e) {
+        debugPrint('Error loading comments: $e');
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
+    }
 
     showModalBottomSheet(
       context: context,
@@ -603,55 +749,69 @@ class _QAScreenState extends State<QAScreen> {
                   const SizedBox(height: 16),
                   // Comments list
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: comments.length,
-                      itemBuilder: (context, index) {
-                        final comment = comments[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[50],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    comment['author'],
-                                    style: GoogleFonts.judson(
-                                      textStyle: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : comments.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No comments yet. Be the first to comment!',
+                                  style: GoogleFonts.judson(
+                                    textStyle: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
                                     ),
                                   ),
-                                  const Spacer(),
-                                  Text(
-                                    comment['time'],
-                                    style: GoogleFonts.judson(
-                                      textStyle: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                comment['comment'],
-                                style: GoogleFonts.judson(
-                                  textStyle: const TextStyle(fontSize: 12),
                                 ),
+                              )
+                            : ListView.builder(
+                                itemCount: comments.length,
+                                itemBuilder: (context, index) {
+                                  final comment = comments[index];
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              comment['author'],
+                                              style: GoogleFonts.judson(
+                                                textStyle: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            Text(
+                                              comment['time'],
+                                              style: GoogleFonts.judson(
+                                                textStyle: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          comment['comment'],
+                                          style: GoogleFonts.judson(
+                                            textStyle: const TextStyle(fontSize: 12),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
                   ),
                   // Comment input
                   Container(
@@ -680,17 +840,58 @@ class _QAScreenState extends State<QAScreen> {
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: const Icon(Icons.send, color: Colors.black),
-                          onPressed: () {
-                            if (commentController.text.trim().isNotEmpty) {
+                          icon: isSubmitting 
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.send, color: Colors.black),
+                          onPressed: isSubmitting ? null : () async {
+                            final commentText = commentController.text.trim();
+                            if (commentText.isNotEmpty && token != null) {
                               setState(() {
-                                comments.add({
-                                  'author': 'You',
-                                  'comment': commentController.text.trim(),
-                                  'time': 'Just now',
-                                });
-                                commentController.clear();
+                                isSubmitting = true;
                               });
+                              
+                              try {
+                                final result = await _apiService.createQuestionComment(
+                                  token, 
+                                  post['id'], 
+                                  commentText,
+                                );
+                                
+                                if (result != null) {
+                                  // Reload comments from API to get the newly created comment
+                                  final updatedComments = await _apiService.getQuestionComments(token, post['id']);
+                                  if (updatedComments != null) {
+                                    setState(() {
+                                      comments = updatedComments;
+                                      commentController.clear();
+                                    });
+                                  }
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error posting comment: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    isSubmitting = false;
+                                  });
+                                }
+                              }
+                            } else if (token == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please login to comment'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
                             }
                           },
                         ),

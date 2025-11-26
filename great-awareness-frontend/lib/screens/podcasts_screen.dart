@@ -1,30 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'podcasts_screen.dart';
-
-class Video {
-  final String id;
-  final String title;
-  final String subtitle;
-  final String category;
-  final String duration;
-  final double watchProgress;
-  final String thumbnailUrl;
-  bool isFavorite;
-  bool isSaved;
-
-  Video({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.category,
-    required this.duration,
-    this.watchProgress = 0.0,
-    required this.thumbnailUrl,
-    this.isFavorite = false,
-    this.isSaved = false,
-  });
-}
 
 class Podcast {
   final String id;
@@ -50,17 +25,14 @@ class Podcast {
   });
 }
 
-class VideoPodcastScreen extends StatefulWidget {
-  const VideoPodcastScreen({super.key});
+class PodcastsScreen extends StatefulWidget {
+  const PodcastsScreen({super.key});
 
   @override
-  State<VideoPodcastScreen> createState() => _VideoPodcastScreenState();
+  State<PodcastsScreen> createState() => _PodcastsScreenState();
 }
 
-class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  List<Video> allVideos = [];
-  List<Video> filteredVideos = [];
+class _PodcastsScreenState extends State<PodcastsScreen> {
   List<Podcast> allPodcasts = [];
   List<Podcast> filteredPodcasts = [];
   TextEditingController searchController = TextEditingController();
@@ -69,109 +41,17 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _initializeVideos();
+    _initializePodcasts();
     searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     searchController.dispose();
     super.dispose();
   }
 
-  void _initializeVideos() {
-    // Sample video data organized by categories
-    allVideos = [
-      // Overcoming Addictions
-      Video(
-        id: '1',
-        title: 'Understanding Addiction Psychology',
-        subtitle: 'Learn the science behind addictive behaviors',
-        category: 'Overcoming Addictions',
-        duration: '15:30',
-        watchProgress: 45.0,
-        thumbnailUrl: 'assets/images/addiction_psychology.jpg',
-      ),
-      Video(
-        id: '2',
-        title: 'Breaking Free from Pornography',
-        subtitle: 'Practical steps to overcome porn addiction',
-        category: 'Overcoming Addictions',
-        duration: '22:15',
-        watchProgress: 80.0,
-        thumbnailUrl: 'assets/images/breaking_free.jpg',
-      ),
-      Video(
-        id: '3',
-        title: 'Building Healthy Habits',
-        subtitle: 'Replace bad habits with positive ones',
-        category: 'Overcoming Addictions',
-        duration: '18:45',
-        watchProgress: 0.0,
-        thumbnailUrl: 'assets/images/healthy_habits.jpg',
-      ),
-      
-      // Healing Trauma
-      Video(
-        id: '4',
-        title: 'Understanding Childhood Trauma',
-        subtitle: 'How early experiences shape adult behavior',
-        category: 'Healing Trauma',
-        duration: '25:20',
-        watchProgress: 30.0,
-        thumbnailUrl: 'assets/images/childhood_trauma.jpg',
-      ),
-      Video(
-        id: '5',
-        title: 'EMDR Therapy Explained',
-        subtitle: 'Effective trauma processing technique',
-        category: 'Healing Trauma',
-        duration: '30:10',
-        watchProgress: 65.0,
-        thumbnailUrl: 'assets/images/emdr_therapy.jpg',
-      ),
-      Video(
-        id: '6',
-        title: 'Self-Compassion Practices',
-        subtitle: 'Healing through kindness to yourself',
-        category: 'Healing Trauma',
-        duration: '12:30',
-        watchProgress: 100.0,
-        thumbnailUrl: 'assets/images/self_compassion.jpg',
-      ),
-      
-      // Relationships
-      Video(
-        id: '7',
-        title: 'Healthy Communication Skills',
-        subtitle: 'Build stronger connections with others',
-        category: 'Relationships',
-        duration: '20:15',
-        watchProgress: 15.0,
-        thumbnailUrl: 'assets/images/communication.jpg',
-      ),
-      Video(
-        id: '8',
-        title: 'Setting Boundaries',
-        subtitle: 'Protect your emotional well-being',
-        category: 'Relationships',
-        duration: '16:40',
-        watchProgress: 0.0,
-        thumbnailUrl: 'assets/images/boundaries.jpg',
-      ),
-      Video(
-        id: '9',
-        title: 'Healing from Heartbreak',
-        subtitle: 'Moving forward after relationship loss',
-        category: 'Relationships',
-        duration: '28:50',
-        watchProgress: 90.0,
-        thumbnailUrl: 'assets/images/heartbreak.jpg',
-      ),
-    ];
-    
+  void _initializePodcasts() {
     // Sample podcast data organized by categories
     allPodcasts = [
       // Overcoming Addictions
@@ -193,10 +73,19 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         listenProgress: 0.0,
         thumbnailUrl: 'assets/images/podcast_cycle.jpg',
       ),
+      Podcast(
+        id: 'p3',
+        title: 'Mindful Recovery',
+        subtitle: 'Mindfulness practices for addiction healing',
+        category: 'Overcoming Addictions',
+        duration: '42:30',
+        listenProgress: 75.0,
+        thumbnailUrl: 'assets/images/podcast_mindful.jpg',
+      ),
       
       // Healing Trauma
       Podcast(
-        id: 'p3',
+        id: 'p4',
         title: 'Trauma-Informed Therapy',
         subtitle: 'Understanding trauma and healing approaches',
         category: 'Healing Trauma',
@@ -205,7 +94,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         thumbnailUrl: 'assets/images/podcast_trauma.jpg',
       ),
       Podcast(
-        id: 'p4',
+        id: 'p5',
         title: 'Inner Child Healing',
         subtitle: 'Reconnecting with your inner child for healing',
         category: 'Healing Trauma',
@@ -213,10 +102,19 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         listenProgress: 100.0,
         thumbnailUrl: 'assets/images/podcast_inner_child.jpg',
       ),
+      Podcast(
+        id: 'p6',
+        title: 'EMDR Insights',
+        subtitle: 'Deep dive into EMDR therapy techniques',
+        category: 'Healing Trauma',
+        duration: '48:45',
+        listenProgress: 30.0,
+        thumbnailUrl: 'assets/images/podcast_emdr.jpg',
+      ),
       
       // Relationships
       Podcast(
-        id: 'p5',
+        id: 'p7',
         title: 'Healthy Relationship Dynamics',
         subtitle: 'Building strong and supportive relationships',
         category: 'Relationships',
@@ -225,7 +123,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         thumbnailUrl: 'assets/images/podcast_relationships.jpg',
       ),
       Podcast(
-        id: 'p6',
+        id: 'p8',
         title: 'Communication in Marriage',
         subtitle: 'Effective communication strategies for couples',
         category: 'Relationships',
@@ -233,26 +131,46 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         listenProgress: 0.0,
         thumbnailUrl: 'assets/images/podcast_marriage.jpg',
       ),
+      Podcast(
+        id: 'p9',
+        title: 'Setting Boundaries',
+        subtitle: 'How to establish healthy boundaries in relationships',
+        category: 'Relationships',
+        duration: '36:15',
+        listenProgress: 85.0,
+        thumbnailUrl: 'assets/images/podcast_boundaries.jpg',
+      ),
+      
+      // Self-Development
+      Podcast(
+        id: 'p10',
+        title: 'Mindset Transformation',
+        subtitle: 'Changing your mindset for personal growth',
+        category: 'Self-Development',
+        duration: '44:20',
+        listenProgress: 45.0,
+        thumbnailUrl: 'assets/images/podcast_mindset.jpg',
+      ),
+      Podcast(
+        id: 'p11',
+        title: 'Building Confidence',
+        subtitle: 'Practical strategies to boost self-confidence',
+        category: 'Self-Development',
+        duration: '39:50',
+        listenProgress: 20.0,
+        thumbnailUrl: 'assets/images/podcast_confidence.jpg',
+      ),
     ];
     
-    filteredVideos = List.from(allVideos);
     filteredPodcasts = List.from(allPodcasts);
   }
 
   void _onSearchChanged() {
     final query = searchController.text.toLowerCase();
     setState(() {
-      // Filter videos
       if (query.isEmpty) {
-        filteredVideos = List.from(allVideos);
         filteredPodcasts = List.from(allPodcasts);
       } else {
-        filteredVideos = allVideos.where((video) {
-          return video.title.toLowerCase().contains(query) ||
-                 video.subtitle.toLowerCase().contains(query) ||
-                 video.category.toLowerCase().contains(query);
-        }).toList();
-        
         filteredPodcasts = allPodcasts.where((podcast) {
           return podcast.title.toLowerCase().contains(query) ||
                  podcast.subtitle.toLowerCase().contains(query) ||
@@ -262,26 +180,16 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       
       // Filter by category if not 'All'
       if (selectedCategory != 'All') {
-        filteredVideos = filteredVideos.where((video) => video.category == selectedCategory).toList();
         filteredPodcasts = filteredPodcasts.where((podcast) => podcast.category == selectedCategory).toList();
       }
     });
   }
 
   List<String> get _categories {
-    final videoCategories = allVideos.map((video) => video.category).toSet();
     final podcastCategories = allPodcasts.map((podcast) => podcast.category).toSet();
-    final allCategories = videoCategories.union(podcastCategories).toList();
+    final allCategories = podcastCategories.toList();
     allCategories.insert(0, 'All');
     return allCategories;
-  }
-
-  Map<String, List<Video>> get _videosByCategory {
-    final Map<String, List<Video>> grouped = {};
-    for (final video in filteredVideos) {
-      grouped.putIfAbsent(video.category, () => []).add(video);
-    }
-    return grouped;
   }
 
   Map<String, List<Podcast>> get _podcastsByCategory {
@@ -300,7 +208,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         backgroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          'Videos & Podcasts',
+          'Podcasts',
           style: GoogleFonts.judson(
             textStyle: const TextStyle(
               color: Colors.black,
@@ -319,7 +227,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                 child: TextField(
                   controller: searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search videos...',
+                    hintText: 'Search podcasts...',
                     hintStyle: GoogleFonts.judson(
                       textStyle: TextStyle(color: Colors.grey[600]),
                     ),
@@ -381,38 +289,21 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   }).toList(),
                 ),
               ),
-              // Tab Bar
-              TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.black,
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.grey[600],
-                tabs: const [
-                  Tab(text: 'Videos'),
-                  Tab(text: 'Podcasts'),
-                ],
-              ),
             ],
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildVideosTab(),
-          _buildPodcastsTab(),
-        ],
-      ),
+      body: _buildPodcastsContent(),
     );
   }
 
-  Widget _buildVideosTab() {
-    final videosByCategory = _videosByCategory;
+  Widget _buildPodcastsContent() {
+    final podcastsByCategory = _podcastsByCategory;
     
-    if (filteredVideos.isEmpty) {
+    if (filteredPodcasts.isEmpty) {
       return Center(
         child: Text(
-          'No videos found',
+          'No podcasts found',
           style: GoogleFonts.judson(
             textStyle: TextStyle(
               color: Colors.grey[600],
@@ -425,10 +316,10 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: videosByCategory.keys.length,
+      itemCount: podcastsByCategory.keys.length,
       itemBuilder: (context, categoryIndex) {
-        final category = videosByCategory.keys.elementAt(categoryIndex);
-        final videos = videosByCategory[category]!;
+        final category = podcastsByCategory.keys.elementAt(categoryIndex);
+        final podcasts = podcastsByCategory[category]!;
         
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -447,16 +338,16 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                 ),
               ),
             ),
-            // Videos Row
+            // Podcasts Row
             SizedBox(
               height: 220,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: videos.length,
-                itemBuilder: (context, videoIndex) {
+                itemCount: podcasts.length,
+                itemBuilder: (context, podcastIndex) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: _buildEnhancedVideoCard(videos[videoIndex]),
+                    child: _buildEnhancedPodcastCard(podcasts[podcastIndex]),
                   );
                 },
               ),
@@ -468,72 +359,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     );
   }
 
-  Widget _buildPodcastsTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.podcasts,
-            size: 64,
-            color: Colors.grey[600],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Explore Our Podcasts',
-            style: GoogleFonts.judson(
-              textStyle: const TextStyle(
-                color: Colors.black,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Discover healing and growth through our podcast collection',
-            style: GoogleFonts.judson(
-              textStyle: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 16,
-              ),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PodcastsScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-            ),
-            child: Text(
-              'Go to Podcasts',
-              style: GoogleFonts.judson(
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedVideoCard(Video video) {
+  Widget _buildEnhancedPodcastCard(Podcast podcast) {
     return Container(
       width: 160,
       decoration: BoxDecoration(
@@ -550,7 +376,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Video thumbnail with progress
+          // Podcast thumbnail with progress
           Stack(
             children: [
               Container(
@@ -559,17 +385,17 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   color: Colors.grey[300],
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                   image: DecorationImage(
-                    image: AssetImage(video.thumbnailUrl),
+                    image: AssetImage(podcast.thumbnailUrl),
                     fit: BoxFit.cover,
                     onError: (exception, stackTrace) {
                       // Fallback to icon if image fails to load
                     },
                   ),
                 ),
-                child: video.thumbnailUrl.contains('assets/images/')
+                child: podcast.thumbnailUrl.contains('assets/images/')
                     ? Center(
                         child: Icon(
-                          Icons.play_circle_outline,
+                          Icons.podcasts,
                           size: 40,
                           color: Colors.grey[600],
                         ),
@@ -587,7 +413,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    video.duration,
+                    podcast.duration,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -596,8 +422,8 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   ),
                 ),
               ),
-              // Watch progress indicator
-              if (video.watchProgress > 0)
+              // Listen progress indicator
+              if (podcast.listenProgress > 0)
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -611,16 +437,16 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                     child: Row(
                       children: [
                         Expanded(
-                          flex: video.watchProgress.round(),
+                          flex: podcast.listenProgress.round(),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.blue,
+                              color: Colors.green,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
                         ),
                         Expanded(
-                          flex: (100 - video.watchProgress).round(),
+                          flex: (100 - podcast.listenProgress).round(),
                           child: const SizedBox(),
                         ),
                       ],
@@ -638,12 +464,12 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                 children: [
                   // Title
                   Text(
-                    video.title,
+                    podcast.title,
                     style: GoogleFonts.judson(
                       textStyle: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
                         color: Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     maxLines: 2,
@@ -652,11 +478,11 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   const SizedBox(height: 4),
                   // Subtitle
                   Text(
-                    video.subtitle,
+                    podcast.subtitle,
                     style: GoogleFonts.judson(
                       textStyle: TextStyle(
-                        fontSize: 11,
                         color: Colors.grey[600],
+                        fontSize: 11,
                       ),
                     ),
                     maxLines: 2,
@@ -667,35 +493,52 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Favorite button
+                      // Play/Pause button
                       IconButton(
                         icon: Icon(
-                          video.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          size: 16,
-                          color: video.isFavorite ? Colors.red : Colors.grey[600],
+                          Icons.play_circle_fill,
+                          color: Colors.green[700],
+                          size: 28,
                         ),
+                        onPressed: () {
+                          // Handle play/pause
+                        },
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
-                        onPressed: () {
-                          setState(() {
-                            video.isFavorite = !video.isFavorite;
-                          });
-                        },
                       ),
-                      // Save button
-                      IconButton(
-                        icon: Icon(
-                          video.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                          size: 16,
-                          color: video.isSaved ? Colors.blue : Colors.grey[600],
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () {
-                          setState(() {
-                            video.isSaved = !video.isSaved;
-                          });
-                        },
+                      // Action buttons
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              podcast.isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: podcast.isFavorite ? Colors.red : Colors.grey[600],
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                podcast.isFavorite = !podcast.isFavorite;
+                              });
+                            },
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(
+                              podcast.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                              color: podcast.isSaved ? Colors.blue : Colors.grey[600],
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                podcast.isSaved = !podcast.isSaved;
+                              });
+                            },
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -705,106 +548,6 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           ),
         ],
       ),
-    );
-  }
-
-
-
-  Widget _buildPodcastCard(int index) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Podcast thumbnail
-          Container(
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.podcasts,
-                size: 32,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          // Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Podcast ${index + 1}',
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Discussion',
-                    style: GoogleFonts.judson(
-                      textStyle: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Spacer(),
-                  // Action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildSmallActionButton(Icons.favorite_border, 'Like'),
-                      _buildSmallActionButton(Icons.bookmark_border, 'Save'),
-                      _buildSmallActionButton(Icons.download, 'Download'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSmallActionButton(IconData icon, String tooltip) {
-    return IconButton(
-      icon: Icon(icon, size: 16, color: Colors.grey[700]),
-      tooltip: tooltip,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      onPressed: () {
-        // Handle action
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$tooltip pressed'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
     );
   }
 }
