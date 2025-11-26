@@ -110,7 +110,7 @@ async def get_content(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Content not found"
         )
-    return content.to_dict().to_dict()
+    return content.to_dict()
 
 @router.put("/{content_id}", response_model=ContentResponse)
 async def update_content(
@@ -224,30 +224,66 @@ async def create_comment(
     current_user: User = Depends(get_current_user)
 ):
     """Create a comment on content"""
-    # Verify content exists
-    content = db.query(Content).filter(Content.id == content_id).first()
-    if not content:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Content not found"
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"Creating comment for content {content_id} by user {current_user.id}")
+        logger.info(f"Comment text: {comment.text}")
+        
+        # Verify content exists
+        content = db.query(Content).filter(Content.id == content_id).first()
+        if not content:
+            logger.error(f"Content {content_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Content not found"
+            )
+        
+        logger.info(f"Content found: {content.title}")
+        
+        # Create new comment
+        new_comment = Comment(
+            content_id=content_id,
+            user_id=current_user.id,
+            text=comment.text
         )
-    
-    # Create new comment
-    new_comment = Comment(
-        content_id=content_id,
-        user_id=current_user.id,
-        text=comment.text
-    )
-    
-    db.add(new_comment)
-    
-    # Increment comment count
-    content.comments_count += 1
-    
-    db.commit()
-    db.refresh(new_comment)
-    
-    return new_comment
+        
+        db.add(new_comment)
+        logger.info("Comment added to session")
+        
+        # Increment comment count
+        content.comments_count += 1
+        logger.info(f"Comment count incremented to {content.comments_count}")
+        
+        db.commit()
+        logger.info("Database committed")
+        
+        db.refresh(new_comment)
+        logger.info("Comment refreshed")
+        
+        # Return dictionary to ensure proper serialization
+        return {
+            "id": new_comment.id,
+            "content_id": new_comment.content_id,
+            "user_id": new_comment.user_id,
+            "text": new_comment.text,
+            "created_at": new_comment.created_at,
+            "updated_at": new_comment.updated_at,
+            "user": {
+                "id": current_user.id,
+                "username": current_user.username,
+                "email": current_user.email
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating comment: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating comment: {str(e)}"
+        )
 
 
 @router.get("/{content_id}/comments", response_model=CommentListResponse)

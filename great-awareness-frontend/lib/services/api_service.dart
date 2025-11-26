@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../models/content.dart';
@@ -18,12 +19,29 @@ class ApiService {
     if (res.statusCode == 200) {
       final data = json.decode(res.body);
       final token = data['access_token'] ?? data['token'];
-      // Backend doesn't return user data, create a basic user object
+      
+      // Try to get user data using the token
+      try {
+        final userUri = Uri.parse('$apiBaseUrl/api/auth/me');
+        final userRes = await _client.get(
+          userUri,
+          headers: {'Authorization': 'Bearer $token'},
+        );
+        
+        if (userRes.statusCode == 200) {
+          final userData = json.decode(userRes.body);
+          return User.fromJson(userData, token: token);
+        }
+      } catch (e) {
+        debugPrint('Error fetching user data: $e');
+      }
+      
+      // Fallback: create basic user object
       return User(
-        id: 'temp_id',
+        id: email.hashCode.toString(),
         email: email,
         token: token,
-        role: 'user', // Default role, will be updated when we get user data
+        role: 'user',
       );
     }
     return null;
@@ -48,7 +66,7 @@ class ApiService {
     // Add timestamp to ensure uniqueness and avoid conflicts
     username = username + DateTime.now().millisecondsSinceEpoch.toString().substring(8);
     
-    print('Attempting signup with username: $username, email: $email');
+    debugPrint('Attempting signup with username: $username, email: $email');
     
     final res = await _client.post(
       uri,
@@ -64,12 +82,12 @@ class ApiService {
       }),
     );
     
-    print('Signup response status: ${res.statusCode}');
-    print('Signup response body: ${res.body}');
+    debugPrint('Signup response status: ${res.statusCode}');
+    debugPrint('Signup response body: ${res.body}');
     
     if (res.statusCode == 200 || res.statusCode == 201) {
       final data = json.decode(res.body);
-      print('Signup successful, user data: $data');
+      debugPrint('Signup successful, user data: $data');
       // The backend returns user data directly, not wrapped in a 'user' key
       return User.fromJson(data is Map<String, dynamic> ? data : {}, token: null);
     } else if (res.statusCode == 400) {
@@ -82,7 +100,6 @@ class ApiService {
       // Handle other status codes
       throw Exception('Signup failed with status ${res.statusCode}: ${res.body}');
     }
-    return null;
   }
 
   Future<List<Content>> fetchFeed(String token, {int skip = 0}) async {
@@ -126,8 +143,8 @@ class ApiService {
       }),
     );
     
-    print('createContent response status: ${res.statusCode}');
-    print('createContent response body: ${res.body}');
+    debugPrint('createContent response status: ${res.statusCode}');
+    debugPrint('createContent response body: ${res.body}');
     
     if (res.statusCode == 201) {
       final data = json.decode(res.body);
@@ -141,13 +158,23 @@ class ApiService {
 
   Future<Content?> getContent(String token, int contentId) async {
     final uri = Uri.parse('$apiBaseUrl/api/content/$contentId');
-    final res = await _client.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      return Content.fromJson(data as Map<String, dynamic>);
+    debugPrint('Fetching content $contentId from API');
+    
+    try {
+      final res = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      debugPrint('Get content response status: ${res.statusCode}');
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return Content.fromJson(data as Map<String, dynamic>);
+      } else {
+        debugPrint('Failed to get content. Status: ${res.statusCode}, Body: ${res.body}');
+      }
+    } catch (e) {
+      debugPrint('Exception in getContent: $e');
     }
     return null;
   }
@@ -226,18 +253,29 @@ class ApiService {
 
   Future<Map<String, dynamic>?> createComment(String token, int contentId, String text) async {
     final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/comments');
-    final res = await _client.post(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'text': text}),
-    );
+    debugPrint('Creating comment for content $contentId with text: $text');
     
-    if (res.statusCode == 201) {
-      final data = json.decode(res.body);
-      return data as Map<String, dynamic>;
+    try {
+      final res = await _client.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'text': text, 'content_id': contentId}),
+      );
+      
+      debugPrint('Create comment response status: ${res.statusCode}');
+      debugPrint('Create comment response body: ${res.body}');
+      
+      if (res.statusCode == 201) {
+        final data = json.decode(res.body);
+        return data as Map<String, dynamic>;
+      } else {
+        debugPrint('Failed to create comment. Status: ${res.statusCode}, Body: ${res.body}');
+      }
+    } catch (e) {
+      debugPrint('Exception in createComment: $e');
     }
     return null;
   }

@@ -45,11 +45,52 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     _authService.mockAdminLogin();
   }
 
+  Future<void> _refreshPost(int postId) async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.currentUser?.token;
+    
+    if (token == null) return;
+    
+    try {
+      final updatedPost = await _apiService.getContent(token, postId);
+      if (updatedPost != null && mounted) {
+        setState(() {
+          // Update the post in both lists
+          final postIndex = _posts.indexWhere((p) => p.id == postId);
+          if (postIndex != -1) {
+            _posts[postIndex] = updatedPost;
+          }
+          
+          final filteredIndex = _filteredPosts.indexWhere((p) => p.id == postId);
+          if (filteredIndex != -1) {
+            _filteredPosts[filteredIndex] = updatedPost;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refreshing post: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh post: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _loadComments(int postId) async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = authService.currentUser?.token;
     
     if (token == null) return;
+    
+    // Check if comments are already cached
+    if (_postComments[postId] != null && _postComments[postId]!.isNotEmpty) {
+      debugPrint('Comments already cached for post $postId, skipping reload');
+      return;
+    }
     
     setState(() {
       _loadingComments[postId] = true;
@@ -57,6 +98,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     
     try {
       final comments = await _apiService.getComments(token, postId);
+      debugPrint('Loaded comments for post $postId: ${comments?.length ?? 0} comments');
       if (mounted) {
         setState(() {
           _postComments[postId] = comments ?? [];
@@ -64,6 +106,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
         });
       }
     } catch (e) {
+      debugPrint('Error loading comments for post $postId: $e');
       if (mounted) {
         setState(() {
           _loadingComments[postId] = false;
@@ -86,17 +129,23 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       return;
     }
     
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Posting comment...'), duration: Duration(seconds: 1)),
+    );
+    
     try {
+      debugPrint('Attempting to create comment for post $postId with text: $text');
       final newComment = await _apiService.createComment(token, postId, text);
+      debugPrint('API Response for createComment: $newComment');
+      
       if (newComment != null && mounted) {
-        // Add the new comment to the cache
+        // Successfully created comment - reload comments from server for accuracy
+        debugPrint('Comment created successfully, reloading comments...');
+        await _loadComments(postId);
+        
+        // Update post comment count
         setState(() {
-          if (_postComments[postId] == null) {
-            _postComments[postId] = [];
-          }
-          _postComments[postId]!.add(newComment);
-          
-          // Update the comment count in the post
           final postIndex = _posts.indexWhere((p) => p.id == postId);
           if (postIndex != -1) {
             _posts[postIndex] = Content(
@@ -147,11 +196,23 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Comment added successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
         );
+      } else {
+        // Handle case when comment creation failed
+        debugPrint('Comment creation failed - newComment is null');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to add comment. Please try again.'), backgroundColor: Colors.red),
+          );
+        }
       }
     } catch (e) {
+      debugPrint('Exception in _addComment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding comment: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error adding comment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -253,7 +314,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       }
       
       // Don't fallback to mock data - just show error
-      print('Failed to load posts: $e');
+      debugPrint('Failed to load posts: $e');
     }
   }
 
@@ -286,7 +347,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       setState(() {
         _isLoading = false;
       });
-      print('Failed to load more posts: $e');
+      debugPrint('Failed to load more posts: $e');
     }
   }
 
@@ -408,18 +469,21 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
         _filterPosts();
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('New post created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New post created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
   void _showComments(int index) {
     final post = _filteredPosts[index];
     final TextEditingController commentController = TextEditingController();
+    bool isSubmitting = false;
     
     // Load comments when the modal opens
     _loadComments(post.id);
@@ -517,16 +581,34 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: () async {
-                      if (commentController.text.trim().isNotEmpty) {
-                        await _addComment(post.id, commentController.text.trim());
-                        commentController.clear();
-                        // Reload comments and update modal state
-                        await _loadComments(post.id);
-                        setModalState(() {});
-                      }
-                    },
+                    icon: isSubmitting 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.send),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (commentController.text.trim().isNotEmpty) {
+                              setModalState(() {
+                                isSubmitting = true;
+                              });
+                              
+                              try {
+                                await _addComment(post.id, commentController.text.trim());
+                                commentController.clear();
+                                
+                                // Update the modal state to reflect changes
+                                if (mounted) {
+                                  setModalState(() {
+                                    isSubmitting = false;
+                                  });
+                                }
+                              } catch (e) {
+                                setModalState(() {
+                                  isSubmitting = false;
+                                });
+                              }
+                            }
+                          },
                   ),
                 ],
               ),

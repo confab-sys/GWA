@@ -9,6 +9,7 @@ from app.models.user_model import User
 from app.schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.dependencies import get_current_user
 
 router = APIRouter()
 # Use pbkdf2_sha256 to avoid bcrypt 72-byte limitation issues
@@ -76,3 +77,8 @@ def verify(token: str):
         return {"email": email}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current user information"""
+    return current_user

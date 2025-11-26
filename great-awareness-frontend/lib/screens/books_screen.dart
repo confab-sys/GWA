@@ -10,6 +10,7 @@ class Book {
   final String title;
   final String imagePath;
   final String description;
+  final String? epubUrl; // Cloudflare R2 URL for EPUB
   bool isFavorite;
   double readingProgress;
   bool isDownloaded;
@@ -19,6 +20,7 @@ class Book {
     required this.title,
     required this.imagePath,
     required this.description,
+    this.epubUrl,
     this.isFavorite = false,
     this.readingProgress = 0.0,
     this.isDownloaded = false,
@@ -30,6 +32,7 @@ class Book {
       'title': title,
       'imagePath': imagePath,
       'description': description,
+      'epubUrl': epubUrl,
       'isFavorite': isFavorite,
       'readingProgress': readingProgress,
       'isDownloaded': isDownloaded,
@@ -42,6 +45,7 @@ class Book {
       title: json['title'],
       imagePath: json['imagePath'],
       description: json['description'],
+      epubUrl: json['epubUrl'],
       isFavorite: json['isFavorite'] ?? false,
       readingProgress: json['readingProgress']?.toDouble() ?? 0.0,
       isDownloaded: json['isDownloaded'] ?? false,
@@ -71,9 +75,9 @@ class _BooksScreenState extends State<BooksScreen> {
     final initialBooks = [
       Book(
         id: '1',
-        title: 'Breaking Free from Masturbation',
-        imagePath: 'assets/images/Breaking free from mastubation.png',
-        description: 'A comprehensive guide to understanding and overcoming compulsive behaviors.',
+        title: 'No More Confusion - Finding Your Calling',
+        imagePath: 'assets/images/book1.png',
+        description: 'The real reason why you haven\'t found your calling yet.',
       ),
       Book(
         id: '2',
@@ -110,6 +114,7 @@ class _BooksScreenState extends State<BooksScreen> {
         title: 'Unlocking the Primal Brain',
         imagePath: 'assets/images/Unlocking the primal brainThe hidden force shaping your thoughts and emotions.png',
         description: 'Discover the hidden force shaping your thoughts and emotions.',
+        epubUrl: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/Unlocking%20the%20primal%20brain%20The%20hidden%20force%20shaping%20your%20thoughts%20and%20emotions.epub',
       ),
       Book(
         id: '8',
@@ -122,6 +127,7 @@ class _BooksScreenState extends State<BooksScreen> {
         title: 'No More Confusion: Finding Your Calling',
         imagePath: 'assets/images/no more confusion, the real reason why you avent found your calling yet.png',
         description: 'The real reason why you haven\'t found your calling yet.',
+        epubUrl: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/no%20more%20confusion%2C%20the%20real%20reason%20why%20you%20avent%20found%20your%20calling%20yet.epub',
       ),
     ];
 
@@ -129,22 +135,13 @@ class _BooksScreenState extends State<BooksScreen> {
     final prefs = await SharedPreferences.getInstance();
     final savedBooksData = prefs.getString('books_data');
     
-    if (savedBooksData != null) {
-      try {
-        final List<dynamic> decodedList = json.decode(savedBooksData);
-        final savedBooks = decodedList.map((item) => Book.fromJson(item)).toList();
-        
-        // Merge saved data with initial books
-        for (var i = 0; i < initialBooks.length; i++) {
-          final savedBook = savedBooks.firstWhere(
-            (book) => book.id == initialBooks[i].id,
-            orElse: () => initialBooks[i],
-          );
-          initialBooks[i] = savedBook;
-        }
-      } catch (e) {
-        print('Error loading saved books: $e');
-      }
+    // Clear old data to force fresh load with new R2 URLs
+    await prefs.remove('books_data');
+    print('Cleared old books data - loading fresh books with R2 URLs');
+    
+    // Debug: Show which books have EPUB URLs
+    for (var book in initialBooks) {
+      print('Book ${book.id}: ${book.title} - EPUB URL: ${book.epubUrl ?? "NOT AVAILABLE"}');
     }
 
     setState(() {
@@ -248,8 +245,35 @@ class _BooksScreenState extends State<BooksScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            // Book card tapped - no popup dialog
-            // You can add navigation to a book reader here if needed
+            // Navigate to book reader if EPUB URL is available
+            if (book.epubUrl != null) {
+              print('Opening book: ${book.title} with URL: ${book.epubUrl}');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BookReaderScreen(
+                    bookId: book.id,
+                    bookTitle: book.title,
+                    bookPath: book.imagePath,
+                    isAsset: false,
+                    cloudUrl: book.epubUrl!,
+                  ),
+                ),
+              ).then((_) {
+                print('Book reader closed for: ${book.title}');
+              }).catchError((error) {
+                print('Error opening book reader: $error');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error opening book: $error')),
+                );
+              });
+            } else {
+              // Show message if no EPUB available
+              print('No EPUB URL for book: ${book.title}');
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('EPUB version not available for this book')),
+              );
+            }
           },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
