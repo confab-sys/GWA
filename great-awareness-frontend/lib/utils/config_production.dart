@@ -1,5 +1,5 @@
-// Configuration for Psychology App Frontend
-// Change currentEnvironment to 'production' when deploying to Render
+// Production Configuration for Psychology App Frontend
+// Update these values after deploying your backend to Render
 
 // Development (local) backend
 const String apiBaseUrlDev = 'http://localhost:8000';
@@ -21,6 +21,3 @@ const String cloudflarePublicUrl = 'https://pub-1c8c879e41fe4ff48de96ceabce671a2
 // App Configuration
 const String appName = 'Psychology App';
 const String appVersion = '1.0.0';
-
-// Export the current API URL for use in services
-const String apiBaseUrl = 'http://localhost:8000'; // Default to dev

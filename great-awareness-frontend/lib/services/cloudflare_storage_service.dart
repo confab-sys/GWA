@@ -4,7 +4,7 @@ import 'package:xml/xml.dart' as xml;
 class CloudflareStorageService {
   static const String accountId = 'd972c9d3656cd9fd1377ccd22fb6462d';
   static const String bucketName = 'videos';
-  static const String publicUrl = 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev';
+  static const String publicUrl = 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev';
   static const String s3Endpoint = 'https://d972c9d3656cd9fd1377ccd22fb6462d.r2.cloudflarestorage.com';
   
   // For S3 API access, you'll need these credentials
@@ -277,85 +277,22 @@ class CloudflareStorageService {
   static List<CloudflareVideo> getConfiguredVideos() {
     return [
       CloudflareVideo(
-        key: 'understanding-addiction-psychology.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/understanding-addiction-psychology.mp4',
+        key: 'VID_20250503_125952.mp4',
+        url: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/VID_20250503_125952.mp4',
         lastModified: DateTime.now().subtract(const Duration(days: 30)),
-        size: 150 * 1024 * 1024, // 150MB
-        title: 'Understanding Addiction Psychology',
-        category: 'Overcoming Addictions',
-        duration: '15:30',
+        size: 47 * 1024 * 1024, // 47MB (actual size from HEAD request)
+        title: 'Daily Life Insights',
+        category: 'General Wellness',
+        duration: '15:42', // Estimated based on file size
       ),
       CloudflareVideo(
-        key: 'breaking-free-pornography.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/breaking-free-pornography.mp4',
+        key: 'VID_20250503_130241.mp4',
+        url: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/VID_20250503_130241.mp4',
         lastModified: DateTime.now().subtract(const Duration(days: 25)),
-        size: 200 * 1024 * 1024, // 200MB
-        title: 'Breaking Free from Pornography',
-        category: 'Overcoming Addictions',
-        duration: '22:15',
-      ),
-      CloudflareVideo(
-        key: 'building-healthy-habits.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/building-healthy-habits.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 28)),
-        size: 180 * 1024 * 1024, // 180MB
-        title: 'Building Healthy Habits',
-        category: 'Overcoming Addictions',
-        duration: '18:45',
-      ),
-      CloudflareVideo(
-        key: 'understanding-childhood-trauma.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/understanding-childhood-trauma.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 20)),
-        size: 250 * 1024 * 1024, // 250MB
-        title: 'Understanding Childhood Trauma',
-        category: 'Healing Trauma',
-        duration: '25:20',
-      ),
-      CloudflareVideo(
-        key: 'emdr-therapy-explained.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/emdr-therapy-explained.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 15)),
-        size: 300 * 1024 * 1024, // 300MB
-        title: 'EMDR Therapy Explained',
-        category: 'Healing Trauma',
-        duration: '30:10',
-      ),
-      CloudflareVideo(
-        key: 'self-compassion-practices.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/self-compassion-practices.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 18)),
-        size: 120 * 1024 * 1024, // 120MB
-        title: 'Self-Compassion Practices',
-        category: 'Healing Trauma',
-        duration: '12:30',
-      ),
-      CloudflareVideo(
-        key: 'healthy-communication-skills.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/healthy-communication-skills.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 22)),
-        size: 200 * 1024 * 1024, // 200MB
-        title: 'Healthy Communication Skills',
-        category: 'Relationships',
-        duration: '20:15',
-      ),
-      CloudflareVideo(
-        key: 'setting-boundaries.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/setting-boundaries.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 12)),
-        size: 160 * 1024 * 1024, // 160MB
-        title: 'Setting Boundaries',
-        category: 'Relationships',
-        duration: '16:40',
-      ),
-      CloudflareVideo(
-        key: 'healing-from-heartbreak.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/healing-from-heartbreak.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 10)),
-        size: 280 * 1024 * 1024, // 280MB
-        title: 'Healing from Heartbreak',
-        category: 'Relationships',
-        duration: '28:50',
+        size: 47 * 1024 * 1024, // 47MB (actual size from HEAD request)
+        title: 'Personal Growth Journey',
+        category: 'General Wellness',
+        duration: '15:42', // Estimated based on file size
       ),
     ];
   }
@@ -364,31 +301,22 @@ class CloudflareStorageService {
   static List<CloudflareVideo> _getDefaultVideos() {
     return [
       CloudflareVideo(
-        key: 'understanding-addiction-psychology.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/understanding-addiction-psychology.mp4',
+        key: 'VID_20250503_125952.mp4',
+        url: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/VID_20250503_125952.mp4',
         lastModified: DateTime.now().subtract(const Duration(days: 30)),
-        size: 150 * 1024 * 1024, // 150MB
-        title: 'Understanding Addiction Psychology',
-        category: 'Overcoming Addictions',
-        duration: '15:30',
+        size: 47 * 1024 * 1024, // 47MB (actual size from HEAD request)
+        title: 'Daily Life Insights',
+        category: 'General Wellness',
+        duration: '15:42', // Estimated based on file size
       ),
       CloudflareVideo(
-        key: 'breaking-free-pornography.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/breaking-free-pornography.mp4',
+        key: 'VID_20250503_130241.mp4',
+        url: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/VID_20250503_130241.mp4',
         lastModified: DateTime.now().subtract(const Duration(days: 25)),
-        size: 200 * 1024 * 1024, // 200MB
-        title: 'Breaking Free from Pornography',
-        category: 'Overcoming Addictions',
-        duration: '22:15',
-      ),
-      CloudflareVideo(
-        key: 'understanding-childhood-trauma.mp4',
-        url: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/understanding-childhood-trauma.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 20)),
-        size: 250 * 1024 * 1024, // 250MB
-        title: 'Understanding Childhood Trauma',
-        category: 'Healing Trauma',
-        duration: '25:20',
+        size: 47 * 1024 * 1024, // 47MB (actual size from HEAD request)
+        title: 'Personal Growth Journey',
+        category: 'General Wellness',
+        duration: '15:42', // Estimated based on file size
       ),
     ];
   }

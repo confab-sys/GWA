@@ -100,15 +100,22 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         isLoading = true;
       });
 
-      // Get only videos that are actually accessible from the bucket
-      final cloudflareVideos = await CloudflareStorageService.getAccessibleVideos();
+      print('Loading videos from Cloudflare...');
+      // Get videos from Cloudflare - using configured videos directly since we know they work
+      final cloudflareVideos = CloudflareStorageService.getConfiguredVideos();
+      print('Found ${cloudflareVideos.length} configured videos');
       
       if (cloudflareVideos.isEmpty) {
-        print('No accessible videos found in bucket');
+        print('No videos found in configuration');
         setState(() {
           isLoading = false;
         });
         return;
+      }
+      
+      // Log the first video details for debugging
+      if (cloudflareVideos.isNotEmpty) {
+        print('First video: ${cloudflareVideos.first.title} - ${cloudflareVideos.first.url}');
       }
       
       // Convert CloudflareVideo objects to Video objects

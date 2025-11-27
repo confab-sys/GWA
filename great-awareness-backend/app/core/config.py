@@ -16,10 +16,10 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str = "sqlite:///./psychology_app.db"  # SQLite for development
-    database_url_render: Optional[str] = None  # PostgreSQL for production
+    database_url_render: Optional[str] = None  # PostgreSQL for production - set via RENDER env var
     
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8080", "https://your-frontend-domain.com"]
     
     # File Upload Settings
     max_file_size: int = 5 * 1024 * 1024  # 5MB
