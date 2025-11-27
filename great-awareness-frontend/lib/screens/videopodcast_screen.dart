@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'podcasts_screen.dart';
+import 'video_player_screen.dart';
+import '../models/video_comment.dart';
+import '../services/cloudflare_storage_service.dart';
 
 class Video {
   final String id;
@@ -10,8 +13,12 @@ class Video {
   final String duration;
   final double watchProgress;
   final String thumbnailUrl;
+  final String cloudflareUrl;
   bool isFavorite;
   bool isSaved;
+  int likes;
+  bool isLiked;
+  List<VideoComment> comments;
 
   Video({
     required this.id,
@@ -21,8 +28,12 @@ class Video {
     required this.duration,
     this.watchProgress = 0.0,
     required this.thumbnailUrl,
+    required this.cloudflareUrl,
     this.isFavorite = false,
     this.isSaved = false,
+    this.likes = 0,
+    this.isLiked = false,
+    this.comments = const [],
   });
 }
 
@@ -65,12 +76,13 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   List<Podcast> filteredPodcasts = [];
   TextEditingController searchController = TextEditingController();
   String selectedCategory = 'All';
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _initializeVideos();
+    _loadVideosFromCloudflare();
     searchController.addListener(_onSearchChanged);
   }
 
@@ -81,8 +93,61 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     super.dispose();
   }
 
-  void _initializeVideos() {
-    // Sample video data organized by categories
+  Future<void> _loadVideosFromCloudflare() async {
+    try {
+      // Show loading indicator
+      setState(() {
+        isLoading = true;
+      });
+
+      // Get only videos that are actually accessible from the bucket
+      final cloudflareVideos = await CloudflareStorageService.getAccessibleVideos();
+      
+      if (cloudflareVideos.isEmpty) {
+        print('No accessible videos found in bucket');
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+      
+      // Convert CloudflareVideo objects to Video objects
+      final List<Video> loadedVideos = cloudflareVideos.map((cfVideo) => Video(
+        id: cfVideo.key.hashCode.toString(),
+        title: cfVideo.title,
+        subtitle: 'Video from Cloudflare bucket',
+        category: cfVideo.category,
+        duration: cfVideo.duration,
+        watchProgress: 0.0,
+        thumbnailUrl: 'assets/images/video_placeholder.jpg', // Default thumbnail
+        cloudflareUrl: cfVideo.url,
+        likes: 0,
+        isLiked: false,
+        comments: [],
+      )).toList();
+
+      setState(() {
+        allVideos = loadedVideos;
+        filteredVideos = List.from(allVideos);
+        isLoading = false;
+      });
+      
+      print('Successfully loaded ${loadedVideos.length} accessible videos');
+      
+    } catch (e) {
+      // Error loading videos, fallback to default
+      print('Error loading videos from Cloudflare: $e');
+      setState(() {
+        isLoading = false;
+      });
+      
+      // Fallback to default videos if loading fails
+      _initializeDefaultVideos();
+    }
+  }
+
+  void _initializeDefaultVideos() {
+    // Sample video data organized by categories with Cloudflare streaming URLs
     allVideos = [
       // Overcoming Addictions
       Video(
@@ -93,6 +158,25 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '15:30',
         watchProgress: 45.0,
         thumbnailUrl: 'assets/images/addiction_psychology.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/understanding-addiction-psychology.mp4',
+        likes: 124,
+        isLiked: false,
+        comments: [
+          VideoComment(
+            id: 'c1',
+            userId: 'user1',
+            userName: 'Sarah M.',
+            text: 'This video really helped me understand my patterns. Thank you!',
+            timestamp: DateTime.now().subtract(const Duration(days: 1)),
+          ),
+          VideoComment(
+            id: 'c2',
+            userId: 'user2',
+            userName: 'Mike R.',
+            text: 'Great insights into the psychology behind addiction.',
+            timestamp: DateTime.now().subtract(const Duration(hours: 12)),
+          ),
+        ],
       ),
       Video(
         id: '2',
@@ -102,6 +186,18 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '22:15',
         watchProgress: 80.0,
         thumbnailUrl: 'assets/images/breaking_free.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/breaking-free-pornography.mp4',
+        likes: 89,
+        isLiked: true,
+        comments: [
+          VideoComment(
+            id: 'c3',
+            userId: 'user3',
+            userName: 'David K.',
+            text: 'These practical steps are life-changing.',
+            timestamp: DateTime.now().subtract(const Duration(hours: 6)),
+          ),
+        ],
       ),
       Video(
         id: '3',
@@ -111,6 +207,10 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '18:45',
         watchProgress: 0.0,
         thumbnailUrl: 'assets/images/healthy_habits.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/building-healthy-habits.mp4',
+        likes: 156,
+        isLiked: false,
+        comments: [],
       ),
       
       // Healing Trauma
@@ -122,6 +222,18 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '25:20',
         watchProgress: 30.0,
         thumbnailUrl: 'assets/images/childhood_trauma.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/understanding-childhood-trauma.mp4',
+        likes: 203,
+        isLiked: false,
+        comments: [
+          VideoComment(
+            id: 'c4',
+            userId: 'user4',
+            userName: 'Emma L.',
+            text: 'This explained so much about my childhood experiences.',
+            timestamp: DateTime.now().subtract(const Duration(days: 2)),
+          ),
+        ],
       ),
       Video(
         id: '5',
@@ -131,6 +243,10 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '30:10',
         watchProgress: 65.0,
         thumbnailUrl: 'assets/images/emdr_therapy.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/emdr-therapy-explained.mp4',
+        likes: 167,
+        isLiked: true,
+        comments: [],
       ),
       Video(
         id: '6',
@@ -140,6 +256,18 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '12:30',
         watchProgress: 100.0,
         thumbnailUrl: 'assets/images/self_compassion.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/self-compassion-practices.mp4',
+        likes: 278,
+        isLiked: false,
+        comments: [
+          VideoComment(
+            id: 'c5',
+            userId: 'user5',
+            userName: 'Lisa K.',
+            text: 'I practice these daily and they have transformed my life!',
+            timestamp: DateTime.now().subtract(const Duration(hours: 3)),
+          ),
+        ],
       ),
       
       // Relationships
@@ -151,6 +279,10 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '20:15',
         watchProgress: 15.0,
         thumbnailUrl: 'assets/images/communication.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/healthy-communication-skills.mp4',
+        likes: 145,
+        isLiked: false,
+        comments: [],
       ),
       Video(
         id: '8',
@@ -160,6 +292,18 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '16:40',
         watchProgress: 0.0,
         thumbnailUrl: 'assets/images/boundaries.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/setting-boundaries.mp4',
+        likes: 98,
+        isLiked: false,
+        comments: [
+          VideoComment(
+            id: 'c6',
+            userId: 'user6',
+            userName: 'Anna P.',
+            text: 'Setting boundaries has been crucial for my mental health.',
+            timestamp: DateTime.now().subtract(const Duration(days: 1)),
+          ),
+        ],
       ),
       Video(
         id: '9',
@@ -169,6 +313,25 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         duration: '28:50',
         watchProgress: 90.0,
         thumbnailUrl: 'assets/images/heartbreak.jpg',
+        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/healing-from-heartbreak.mp4',
+        likes: 234,
+        isLiked: true,
+        comments: [
+          VideoComment(
+            id: 'c7',
+            userId: 'user7',
+            userName: 'Tom W.',
+            text: 'This helped me through a very difficult time. Thank you.',
+            timestamp: DateTime.now().subtract(const Duration(hours: 8)),
+          ),
+          VideoComment(
+            id: 'c8',
+            userId: 'user8',
+            userName: 'Rachel S.',
+            text: 'The healing process takes time, but this video gives hope.',
+            timestamp: DateTime.now().subtract(const Duration(hours: 5)),
+          ),
+        ],
       ),
     ];
     
@@ -284,14 +447,6 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     return grouped;
   }
 
-  Map<String, List<Podcast>> get _podcastsByCategory {
-    final Map<String, List<Podcast>> grouped = {};
-    for (final podcast in filteredPodcasts) {
-      grouped.putIfAbsent(podcast.category, () => []).add(podcast);
-    }
-    return grouped;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -309,6 +464,14 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
             ),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black),
+            onPressed: () {
+              _loadVideosFromCloudflare();
+            },
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(100),
           child: Column(
@@ -409,10 +572,31 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   Widget _buildVideosTab() {
     final videosByCategory = _videosByCategory;
     
+    if (isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Loading videos from Cloudflare...',
+              style: GoogleFonts.judson(
+                textStyle: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     if (filteredVideos.isEmpty) {
       return Center(
         child: Text(
-          'No videos found',
+          'No videos found in your Cloudflare bucket',
           style: GoogleFonts.judson(
             textStyle: TextStyle(
               color: Colors.grey[600],
@@ -534,19 +718,46 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   }
 
   Widget _buildEnhancedVideoCard(Video video) {
-    return Container(
-      width: 160,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPlayerScreen(
+              videoUrl: video.cloudflareUrl,
+              title: video.title,
+              subtitle: video.subtitle,
+              initialLikes: video.likes,
+              initialIsLiked: video.isLiked,
+              initialComments: video.comments,
+              onLikeChanged: (likes, isLiked) {
+                setState(() {
+                  video.likes = likes;
+                  video.isLiked = isLiked;
+                });
+              },
+              onCommentAdded: (comment) {
+                setState(() {
+                  video.comments.add(comment);
+                });
+              },
+            ),
           ),
-        ],
-      ),
+        );
+      },
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -705,6 +916,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           ),
         ],
       ),
+    ),
     );
   }
 
