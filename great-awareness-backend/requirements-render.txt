@@ -1,0 +1,29 @@
+# Render.com compatible requirements - No Rust compilation dependencies
+# Python 3.11+ compatible with pre-built wheels
+
+# Core FastAPI framework
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Authentication - Using PyJWT instead of python-jose to avoid Rust deps
+PyJWT==2.8.0
+cryptography==41.0.7  # Pure Python implementation available
+
+# Password hashing - Using argon2-cffi instead of bcrypt
+argon2-cffi==23.1.0
+passlib==1.7.4  # Without bcrypt extra
+
+# Validation and settings - Using pydantic v1.x to avoid Rust dependencies
+pydantic==1.10.13  # v1.x doesn't use Rust pydantic-core
+# Note: pydantic-settings v2+ requires pydantic v2+, so we'll configure settings manually
+email-validator==2.1.0
+
+# Utilities
+python-dotenv==1.0.0
+PyYAML==6.0.1

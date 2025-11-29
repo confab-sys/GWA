@@ -1,6 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseSettings, validator
 import json
+import os
 
 class Settings(BaseSettings):
     # Environment

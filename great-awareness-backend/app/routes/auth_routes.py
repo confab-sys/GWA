@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
-from jose import jwt, JWTError
-from datetime import datetime, timedelta
+import jwt
+from datetime import datetime, timedelta, timezone
 # Import models in dependency order (Content before User due to relationships)
 from app.models.content_model import Content
 from app.models.user_model import User
@@ -23,7 +23,7 @@ def verify_password(plain_password, hashed_password):
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
@@ -57,7 +57,24 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return new_user
+    
+    # Return user data as dict to match UserResponse schema
+    return {
+        "id": new_user.id,
+        "email": new_user.email,
+        "username": new_user.username,
+        "first_name": new_user.first_name,
+        "last_name": new_user.last_name,
+        "phone_number": new_user.phone_number,
+        "county": new_user.county,
+        "status": new_user.status,
+        "role": new_user.role,
+        "is_verified": new_user.is_verified,
+        "profile_image": new_user.profile_image,
+        "created_at": new_user.created_at,
+        "updated_at": new_user.updated_at,
+        "last_login": new_user.last_login
+    }
 
 @router.post("/login", response_model=Token)
 def login(user: UserLogin, db: Session = Depends(get_db)):
@@ -75,10 +92,25 @@ def verify(token: str):
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid token")
         return {"email": email}
-    except JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
-    return current_user
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "username": current_user.username,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "phone_number": current_user.phone_number,
+        "county": current_user.county,
+        "status": current_user.status,
+        "role": current_user.role,
+        "is_verified": current_user.is_verified,
+        "profile_image": current_user.profile_image,
+        "created_at": current_user.created_at,
+        "updated_at": current_user.updated_at,
+        "last_login": current_user.last_login
+    }
