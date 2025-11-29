@@ -23,4 +23,4 @@ const String appName = 'Psychology App';
 const String appVersion = '1.0.0';
 
 // Export the current API URL for use in services
-const String apiBaseUrl = 'http://localhost:8000'; // Default to dev
+final String apiBaseUrl = getApiBaseUrl(); // Uses environment-based URL

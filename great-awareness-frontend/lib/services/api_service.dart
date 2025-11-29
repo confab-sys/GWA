@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
 import '../models/content.dart';
-import '../utils/config.dart';
+import '../utils/config_updated.dart';
 
 
 class ApiService {
