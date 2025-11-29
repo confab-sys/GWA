@@ -17,7 +17,7 @@ services:
           name: psychology-app-db
           property: connectionString
       - key: CORS_ORIGINS
-        value: '["https://your-frontend-domain.com", "https://your-frontend-domain.onrender.com"]'
+        value: '["https://great-awareness-frontend.vercel.app", "https://great-awareness-frontend-9urb9gcqx-confab-sys-projects.vercel.app"]'
     healthCheckPath: /health
     autoDeploy: true
 
