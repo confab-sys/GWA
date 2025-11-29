@@ -8,14 +8,14 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # Security
-    secret_key: str = "your-secret-key-change-in-production"
+    secret_key: str = "J1KpCrVrBX4lJjkaiWua7d9rfgKYK89I9nQ1ZLHN1f3Xl0pxUxwrO2DgfGP_jnOVyMPXs7WB0Hgoji-gLsvNZA"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     
     # Database
     database_url: str = "sqlite:///./psychology_app.db"  # SQLite for development
-    database_url_render: Optional[str] = None  # PostgreSQL for production - set via RENDER env var
+    database_url_render: str = "postgresql://psychology_app_user:riJEm3v6azbDzNhMweDnhyq4WNjWzZA2@dpg-d4lc4t4hg0os73b6j1rg-a.oregon-postgres.render.com/psychology_app_db"  # PostgreSQL for production - set via RENDER env var
     
     # CORS
     cors_origins: List[str] = [
