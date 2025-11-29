@@ -1,0 +1,13 @@
+{
+  "name": "great-awareness-frontend",
+  "version": 2,
+  "buildCommand": "bash build.sh",
+  "outputDirectory": "build/web",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
