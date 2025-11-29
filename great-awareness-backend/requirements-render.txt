@@ -22,7 +22,7 @@ passlib==1.7.4  # Without bcrypt extra
 # Validation and settings - Using pydantic v1.x to avoid Rust dependencies
 pydantic==1.10.13  # v1.x doesn't use Rust pydantic-core
 # Note: pydantic-settings v2+ requires pydantic v2+, so we'll configure settings manually
-email-validator==2.1.0
+email-validator==2.0.0
 
 # Utilities
 python-dotenv==1.0.0
