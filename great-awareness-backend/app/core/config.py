@@ -18,7 +18,13 @@ class Settings(BaseSettings):
     database_url_render: Optional[str] = None  # PostgreSQL for production - set via RENDER env var
     
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8080", "https://your-frontend-domain.com"]
+    cors_origins: List[str] = [
+        "http://localhost:3000", 
+        "http://localhost:8080", 
+        "https://your-frontend-domain.com",
+        "https://great-awareness-frontend.vercel.app",
+        "https://great-awareness-frontend-9urb9gcqx-confab-sys-projects.vercel.app"
+    ]
     
     # File Upload Settings
     max_file_size: int = 5 * 1024 * 1024  # 5MB
