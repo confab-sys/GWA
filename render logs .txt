@@ -1,0 +1,302 @@
+2025-11-29T09:34:38.587461759Z ==> Cloning from https://github.com/confab-sys/GWA
+2025-11-29T09:34:39.623366943Z ==> Checking out commit b08a07ee428ddb197684e0466169c73a9f6da08a in branch master
+2025-11-29T09:34:43.385873751Z ==> Installing Python version 3.13.4...
+2025-11-29T09:34:53.184524472Z ==> Using Python version 3.13.4 (default)
+2025-11-29T09:34:53.209628538Z ==> Docs on specifying a Python version: https://render.com/docs/python-version
+2025-11-29T09:34:56.106446422Z ==> Using Poetry version 2.1.3 (default)
+2025-11-29T09:34:56.150556957Z ==> Docs on specifying a Poetry version: https://render.com/docs/poetry-version
+2025-11-29T09:34:56.220927375Z ==> Running build command 'pip install -r requirements-render.txt'...
+2025-11-29T09:34:56.757087931Z Collecting fastapi==0.104.1 (from -r requirements-render.txt (line 5))
+2025-11-29T09:34:56.810473613Z   Downloading fastapi-0.104.1-py3-none-any.whl.metadata (24 kB)
+2025-11-29T09:34:56.855070024Z Collecting uvicorn==0.24.0 (from -r requirements-render.txt (line 6))
+2025-11-29T09:34:56.864905568Z   Downloading uvicorn-0.24.0-py3-none-any.whl.metadata (6.4 kB)
+2025-11-29T09:34:56.889495339Z Collecting python-multipart==0.0.6 (from -r requirements-render.txt (line 7))
+2025-11-29T09:34:56.899259061Z   Downloading python_multipart-0.0.6-py3-none-any.whl.metadata (2.5 kB)
+2025-11-29T09:34:57.203488418Z Collecting sqlalchemy==2.0.23 (from -r requirements-render.txt (line 10))
+2025-11-29T09:34:57.214662364Z   Downloading SQLAlchemy-2.0.23-py3-none-any.whl.metadata (9.6 kB)
+2025-11-29T09:34:57.292377719Z Collecting psycopg2-binary==2.9.9 (from -r requirements-render.txt (line 11))
+2025-11-29T09:34:57.303940477Z   Downloading psycopg2-binary-2.9.9.tar.gz (384 kB)
+2025-11-29T09:34:57.387575486Z   Installing build dependencies: started
+2025-11-29T09:34:58.252846708Z   Installing build dependencies: finished with status 'done'
+2025-11-29T09:34:58.253632893Z   Getting requirements to build wheel: started
+2025-11-29T09:34:58.62120232Z   Getting requirements to build wheel: finished with status 'done'
+2025-11-29T09:34:58.622238082Z   Preparing metadata (pyproject.toml): started
+2025-11-29T09:34:58.847137823Z   Preparing metadata (pyproject.toml): finished with status 'done'
+2025-11-29T09:34:58.875439179Z Collecting alembic==1.12.1 (from -r requirements-render.txt (line 12))
+2025-11-29T09:34:58.886421789Z   Downloading alembic-1.12.1-py3-none-any.whl.metadata (7.3 kB)
+2025-11-29T09:34:58.912433474Z Collecting PyJWT==2.8.0 (from -r requirements-render.txt (line 15))
+2025-11-29T09:34:58.922497865Z   Downloading PyJWT-2.8.0-py3-none-any.whl.metadata (4.2 kB)
+2025-11-29T09:34:59.110276618Z Collecting cryptography==41.0.7 (from -r requirements-render.txt (line 16))
+2025-11-29T09:34:59.120005949Z   Downloading cryptography-41.0.7-cp37-abi3-manylinux_2_28_x86_64.whl.metadata (5.2 kB)
+2025-11-29T09:34:59.152872616Z Collecting argon2-cffi==23.1.0 (from -r requirements-render.txt (line 19))
+2025-11-29T09:34:59.162385381Z   Downloading argon2_cffi-23.1.0-py3-none-any.whl.metadata (5.2 kB)
+2025-11-29T09:34:59.186378553Z Collecting passlib==1.7.4 (from -r requirements-render.txt (line 20))
+2025-11-29T09:34:59.196000751Z   Downloading passlib-1.7.4-py2.py3-none-any.whl.metadata (1.7 kB)
+2025-11-29T09:34:59.314459688Z Collecting pydantic==1.10.13 (from -r requirements-render.txt (line 23))
+2025-11-29T09:34:59.324589741Z   Downloading pydantic-1.10.13-py3-none-any.whl.metadata (149 kB)
+2025-11-29T09:34:59.353583779Z Collecting email-validator==2.0.0 (from -r requirements-render.txt (line 25))
+2025-11-29T09:34:59.364413434Z   Downloading email_validator-2.0.0-py3-none-any.whl.metadata (25 kB)
+2025-11-29T09:34:59.390875993Z Collecting python-dotenv==1.0.0 (from -r requirements-render.txt (line 28))
+2025-11-29T09:34:59.400387968Z   Downloading python_dotenv-1.0.0-py3-none-any.whl.metadata (21 kB)
+2025-11-29T09:34:59.44893924Z Collecting PyYAML==6.0.1 (from -r requirements-render.txt (line 29))
+2025-11-29T09:34:59.458532677Z   Downloading PyYAML-6.0.1.tar.gz (125 kB)
+2025-11-29T09:34:59.600690077Z   Installing build dependencies: started
+2025-11-29T09:35:00.892509302Z   Installing build dependencies: finished with status 'done'
+2025-11-29T09:35:00.893203074Z   Getting requirements to build wheel: started
+2025-11-29T09:35:02.495266742Z   Getting requirements to build wheel: finished with status 'done'
+2025-11-29T09:35:02.49651314Z   Preparing metadata (pyproject.toml): started
+2025-11-29T09:35:02.778128757Z   Preparing metadata (pyproject.toml): finished with status 'done'
+2025-11-29T09:35:02.804661488Z Collecting anyio<4.0.0,>=3.7.1 (from fastapi==0.104.1->-r requirements-render.txt (line 5))
+2025-11-29T09:35:02.814838003Z   Downloading anyio-3.7.1-py3-none-any.whl.metadata (4.7 kB)
+2025-11-29T09:35:02.881828287Z Collecting starlette<0.28.0,>=0.27.0 (from fastapi==0.104.1->-r requirements-render.txt (line 5))
+2025-11-29T09:35:02.891419073Z   Downloading starlette-0.27.0-py3-none-any.whl.metadata (5.8 kB)
+2025-11-29T09:35:02.919711169Z Collecting typing-extensions>=4.8.0 (from fastapi==0.104.1->-r requirements-render.txt (line 5))
+2025-11-29T09:35:02.929898795Z   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+2025-11-29T09:35:02.96561799Z Collecting click>=7.0 (from uvicorn==0.24.0->-r requirements-render.txt (line 6))
+2025-11-29T09:35:02.975496396Z   Downloading click-8.3.1-py3-none-any.whl.metadata (2.6 kB)
+2025-11-29T09:35:02.998748176Z Collecting h11>=0.8 (from uvicorn==0.24.0->-r requirements-render.txt (line 6))
+2025-11-29T09:35:03.008677253Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+2025-11-29T09:35:03.167121427Z Collecting greenlet!=0.4.17 (from sqlalchemy==2.0.23->-r requirements-render.txt (line 10))
+2025-11-29T09:35:03.177322253Z   Downloading greenlet-3.2.4-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (4.1 kB)
+2025-11-29T09:35:03.218960382Z Collecting Mako (from alembic==1.12.1->-r requirements-render.txt (line 12))
+2025-11-29T09:35:03.228626751Z   Downloading mako-1.3.10-py3-none-any.whl.metadata (2.9 kB)
+2025-11-29T09:35:03.354503777Z Collecting cffi>=1.12 (from cryptography==41.0.7->-r requirements-render.txt (line 16))
+2025-11-29T09:35:03.365161067Z   Downloading cffi-2.0.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+2025-11-29T09:35:03.3946575Z Collecting argon2-cffi-bindings (from argon2-cffi==23.1.0->-r requirements-render.txt (line 19))
+2025-11-29T09:35:03.404436833Z   Downloading argon2_cffi_bindings-25.1.0-cp39-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl.metadata (7.4 kB)
+2025-11-29T09:35:03.431987195Z Collecting dnspython>=2.0.0 (from email-validator==2.0.0->-r requirements-render.txt (line 25))
+2025-11-29T09:35:03.441586433Z   Downloading dnspython-2.8.0-py3-none-any.whl.metadata (5.7 kB)
+2025-11-29T09:35:03.470382154Z Collecting idna>=2.0.0 (from email-validator==2.0.0->-r requirements-render.txt (line 25))
+2025-11-29T09:35:03.479894388Z   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+2025-11-29T09:35:03.507703129Z Collecting sniffio>=1.1 (from anyio<4.0.0,>=3.7.1->fastapi==0.104.1->-r requirements-render.txt (line 5))
+2025-11-29T09:35:03.517490132Z   Downloading sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+2025-11-29T09:35:03.543655742Z Collecting pycparser (from cffi>=1.12->cryptography==41.0.7->-r requirements-render.txt (line 16))
+2025-11-29T09:35:03.553223508Z   Downloading pycparser-2.23-py3-none-any.whl.metadata (993 bytes)
+2025-11-29T09:35:03.623174893Z Collecting MarkupSafe>=0.9.2 (from Mako->alembic==1.12.1->-r requirements-render.txt (line 12))
+2025-11-29T09:35:03.633164912Z   Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+2025-11-29T09:35:03.650584562Z Downloading fastapi-0.104.1-py3-none-any.whl (92 kB)
+2025-11-29T09:35:03.666796253Z Downloading pydantic-1.10.13-py3-none-any.whl (158 kB)
+2025-11-29T09:35:03.682252382Z Downloading uvicorn-0.24.0-py3-none-any.whl (59 kB)
+2025-11-29T09:35:03.697490994Z Downloading python_multipart-0.0.6-py3-none-any.whl (45 kB)
+2025-11-29T09:35:03.712640112Z Downloading SQLAlchemy-2.0.23-py3-none-any.whl (1.9 MB)
+2025-11-29T09:35:03.741620139Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.9/1.9 MB 62.4 MB/s eta 0:00:00
+2025-11-29T09:35:03.752500526Z Downloading alembic-1.12.1-py3-none-any.whl (226 kB)
+2025-11-29T09:35:03.76814165Z Downloading PyJWT-2.8.0-py3-none-any.whl (22 kB)
+2025-11-29T09:35:03.786685724Z Downloading cryptography-41.0.7-cp37-abi3-manylinux_2_28_x86_64.whl (4.4 MB)
+2025-11-29T09:35:03.818804788Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.4/4.4 MB 139.3 MB/s eta 0:00:00
+2025-11-29T09:35:03.82855731Z Downloading argon2_cffi-23.1.0-py3-none-any.whl (15 kB)
+2025-11-29T09:35:03.842893164Z Downloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)
+2025-11-29T09:35:03.854023539Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 525.6/525.6 kB 41.4 MB/s eta 0:00:00
+2025-11-29T09:35:03.865118622Z Downloading email_validator-2.0.0-py3-none-any.whl (31 kB)
+2025-11-29T09:35:03.884033377Z Downloading python_dotenv-1.0.0-py3-none-any.whl (19 kB)
+2025-11-29T09:35:03.901308502Z Downloading anyio-3.7.1-py3-none-any.whl (80 kB)
+2025-11-29T09:35:03.915699948Z Downloading starlette-0.27.0-py3-none-any.whl (66 kB)
+2025-11-29T09:35:03.930548327Z Downloading cffi-2.0.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (219 kB)
+2025-11-29T09:35:03.946181561Z Downloading click-8.3.1-py3-none-any.whl (108 kB)
+2025-11-29T09:35:03.961079332Z Downloading dnspython-2.8.0-py3-none-any.whl (331 kB)
+2025-11-29T09:35:03.977203771Z Downloading greenlet-3.2.4-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (610 kB)
+2025-11-29T09:35:03.98686299Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 610.5/610.5 kB 49.0 MB/s eta 0:00:00
+2025-11-29T09:35:03.996360484Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+2025-11-29T09:35:04.01045571Z Downloading idna-3.11-py3-none-any.whl (71 kB)
+2025-11-29T09:35:04.025244958Z Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+2025-11-29T09:35:04.039721556Z Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+2025-11-29T09:35:04.054101611Z Downloading argon2_cffi_bindings-25.1.0-cp39-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (87 kB)
+2025-11-29T09:35:04.069100425Z Downloading mako-1.3.10-py3-none-any.whl (78 kB)
+2025-11-29T09:35:04.084616336Z Downloading markupsafe-3.0.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+2025-11-29T09:35:04.098947929Z Downloading pycparser-2.23-py3-none-any.whl (118 kB)
+2025-11-29T09:35:04.136415329Z Building wheels for collected packages: psycopg2-binary, PyYAML
+2025-11-29T09:35:04.137272796Z   Building wheel for psycopg2-binary (pyproject.toml): started
+2025-11-29T09:35:10.935020363Z   Building wheel for psycopg2-binary (pyproject.toml): finished with status 'done'
+2025-11-29T09:35:10.936706635Z   Created wheel for psycopg2-binary: filename=psycopg2_binary-2.9.9-cp313-cp313-linux_x86_64.whl size=521604 sha256=8d987c3889ebb668d6e1695c0dd39f581ef50c3e841b1e1057a1dce399a59bb2
+2025-11-29T09:35:10.936893741Z   Stored in directory: /opt/render/.cache/wheels/03/34/cf/71a53a0a7ee50c85943f826ea7225cb94fde84b15f8be3da89
+2025-11-29T09:35:10.939552943Z   Building wheel for PyYAML (pyproject.toml): started
+2025-11-29T09:35:11.549286616Z   Building wheel for PyYAML (pyproject.toml): finished with status 'done'
+2025-11-29T09:35:11.550213115Z   Created wheel for PyYAML: filename=pyyaml-6.0.1-cp313-cp313-linux_x86_64.whl size=45459 sha256=bf7587db8fd690652372384425da79f528a4b2421741784d311addde71facda1
+2025-11-29T09:35:11.55037346Z   Stored in directory: /opt/render/.cache/wheels/9c/9e/34/1e1548811b63a9d001469f21797e8b7d5c216d8eb928e7d6ad
+2025-11-29T09:35:11.552372872Z Successfully built psycopg2-binary PyYAML
+2025-11-29T09:35:11.594712992Z Installing collected packages: passlib, typing-extensions, sniffio, PyYAML, python-multipart, python-dotenv, PyJWT, pycparser, psycopg2-binary, MarkupSafe, idna, h11, greenlet, dnspython, click, uvicorn, sqlalchemy, pydantic, Mako, email-validator, cffi, anyio, starlette, cryptography, argon2-cffi-bindings, alembic, fastapi, argon2-cffi
+2025-11-29T09:35:14.68548005Z 
+2025-11-29T09:35:14.688805472Z Successfully installed Mako-1.3.10 MarkupSafe-3.0.3 PyJWT-2.8.0 PyYAML-6.0.1 alembic-1.12.1 anyio-3.7.1 argon2-cffi-23.1.0 argon2-cffi-bindings-25.1.0 cffi-2.0.0 click-8.3.1 cryptography-41.0.7 dnspython-2.8.0 email-validator-2.0.0 fastapi-0.104.1 greenlet-3.2.4 h11-0.16.0 idna-3.11 passlib-1.7.4 psycopg2-binary-2.9.9 pycparser-2.23 pydantic-1.10.13 python-dotenv-1.0.0 python-multipart-0.0.6 sniffio-1.3.1 sqlalchemy-2.0.23 starlette-0.27.0 typing-extensions-4.15.0 uvicorn-0.24.0
+2025-11-29T09:35:14.798496758Z 
+2025-11-29T09:35:14.798522899Z [notice] A new release of pip is available: 25.1.1 -> 25.3
+2025-11-29T09:35:14.798528639Z [notice] To update, run: pip install --upgrade pip
+2025-11-29T09:35:18.816472684Z ==> Uploading build...
+2025-11-29T09:35:35.503294716Z ==> Uploaded in 13.8s. Compression took 2.9s
+2025-11-29T09:35:35.575526962Z ==> Build successful 🎉
+2025-11-29T09:35:37.216943385Z ==> Deploying...
+2025-11-29T09:36:07.60130427Z ==> Running 'uvicorn main:app --host 0.0.0.0 --port $PORT'
+2025-11-29T09:36:11.607792293Z Traceback (most recent call last):
+2025-11-29T09:36:11.614431578Z   File "/opt/render/project/src/.venv/bin/uvicorn", line 8, in <module>
+2025-11-29T09:36:11.614444878Z     sys.exit(main())
+2025-11-29T09:36:11.614447958Z              ~~~~^^
+2025-11-29T09:36:11.614450838Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 1485, in __call__
+2025-11-29T09:36:11.614454939Z     return self.main(*args, **kwargs)
+2025-11-29T09:36:11.614457348Z            ~~~~~~~~~^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.614459449Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 1406, in main
+2025-11-29T09:36:11.614462119Z     rv = self.invoke(ctx)
+2025-11-29T09:36:11.70151999Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 1269, in invoke
+2025-11-29T09:36:11.701538131Z     return ctx.invoke(self.callback, **ctx.params)
+2025-11-29T09:36:11.70154102Z            ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701550331Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 824, in invoke
+2025-11-29T09:36:11.701554111Z     return callback(*args, **kwargs)
+2025-11-29T09:36:11.701556701Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/main.py", line 416, in main
+2025-11-29T09:36:11.701559351Z     run(
+2025-11-29T09:36:11.701562201Z     ~~~^
+2025-11-29T09:36:11.701564811Z         app,
+2025-11-29T09:36:11.701567641Z         ^^^^
+2025-11-29T09:36:11.701571151Z     ...<45 lines>...
+2025-11-29T09:36:11.701574941Z         h11_max_incomplete_event_size=h11_max_incomplete_event_size,
+2025-11-29T09:36:11.701581762Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701584762Z     )
+2025-11-29T09:36:11.701587702Z     ^
+2025-11-29T09:36:11.701590222Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/main.py", line 587, in run
+2025-11-29T09:36:11.701592502Z     server.run()
+2025-11-29T09:36:11.701594942Z     ~~~~~~~~~~^^
+2025-11-29T09:36:11.701599892Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 61, in run
+2025-11-29T09:36:11.701602552Z     return asyncio.run(self.serve(sockets=sockets))
+2025-11-29T09:36:11.701604922Z            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701607472Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/runners.py", line 195, in run
+2025-11-29T09:36:11.701610912Z     return runner.run(main)
+2025-11-29T09:36:11.701613942Z            ~~~~~~~~~~^^^^^^
+2025-11-29T09:36:11.701616333Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/runners.py", line 118, in run
+2025-11-29T09:36:11.701619033Z     return self._loop.run_until_complete(task)
+2025-11-29T09:36:11.701621703Z            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+2025-11-29T09:36:11.701624723Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+2025-11-29T09:36:11.701627223Z     return future.result()
+2025-11-29T09:36:11.701629543Z            ~~~~~~~~~~~~~^^
+2025-11-29T09:36:11.701631833Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 68, in serve
+2025-11-29T09:36:11.701634343Z     config.load()
+2025-11-29T09:36:11.701636543Z     ~~~~~~~~~~~^^
+2025-11-29T09:36:11.701638853Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/config.py", line 467, in load
+2025-11-29T09:36:11.701641333Z     self.loaded_app = import_from_string(self.app)
+2025-11-29T09:36:11.701659054Z                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+2025-11-29T09:36:11.701684884Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/importer.py", line 21, in import_from_string
+2025-11-29T09:36:11.701693295Z     module = importlib.import_module(module_str)
+2025-11-29T09:36:11.701696215Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/importlib/__init__.py", line 88, in import_module
+2025-11-29T09:36:11.701698995Z     return _bootstrap._gcd_import(name[level:], package, level)
+2025-11-29T09:36:11.701700945Z            ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701703475Z   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+2025-11-29T09:36:11.701705665Z   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+2025-11-29T09:36:11.701707685Z   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+2025-11-29T09:36:11.701709725Z   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+2025-11-29T09:36:11.701724225Z   File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+2025-11-29T09:36:11.701727105Z   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+2025-11-29T09:36:11.701729705Z   File "/opt/render/project/src/great-awareness-backend/main.py", line 1, in <module>
+2025-11-29T09:36:11.701731916Z     from fastapi import FastAPI, Depends, HTTPException, status
+2025-11-29T09:36:11.701735116Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/__init__.py", line 7, in <module>
+2025-11-29T09:36:11.701737206Z     from .applications import FastAPI as FastAPI
+2025-11-29T09:36:11.701739286Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/applications.py", line 16, in <module>
+2025-11-29T09:36:11.701741596Z     from fastapi import routing
+2025-11-29T09:36:11.701743766Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 22, in <module>
+2025-11-29T09:36:11.701745736Z     from fastapi import params
+2025-11-29T09:36:11.701747736Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/params.py", line 5, in <module>
+2025-11-29T09:36:11.701749796Z     from fastapi.openapi.models import Example
+2025-11-29T09:36:11.701751846Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/openapi/models.py", line 170, in <module>
+2025-11-29T09:36:11.701753866Z     class Schema(BaseModel):
+2025-11-29T09:36:11.701756336Z     ...<91 lines>...
+2025-11-29T09:36:11.701758336Z                 extra = "allow"
+2025-11-29T09:36:11.701760626Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/main.py", line 286, in __new__
+2025-11-29T09:36:11.701762736Z     cls.__try_update_forward_refs__()
+2025-11-29T09:36:11.701764677Z     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+2025-11-29T09:36:11.701766666Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/main.py", line 808, in __try_update_forward_refs__
+2025-11-29T09:36:11.701769037Z     update_model_forward_refs(cls, cls.__fields__.values(), cls.__config__.json_encoders, localns, (NameError,))
+2025-11-29T09:36:11.701771107Z     ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701773147Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/typing.py", line 554, in update_model_forward_refs
+2025-11-29T09:36:11.701775117Z     update_field_forward_refs(f, globalns=globalns, localns=localns)
+2025-11-29T09:36:11.701777087Z     ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701789337Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/typing.py", line 520, in update_field_forward_refs
+2025-11-29T09:36:11.701791687Z     field.type_ = evaluate_forwardref(field.type_, globalns, localns or None)
+2025-11-29T09:36:11.701793707Z                   ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701795887Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/typing.py", line 66, in evaluate_forwardref
+2025-11-29T09:36:11.701798017Z     return cast(Any, type_)._evaluate(globalns, localns, set())
+2025-11-29T09:36:11.701800067Z            ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:11.701809898Z TypeError: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'
+2025-11-29T09:36:15.099568415Z ==> Exited with status 1
+2025-11-29T09:36:15.116671143Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+2025-11-29T09:36:20.162835767Z ==> Running 'uvicorn main:app --host 0.0.0.0 --port $PORT'
+2025-11-29T09:36:23.969709017Z Traceback (most recent call last):
+2025-11-29T09:36:23.975455098Z   File "/opt/render/project/src/.venv/bin/uvicorn", line 8, in <module>
+2025-11-29T09:36:23.975471369Z     sys.exit(main())
+2025-11-29T09:36:23.975474329Z              ~~~~^^
+2025-11-29T09:36:23.975477529Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 1485, in __call__
+2025-11-29T09:36:23.975481759Z     return self.main(*args, **kwargs)
+2025-11-29T09:36:23.975484359Z            ~~~~~~~~~^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.975486809Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 1406, in main
+2025-11-29T09:36:23.975489839Z     rv = self.invoke(ctx)
+2025-11-29T09:36:23.975492549Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 1269, in invoke
+2025-11-29T09:36:23.975496209Z     return ctx.invoke(self.callback, **ctx.params)
+2025-11-29T09:36:23.975498549Z            ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.975500929Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/click/core.py", line 824, in invoke
+2025-11-29T09:36:23.975502989Z     return callback(*args, **kwargs)
+2025-11-29T09:36:23.97550512Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/main.py", line 416, in main
+2025-11-29T09:36:23.97550726Z     run(
+2025-11-29T09:36:23.97550927Z     ~~~^
+2025-11-29T09:36:23.97551139Z         app,
+2025-11-29T09:36:23.97551338Z         ^^^^
+2025-11-29T09:36:23.97551542Z     ...<45 lines>...
+2025-11-29T09:36:23.97551753Z         h11_max_incomplete_event_size=h11_max_incomplete_event_size,
+2025-11-29T09:36:23.97551959Z         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.97552164Z     )
+2025-11-29T09:36:23.97552363Z     ^
+2025-11-29T09:36:23.97552561Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/main.py", line 587, in run
+2025-11-29T09:36:23.97552762Z     server.run()
+2025-11-29T09:36:23.97552966Z     ~~~~~~~~~~^^
+2025-11-29T09:36:23.97553168Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 61, in run
+2025-11-29T09:36:23.97553368Z     return asyncio.run(self.serve(sockets=sockets))
+2025-11-29T09:36:23.97553611Z            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.97553813Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/runners.py", line 195, in run
+2025-11-29T09:36:23.975540181Z     return runner.run(main)
+2025-11-29T09:36:23.975542201Z            ~~~~~~~~~~^^^^^^
+2025-11-29T09:36:23.975544151Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/runners.py", line 118, in run
+2025-11-29T09:36:23.975546221Z     return self._loop.run_until_complete(task)
+2025-11-29T09:36:23.975548291Z            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+2025-11-29T09:36:23.975550881Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+2025-11-29T09:36:23.975552891Z     return future.result()
+2025-11-29T09:36:23.975554951Z            ~~~~~~~~~~~~~^^
+2025-11-29T09:36:23.975556951Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/server.py", line 68, in serve
+2025-11-29T09:36:23.975559011Z     config.load()
+2025-11-29T09:36:23.975561001Z     ~~~~~~~~~~~^^
+2025-11-29T09:36:23.975563021Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/config.py", line 467, in load
+2025-11-29T09:36:23.975565041Z     self.loaded_app = import_from_string(self.app)
+2025-11-29T09:36:23.975575502Z                       ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+2025-11-29T09:36:23.975577831Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/uvicorn/importer.py", line 21, in import_from_string
+2025-11-29T09:36:23.975580022Z     module = importlib.import_module(module_str)
+2025-11-29T09:36:23.975582132Z   File "/opt/render/project/python/Python-3.13.4/lib/python3.13/importlib/__init__.py", line 88, in import_module
+2025-11-29T09:36:23.975584142Z     return _bootstrap._gcd_import(name[level:], package, level)
+2025-11-29T09:36:23.975586172Z            ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.975588252Z   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+2025-11-29T09:36:23.975590352Z   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+2025-11-29T09:36:23.975592402Z   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+2025-11-29T09:36:23.975594592Z   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+2025-11-29T09:36:23.975596722Z   File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+2025-11-29T09:36:23.975636013Z   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+2025-11-29T09:36:23.975649204Z   File "/opt/render/project/src/great-awareness-backend/main.py", line 1, in <module>
+2025-11-29T09:36:23.975651493Z     from fastapi import FastAPI, Depends, HTTPException, status
+2025-11-29T09:36:23.975654564Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/__init__.py", line 7, in <module>
+2025-11-29T09:36:23.975657814Z     from .applications import FastAPI as FastAPI
+2025-11-29T09:36:23.975661124Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/applications.py", line 16, in <module>
+2025-11-29T09:36:23.975664054Z     from fastapi import routing
+2025-11-29T09:36:23.975666964Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 22, in <module>
+2025-11-29T09:36:23.975669634Z     from fastapi import params
+2025-11-29T09:36:23.975672224Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/params.py", line 5, in <module>
+2025-11-29T09:36:23.975674924Z     from fastapi.openapi.models import Example
+2025-11-29T09:36:23.975677644Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/fastapi/openapi/models.py", line 170, in <module>
+2025-11-29T09:36:23.975680724Z     class Schema(BaseModel):
+2025-11-29T09:36:23.975683324Z     ...<91 lines>...
+2025-11-29T09:36:23.975685014Z                 extra = "allow"
+2025-11-29T09:36:23.975686734Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/main.py", line 286, in __new__
+2025-11-29T09:36:23.975688885Z     cls.__try_update_forward_refs__()
+2025-11-29T09:36:23.975690674Z     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+2025-11-29T09:36:23.975692465Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/main.py", line 808, in __try_update_forward_refs__
+2025-11-29T09:36:23.975694195Z     update_model_forward_refs(cls, cls.__fields__.values(), cls.__config__.json_encoders, localns, (NameError,))
+2025-11-29T09:36:23.975695975Z     ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.975697825Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/typing.py", line 554, in update_model_forward_refs
+2025-11-29T09:36:23.975699605Z     update_field_forward_refs(f, globalns=globalns, localns=localns)
+2025-11-29T09:36:23.975701405Z     ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.975710025Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/typing.py", line 520, in update_field_forward_refs
+2025-11-29T09:36:23.975711925Z     field.type_ = evaluate_forwardref(field.type_, globalns, localns or None)
+2025-11-29T09:36:23.975713565Z                   ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.975715405Z   File "/opt/render/project/src/.venv/lib/python3.13/site-packages/pydantic/typing.py", line 66, in evaluate_forwardref
+2025-11-29T09:36:23.975717065Z     return cast(Any, type_)._evaluate(globalns, localns, set())
+2025-11-29T09:36:23.975718705Z            ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-11-29T09:36:23.975720455Z TypeError: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'
