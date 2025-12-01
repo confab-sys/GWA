@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../services/auth_service.dart';
 import 'admin_posting_screen.dart';
 
@@ -19,7 +21,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _userEmail = 'john.doe@example.com';
   String _accountType = 'Premium'; // Can be 'Premium', 'Trial', or 'Free'
   int _trialDaysLeft = 7; // Only relevant for trial accounts
+  String? _profileImagePath;
   final AuthService _authService = AuthService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -56,6 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _userEmail = prefs.getString('user_email') ?? 'john.doe@example.com';
       _accountType = prefs.getString('account_type') ?? 'Premium';
       _trialDaysLeft = prefs.getInt('trial_days_left') ?? 7;
+      _profileImagePath = prefs.getString('profile_image_path');
     });
   }
 
@@ -68,6 +73,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else if (value is int) {
       await prefs.setInt(key, value);
     }
+  }
+
+  Future<void> _pickProfileImage() async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      
+      if (pickedFile != null) {
+        setState(() {
+          _profileImagePath = pickedFile.path;
+        });
+        await _saveSetting('profile_image_path', pickedFile.path);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Profile picture updated successfully',
+                style: GoogleFonts.judson(),
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeProfileImage() async {
+    setState(() {
+      _profileImagePath = null;
+    });
+    await _saveSetting('profile_image_path', '');
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Profile picture removed',
+            style: GoogleFonts.judson(),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  void _showProfilePictureOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Profile Picture',
+                style: GoogleFonts.judson(
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: Text(
+                  'Choose from Gallery',
+                  style: GoogleFonts.judson(),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickProfileImage();
+                },
+              ),
+              if (_profileImagePath != null)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: Text(
+                    'Remove Profile Picture',
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _removeProfileImage();
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.cancel),
+                title: Text(
+                  'Cancel',
+                  style: GoogleFonts.judson(),
+                ),
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildUserProfileSection() {
@@ -86,17 +205,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD3E4DE),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Icon(
-              Icons.person,
-              size: 30,
-              color: Colors.black,
+          GestureDetector(
+            onTap: () => _showProfilePictureOptions(),
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD3E4DE),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: _profileImagePath != null
+                    ? Image.file(
+                        File(_profileImagePath!),
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                      )
+                    : const Icon(
+                        Icons.person,
+                        size: 30,
+                        color: Colors.black,
+                      ),
+              ),
             ),
           ),
           const SizedBox(width: 16),
