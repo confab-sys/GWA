@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:vocsy_epub_viewer/epub_viewer.dart';
+import 'package:epubx/epubx.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -33,8 +34,12 @@ class BookReaderScreen extends StatefulWidget {
 class _BookReaderScreenState extends State<BookReaderScreen> {
   bool _isLoading = true;
   String? _downloadedFilePath;
-  String _currentLocation = '';
+  EpubBook? _epubBook;
+  List<EpubChapter> _chapters = [];
+  int _currentChapterIndex = 0;
+  String _currentChapterContent = "";
   double _readingProgress = 0.0;
+  bool _showControls = true;
 
   @override
   void initState() {
@@ -52,44 +57,24 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         await tempFile.writeAsBytes(bytes.buffer.asUint8List());
         _downloadedFilePath = tempFile.path;
       } else if (widget.cloudUrl != null) {
-        // For cloud books, we'll open directly without downloading
-        // Check if we're running on web platform
-        if (kIsWeb) {
-          // On web, we can't use file system, so download directly to memory
-          debugPrint('Running on web platform - downloading to memory');
-          await _downloadBookFromCloud();
-        } else {
-          // For mobile/desktop, try cached version first
-          try {
-            final tempDir = await getTemporaryDirectory();
-            final cachedFile = File('${tempDir.path}/${widget.bookId}.epub');
-            
-            if (await cachedFile.exists()) {
-              // Use cached version if available
-              _downloadedFilePath = cachedFile.path;
-            } else {
-              // Download and cache for future use
-              await _downloadBookFromCloud();
-            }
-          } catch (e) {
-            // If path_provider fails, download directly
-            debugPrint('path_provider failed, downloading directly: $e');
-            await _downloadBookFromCloud();
-          }
-        }
+        // For cloud books, download first
+        await _downloadBookFromCloud();
       } else {
         // For already downloaded books
         _downloadedFilePath = widget.bookPath;
       }
 
       if (_downloadedFilePath != null) {
+        await _loadEpubBook();
         await _loadLastReadingPosition();
       }
     } catch (e) {
       debugPrint('Error initializing book: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading book: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading book: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -106,29 +91,11 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
       debugPrint('Download response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
-        if (kIsWeb) {
-          // On web platform, we don't need to "download" - just confirm the book is available
-          // We'll use the cloud URL directly since we can't save files on web
-          _downloadedFilePath = widget.cloudUrl!;
-          debugPrint('Book confirmed available for web platform');
-        } else {
-          // For mobile/desktop, save to temporary file
-          try {
-            final tempDir = await getTemporaryDirectory();
-            final tempFile = File('${tempDir.path}/${widget.bookId}.epub');
-            await tempFile.writeAsBytes(response.bodyBytes);
-            _downloadedFilePath = tempFile.path;
-            debugPrint('Book downloaded successfully to: ${_downloadedFilePath}');
-          } catch (pathError) {
-            // If path_provider fails, use a fallback location
-            debugPrint('path_provider failed in download, using fallback: $pathError');
-            final fallbackPath = '${Directory.systemTemp.path}/${widget.bookId}.epub';
-            final tempFile = File(fallbackPath);
-            await tempFile.writeAsBytes(response.bodyBytes);
-            _downloadedFilePath = tempFile.path;
-            debugPrint('Book downloaded to fallback location: ${_downloadedFilePath}');
-          }
-        }
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File('${tempDir.path}/${widget.bookId}.epub');
+        await tempFile.writeAsBytes(response.bodyBytes);
+        _downloadedFilePath = tempFile.path;
+        debugPrint('Book downloaded successfully to: ${_downloadedFilePath}');
       } else {
         throw Exception('Failed to download book: ${response.statusCode} - ${response.reasonPhrase}');
       }
@@ -138,19 +105,89 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
     }
   }
 
-  void _openWebEpubReader() {
-    // For web platform, we'll create a simple web view or redirect to the EPUB URL
-    // Since we have the R2 URL, we can either:
-    // 1. Open it in a new tab (if the browser supports EPUB)
-    // 2. Use a web-based EPUB reader service
-    // 3. Create a simple HTML viewer
+  Future<void> _loadEpubBook() async {
+    if (_downloadedFilePath == null) return;
+
+    try {
+      final file = File(_downloadedFilePath!);
+      final bytes = await file.readAsBytes();
+      _epubBook = await EpubReader.readBook(bytes);
+      
+      // Extract chapters
+      _chapters = _extractChapters(_epubBook!);
+      
+      if (_chapters.isNotEmpty) {
+        _loadChapter(0);
+      }
+    } catch (e) {
+      debugPrint('Error loading EPUB book: $e');
+      throw Exception('Error loading EPUB book: $e');
+    }
+  }
+
+  List<EpubChapter> _extractChapters(EpubBook book) {
+    List<EpubChapter> chapters = [];
     
+    void addChapters(List<EpubChapter> chapterList) {
+      for (var chapter in chapterList) {
+        chapters.add(chapter);
+        if (chapter.SubChapters != null && chapter.SubChapters!.isNotEmpty) {
+          addChapters(chapter.SubChapters!);
+        }
+      }
+    }
+    
+    if (book.Chapters != null) {
+      addChapters(book.Chapters!);
+    }
+    
+    return chapters;
+  }
+
+  void _loadChapter(int index) {
+    if (index < 0 || index >= _chapters.length) return;
+    
+    setState(() {
+      _currentChapterIndex = index;
+      _currentChapterContent = _chapters[index].HtmlContent ?? '';
+      _readingProgress = (index + 1) / _chapters.length;
+    });
+    
+    _saveReadingPosition();
+  }
+
+  Future<void> _loadLastReadingPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedChapter = prefs.getInt('book_chapter_${widget.bookId}') ?? 0;
+    if (savedChapter < _chapters.length) {
+      _loadChapter(savedChapter);
+    }
+  }
+
+  Future<void> _saveReadingPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('book_chapter_${widget.bookId}', _currentChapterIndex);
+  }
+
+  void _nextChapter() {
+    if (_currentChapterIndex < _chapters.length - 1) {
+      _loadChapter(_currentChapterIndex + 1);
+    }
+  }
+
+  void _previousChapter() {
+    if (_currentChapterIndex > 0) {
+      _loadChapter(_currentChapterIndex - 1);
+    }
+  }
+
+  void _showChapterList() {
     showDialog(
       context: context,
       builder: (context) => Dialog(
         child: Container(
-          width: MediaQuery.of(context).size.width * 0.9,
-          height: MediaQuery.of(context).size.height * 0.8,
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.7,
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +196,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    widget.bookTitle,
+                    'Table of Contents',
                     style: GoogleFonts.judson(
                       textStyle: const TextStyle(
                         fontSize: 20,
@@ -175,60 +212,22 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.book, size: 64, color: Colors.blue),
-                      const SizedBox(height: 16),
-                      Text(
-                        'EPUB Book Reader',
-                        style: GoogleFonts.judson(
-                          textStyle: const TextStyle(fontSize: 18),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Book: ${widget.bookTitle}',
+                child: ListView.builder(
+                  itemCount: _chapters.length,
+                  itemBuilder: (context, index) {
+                    final chapter = _chapters[index];
+                    return ListTile(
+                      title: Text(
+                        chapter.Title ?? 'Chapter ${index + 1}',
                         style: GoogleFonts.judson(),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          // Open the EPUB URL in a new tab
-                          final url = widget.cloudUrl!;
-                          try {
-                            final uri = Uri.parse(url);
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri);
-                            } else {
-                              throw 'Could not launch $url';
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error opening book: $e')),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.open_in_browser),
-                        label: Text('Open Book in Browser', style: GoogleFonts.judson()),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'URL: ${widget.cloudUrl}',
-                        style: GoogleFonts.judson(textStyle: const TextStyle(fontSize: 10)),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                      selected: index == _currentChapterIndex,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _loadChapter(index);
+                      },
+                    );
+                  },
                 ),
               ),
             ],
@@ -236,127 +235,6 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _loadLastReadingPosition() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedLocation = prefs.getString('book_location_${widget.bookId}');
-    if (savedLocation != null) {
-      _currentLocation = savedLocation;
-    }
-  }
-
-  Future<void> _saveReadingProgress(String locator) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('book_location_${widget.bookId}', locator);
-    
-    // Calculate reading progress based on current location
-    setState(() {
-      _readingProgress = _calculateReadingProgress(locator);
-    });
-  }
-
-  double _calculateReadingProgress(String locator) {
-    // This is a simplified progress calculation
-    // You might want to implement a more sophisticated algorithm based on your book structure
-    try {
-      if (locator.isNotEmpty) {
-        // Extract chapter number from locator (simplified)
-        final chapterMatch = RegExp(r'chapter(\d+)').firstMatch(locator.toLowerCase());
-        if (chapterMatch != null) {
-          final chapter = int.tryParse(chapterMatch.group(1) ?? '0') ?? 0;
-          return (chapter / 20).clamp(0.0, 1.0); // Assuming ~20 chapters
-        }
-      }
-    } catch (e) {
-      debugPrint('Error calculating progress: $e');
-    }
-    return 0.0;
-  }
-
-  void _openBook() {
-    if (_downloadedFilePath == null) return;
-
-    // Check if we're running on web platform
-    if (kIsWeb) {
-      // For web platform, show a message with the book URL since vocsy_epub_viewer doesn't support web
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Book Available', style: GoogleFonts.judson()),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Your book is ready to read!', style: GoogleFonts.judson()),
-              const SizedBox(height: 16),
-              Text('Book URL: ${widget.cloudUrl}', style: GoogleFonts.judson(textStyle: const TextStyle(fontSize: 12))),
-              const SizedBox(height: 16),
-              Text('Note: Web EPUB reading requires a dedicated web reader.', style: GoogleFonts.judson(textStyle: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic))),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('OK', style: GoogleFonts.judson()),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _openWebEpubReader();
-              },
-              child: Text('Open in Web Reader', style: GoogleFonts.judson()),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    // Configure the EPUB viewer (only for mobile/desktop)
-    VocsyEpub.setConfig(
-      themeColor: Theme.of(context).primaryColor,
-      identifier: widget.bookId,
-      scrollDirection: EpubScrollDirection.ALLDIRECTIONS,
-      allowSharing: true,
-      enableTts: true,
-      nightMode: true,
-    );
-
-    // Listen for location changes to save progress
-    VocsyEpub.locatorStream.listen((locator) {
-      _saveReadingProgress(locator);
-    });
-
-    // Open the book
-    VocsyEpub.open(
-      _downloadedFilePath!,
-      lastLocation: _currentLocation.isNotEmpty
-          ? EpubLocator.fromJson(jsonDecode(_currentLocation))
-          : null,
-    );
-  }
-
-  void _openInNewTab() {
-    // Open the EPUB file directly in a new tab
-    // This will either download the file or open it if the browser supports EPUB
-    final url = widget.cloudUrl!;
-    debugPrint('Opening EPUB in new tab: $url');
-    
-    // For Flutter web, use url_launcher for cross-platform compatibility
-    launchUrl(Uri.parse(url));
-  }
-
-  void _openInWebReader() {
-    // Use a web-based EPUB reader service
-    // There are several options, let's use a popular one
-    final epubUrl = Uri.encodeComponent(widget.cloudUrl!);
-    final readerUrl = 'https://www.bookfusion.com/read?url=$epubUrl';
-    
-    debugPrint('Opening in web EPUB reader: $readerUrl');
-    
-    // Open in new tab using url_launcher for cross-platform compatibility
-    launchUrl(Uri.parse(readerUrl));
   }
 
   void _showReadingSettings() {
@@ -388,21 +266,12 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.brightness_6),
-              title: Text('Theme', style: GoogleFonts.judson()),
+              leading: const Icon(Icons.book),
+              title: Text('Table of Contents', style: GoogleFonts.judson()),
               trailing: const Icon(Icons.arrow_forward_ios),
               onTap: () {
                 Navigator.pop(context);
-                _showThemeDialog();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bookmark),
-              title: Text('Bookmarks', style: GoogleFonts.judson()),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                Navigator.pop(context);
-                _showBookmarks();
+                _showChapterList();
               },
             ),
             ListTile(
@@ -420,101 +289,15 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   }
 
   void _showFontSizeDialog() {
-    double currentFontSize = 16.0; // Default font size
-    
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Font Size', style: GoogleFonts.judson()),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Slider(
-                value: currentFontSize,
-                min: 12.0,
-                max: 24.0,
-                divisions: 6,
-                label: currentFontSize.toStringAsFixed(1),
-                onChanged: (value) {
-                  setState(() {
-                    currentFontSize = value;
-                  });
-                  // Implement font size change
-                  // This would require restarting the EPUB viewer with new settings
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Apply'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showThemeDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Reading Theme', style: GoogleFonts.judson()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.wb_sunny),
-              title: Text('Light Theme', style: GoogleFonts.judson()),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.nightlight_round),
-              title: Text('Dark Theme', style: GoogleFonts.judson()),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.color_lens),
-              title: Text('Sepia Theme', style: GoogleFonts.judson()),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showBookmarks() {
+    // For now, we'll just show a message since font size would require
+    // re-rendering the HTML content
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bookmarks feature coming soon!')),
+      const SnackBar(content: Text('Font size adjustment coming soon!')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Automatically open the book when it's ready (with a small delay for stability)
-    if (!_isLoading && _downloadedFilePath != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _openBook();
-          }
-        });
-      });
-    }
-    
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.white,
@@ -550,6 +333,45 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
       );
     }
 
+    if (_chapters.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text(widget.bookTitle, style: GoogleFonts.judson()),
+          backgroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red[300],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Unable to load book content',
+                style: GoogleFonts.judson(
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'The book format may not be supported',
+                style: GoogleFonts.judson(
+                  textStyle: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -568,85 +390,126 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           IconButton(
+            icon: const Icon(Icons.list),
+            onPressed: _showChapterList,
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: _showReadingSettings,
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      body: GestureDetector(
+        onTap: () {
+          setState(() {
+            _showControls = !_showControls;
+          });
+        },
+        child: Stack(
           children: [
-            Icon(
-              Icons.menu_book,
-              size: 100,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Opening Book...',
-              style: GoogleFonts.judson(
-                textStyle: TextStyle(
-                  fontSize: 24,
-                  color: Colors.grey[600],
+            // Main content
+            Positioned.fill(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_currentChapterIndex < _chapters.length)
+                      Text(
+                        _chapters[_currentChapterIndex].Title ?? 'Chapter ${_currentChapterIndex + 1}',
+                        style: GoogleFonts.judson(
+                          textStyle: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Html(
+                      data: _currentChapterContent,
+                      style: {
+                        "body": Style(
+                          fontFamily: 'Judson',
+                          fontSize: FontSize(18),
+                          lineHeight: LineHeight(1.6),
+                        ),
+                        "p": Style(
+                          margin: Margins(bottom: Margin(16)),
+                        ),
+                        "h1,h2,h3,h4,h5,h6": Style(
+                          margin: Margins(top: Margin(24), bottom: Margin(16)),
+                        ),
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Please wait while we load your book',
-              style: GoogleFonts.judson(
-                textStyle: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[500],
-                ),
+            
+            // Reading progress bar
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                value: _readingProgress,
+                backgroundColor: Colors.grey[200],
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
               ),
             ),
-            const SizedBox(height: 30),
-            if (_readingProgress > 0) ...[
-              Text(
-                'Continue reading - ${(_readingProgress * 100).toInt()}% completed',
-                style: GoogleFonts.judson(
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.blue,
+            
+            // Navigation controls
+            if (_showControls)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black87,
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _previousChapter,
+                        icon: const Icon(Icons.navigate_before),
+                        label: Text('Previous', style: GoogleFonts.judson()),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.9),
+                          foregroundColor: Colors.black,
+                        ),
+                      ),
+                      Text(
+                        'Chapter ${_currentChapterIndex + 1} of ${_chapters.length}',
+                        style: GoogleFonts.judson(
+                          textStyle: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _nextChapter,
+                        icon: const Icon(Icons.navigate_next),
+                        label: Text('Next', style: GoogleFonts.judson()),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.9),
+                          foregroundColor: Colors.black,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-            ],
-            if (_downloadedFilePath != null) ...[
-              ElevatedButton(
-                onPressed: _openBook,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                ),
-                child: Text(
-                  'Open Book',
-                  style: GoogleFonts.judson(
-                    textStyle: const TextStyle(fontSize: 18),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ] else ...[
-              const CircularProgressIndicator(),
-              const SizedBox(height: 20),
-              Text(
-                'Preparing your book...',
-                style: GoogleFonts.judson(
-                  textStyle: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
