@@ -15,13 +15,17 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str = "sqlite:///./psychology_app.db"  # SQLite for development
-    database_url_render: Optional[str] = None  # PostgreSQL for production - set via RENDER env var
+    database_url_render: Optional[str] = "postgresql://neondb_owner:npg_liZTRxQeq23k@ep-odd-leaf-adse08ig-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"  # PostgreSQL for production - set via RENDER env var
     
     # CORS
     cors_origins: List[str] = [
         "http://localhost:3000", 
         "http://localhost:8080", 
-        "https://your-frontend-domain.com",
+        "http://localhost:8081", 
+        "http://127.0.0.1:3000",
+        "http://localhost:5353",
+        "http://localhost:5000",
+        "https://gwa-enus.onrender.com",
         "https://great-awareness-frontend.vercel.app",
         "https://great-awareness-frontend-9urb9gcqx-confab-sys-projects.vercel.app"
     ]
