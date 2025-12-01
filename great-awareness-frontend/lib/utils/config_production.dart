@@ -5,10 +5,10 @@
 const String apiBaseUrlDev = 'http://localhost:8000';
 
 // Production (Render) backend - UPDATE THIS with your actual Render URL
-const String apiBaseUrlProd = 'https://your-app-name.onrender.com';
+const String apiBaseUrlProd = 'https://gwa-enus.onrender.com';
 
 // Current environment - change this to 'production' when ready to deploy
-const String currentEnvironment = 'development'; // or 'production'
+const String currentEnvironment = 'production'; // or 'production'
 
 // Get the appropriate API URL based on environment
 String getApiBaseUrl() {
