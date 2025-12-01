@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str = "sqlite:///./psychology_app.db"  # SQLite for development
-    database_url_render: Optional[str] = None  # PostgreSQL for production - set via RENDER env var
+    database_url_neon: Optional[str] = None  # PostgreSQL for production - set via NEON_DATABASE_URL env var
     
     # CORS
     cors_origins: List[str] = [
@@ -52,8 +52,8 @@ class Settings(BaseSettings):
     @property
     def database_uri(self) -> str:
         """Get the appropriate database URL based on environment"""
-        if self.environment == "production" and self.database_url_render:
-            return self.database_url_render
+        if self.environment == "production" and self.database_url_neon:
+            return self.database_url_neon
         return self.database_url
     
     @property
