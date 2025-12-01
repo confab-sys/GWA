@@ -5,6 +5,76 @@
   "installCommand": "echo 'No install needed'",
   "routes": [
     {
+      "src": "/favicon.ico",
+      "dest": "/favicon.png",
+      "headers": {
+        "Content-Type": "image/x-icon"
+      }
+    },
+    {
+      "src": "/favicon.png",
+      "dest": "/favicon.png",
+      "headers": {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/icons/(.*)",
+      "dest": "/icons/$1",
+      "headers": {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/(.*\\.js)$",
+      "dest": "/$1",
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/(.*\\.json)$",
+      "dest": "/$1",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/(.*\\.wasm)$",
+      "dest": "/$1",
+      "headers": {
+        "Content-Type": "application/wasm",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json",
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/canvaskit/(.*)",
+      "dest": "/canvaskit/$1",
+      "headers": {
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
