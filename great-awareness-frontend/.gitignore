@@ -30,6 +30,8 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+# Ignore root web folder to prevent Vercel from detecting it
+/web/
 # Allow build/web for Vercel deployment
 /build/*
 !/build/web/

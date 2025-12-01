@@ -1,0 +1,12 @@
+{
+  "buildCommand": "powershell -ExecutionPolicy Bypass -File build.ps1",
+  "outputDirectory": "build/web",
+  "installCommand": "echo 'Dependencies already installed via Flutter'",
+  "framework": null,
+  "functions": {
+    "app": {
+      "runtime": "static",
+      "handler": "build/web"
+    }
+  }
+}

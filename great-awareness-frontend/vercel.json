@@ -1,13 +1,23 @@
 {
   "name": "great-awareness-frontend",
   "version": 2,
-  "buildCommand": "bash build.sh",
+  "buildCommand": "powershell -ExecutionPolicy Bypass -File build.ps1",
   "outputDirectory": "build/web",
   "framework": null,
-  "rewrites": [
+  "installCommand": "echo 'No install needed'",
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "build.ps1",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build/web"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
