@@ -2,6 +2,14 @@
 
 echo "Starting Flutter web build for Vercel..."
 
+# Check if Flutter is available
+if ! command -v flutter &> /dev/null; then
+    echo "Installing Flutter..."
+    # Install Flutter in Vercel environment
+    git clone https://github.com/flutter/flutter.git -b stable --depth 1
+    export PATH="$PATH:$PWD/flutter/bin"
+fi
+
 # Clean previous builds
 echo "Cleaning previous builds..."
 flutter clean
