@@ -6,6 +6,7 @@ from app.core.dependencies import get_current_user
 from app.models.user_model import User
 from app.models.content_model import Content
 from app.models.comment_model import Comment
+from app.models.notification_model import Notification
 from app.schemas.content_schema import ContentCreate, ContentUpdate, ContentResponse, ContentListResponse
 from app.schemas.comment_schema import CommentCreate, CommentResponse, CommentListResponse
 from datetime import datetime
@@ -45,6 +46,28 @@ async def create_content(
     db.add(db_content)
     db.commit()
     db.refresh(db_content)
+    
+    # Create notification for the new content
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        notification = Notification(
+            notification_type="content",
+            title=f"New {db_content.post_type} Content: {db_content.title}",
+            body=db_content.body[:200] + "..." if len(db_content.body) > 200 else db_content.body,
+            content_id=db_content.id,
+            author_name=db_content.author_name or current_user.username,
+            author_avatar=db_content.author_avatar or current_user.profile_image,
+            user_id=current_user.id,  # Notify the creator (or change to followers later)
+            is_read=False
+        )
+        db.add(notification)
+        db.commit()
+        logger.info(f"Notification created for content {db_content.id}")
+    except Exception as e:
+        logger.error(f"Failed to create notification for content {db_content.id}: {e}")
+        # Don't fail the content creation if notification fails
     
     return db_content.to_dict()
 

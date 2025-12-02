@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 enum NotificationType {
   post,
   question,
+  comment,
+  like,
 }
 
 class AppNotification {
