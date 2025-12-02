@@ -44,6 +44,7 @@ class Question(Base):
     comments = relationship("QuestionComment", back_populates="question", cascade="all, delete-orphan")
     likes = relationship("QuestionLike", back_populates="question", cascade="all, delete-orphan")
     saves = relationship("QuestionSave", back_populates="question", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="question", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Question(id={self.id}, title='{self.title[:50]}...', category='{self.category}', status='{self.status}')>"

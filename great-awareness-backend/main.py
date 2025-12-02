@@ -10,8 +10,9 @@ from app.core.database import engine, Base, get_db, init_db, check_db_connection
 from app.models.content_model import Content
 from app.models.user_model import User
 from app.models.question_model import Question, QuestionComment, QuestionLike, QuestionSave
+from app.models.notification_model import Notification
 from app.schemas.user_schema import UserCreate, UserResponse
-from app.routes import auth_routes, content_routes, question_routes
+from app.routes import auth_routes, content_routes, question_routes, notification_routes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO if settings.debug else logging.WARNING)
@@ -39,6 +40,7 @@ app.add_middleware(
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(content_routes.router, prefix="/api/content", tags=["content"])
 app.include_router(question_routes.router, prefix="/api/qa", tags=["qa"])
+app.include_router(notification_routes.router, prefix="/api/notifications", tags=["notifications"])
 
 @app.on_event("startup")
 async def startup_event():
