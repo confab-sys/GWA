@@ -8,7 +8,9 @@
       "src": "/favicon.ico",
       "dest": "/favicon.png",
       "headers": {
-        "Content-Type": "image/x-icon"
+        "Content-Type": "image/x-icon",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
       }
     },
     {
@@ -16,14 +18,100 @@
       "dest": "/favicon.png",
       "headers": {
         "Content-Type": "image/png",
+        "Access-Control-Allow-Origin": "*",
         "Cache-Control": "public, max-age=3600"
       }
     },
     {
-      "src": "/icons/(.*)",
-      "dest": "/icons/$1",
+      "src": "/icons/Icon-192.png",
+      "dest": "/icons/Icon-192.png",
       "headers": {
         "Content-Type": "image/png",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/icons/Icon-512.png",
+      "dest": "/icons/Icon-512.png",
+      "headers": {
+        "Content-Type": "image/png",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/icons/Icon-maskable-192.png",
+      "dest": "/icons/Icon-maskable-192.png",
+      "headers": {
+        "Content-Type": "image/png",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/icons/Icon-maskable-512.png",
+      "dest": "/icons/Icon-maskable-512.png",
+      "headers": {
+        "Content-Type": "image/png",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/canvaskit/(.*)",
+      "dest": "/canvaskit/$1",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json",
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/flutter_service_worker.js",
+      "dest": "/flutter_service_worker.js",
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/flutter.js",
+      "dest": "/flutter.js",
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/flutter_bootstrap.js",
+      "dest": "/flutter_bootstrap.js",
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/main.dart.js",
+      "dest": "/main.dart.js",
+      "headers": {
+        "Content-Type": "application/javascript",
         "Cache-Control": "public, max-age=3600"
       }
     },
@@ -48,29 +136,6 @@
       "dest": "/$1",
       "headers": {
         "Content-Type": "application/wasm",
-        "Cache-Control": "public, max-age=3600"
-      }
-    },
-    {
-      "src": "/manifest.json",
-      "dest": "/manifest.json",
-      "headers": {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "public, max-age=3600"
-      }
-    },
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=3600"
-      }
-    },
-    {
-      "src": "/canvaskit/(.*)",
-      "dest": "/canvaskit/$1",
-      "headers": {
         "Cache-Control": "public, max-age=3600"
       }
     },

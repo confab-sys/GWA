@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/user.dart';
@@ -7,12 +9,228 @@ import '../utils/config.dart';
 
 
 class ApiService {
-  final http.Client _client = http.Client();
+  late final http.Client _client;
+  
+  ApiService() {
+    // Create a client with proper timeouts for mobile networks
+    _client = http.Client();
+  }
+
+  // Get the appropriate API URL based on environment
+  String getApiBaseUrl() {
+    return currentEnvironment == 'production' ? apiBaseUrlProd : apiBaseUrlDev;
+  }
+
+  // Check network connectivity before making requests
+  Future<bool> checkNetworkConnectivity() async {
+    try {
+      debugPrint('Checking network connectivity...');
+      final result = await InternetAddress.lookup('gwa-enus.onrender.com');
+      debugPrint('DNS lookup result: $result');
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (e) {
+      debugPrint('Network connectivity check failed: $e');
+      return false;
+    } catch (e) {
+      debugPrint('Unexpected error during connectivity check: $e');
+      return false;
+    }
+  }
+
+  // Try alternative backend URLs if the main one fails
+  Future<String> getWorkingBackendUrl() async {
+    final urls = [
+      apiBaseUrlProd,
+      // Add IP-based fallback if configured
+      if (apiBaseUrlProdIP != 'https://your-render-ip-here.onrender.com') apiBaseUrlProdIP,
+    ];
+    
+    for (final url in urls) {
+      try {
+        debugPrint('Testing backend URL: $url');
+        final response = await _client.get(
+          Uri.parse('$url/'),
+        ).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => throw TimeoutException('URL test timeout'),
+        );
+        
+        if (response.statusCode < 500) { // Not a server error
+          debugPrint('Working backend URL found: $url');
+          return url;
+        }
+      } catch (e) {
+        debugPrint('URL $url failed: $e');
+        continue;
+      }
+    }
+    
+    debugPrint('No working backend URL found, returning default');
+    return apiBaseUrlProd; // Return default even if it might not work
+  }
+
+  // Test if the backend API is reachable
+  Future<Map<String, dynamic>> testBackendConnection() async {
+    try {
+      debugPrint('Testing backend connection to: $apiBaseUrl');
+      final connectivity = await checkNetworkConnectivity();
+      if (!connectivity) {
+        return {
+          'success': false,
+          'error': 'Network connectivity check failed',
+          'details': 'Cannot resolve DNS for gwa-enus.onrender.com',
+        };
+      }
+
+      // Try to make a simple GET request to the base URL
+      final response = await _client.get(
+        Uri.parse('$apiBaseUrl/'),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw TimeoutException('Connection test timed out'),
+      );
+
+      debugPrint('Backend connection test successful, status: ${response.statusCode}');
+      return {
+        'success': true,
+        'statusCode': response.statusCode,
+        'message': 'Backend is reachable',
+      };
+    } on SocketException catch (e) {
+      debugPrint('Backend connection test failed - SocketException: $e');
+      return {
+        'success': false,
+        'error': 'Cannot connect to backend',
+        'details': 'SocketException: $e',
+      };
+    } on TimeoutException catch (e) {
+      debugPrint('Backend connection test failed - Timeout: $e');
+      return {
+        'success': false,
+        'error': 'Connection timeout',
+        'details': 'TimeoutException: $e',
+      };
+    } catch (e) {
+      debugPrint('Backend connection test failed - Unexpected error: $e');
+      return {
+        'success': false,
+        'error': 'Unexpected error',
+        'details': 'Error: $e',
+      };
+    }
+  }
+  
+  // Retry mechanism for mobile networks
+  Future<T> _retryRequest<T>(Future<T> Function() request, {int maxRetries = 3}) async {
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        return await request();
+      } catch (e) {
+        if (i == maxRetries - 1) {
+          // Last attempt, rethrow the error
+          rethrow;
+        }
+        // Wait before retrying (exponential backoff)
+        await Future.delayed(Duration(seconds: i + 1));
+        debugPrint('Request failed, retrying attempt ${i + 2}/$maxRetries');
+      }
+    }
+    throw Exception('Max retries exceeded');
+  }
+  
+  // Enhanced POST request with proper error handling
+  Future<http.Response> _postWithRetry(String url, {Map<String, String>? headers, Object? body}) async {
+    return await _retryRequest(() async {
+      try {
+        debugPrint('Attempting POST request to: $url');
+        final uri = Uri.parse(url);
+        final response = await _client.post(
+          uri,
+          headers: headers,
+          body: body,
+        ).timeout(
+          const Duration(seconds: 30), // Increased timeout for mobile networks
+          onTimeout: () {
+            debugPrint('Request timed out after 30 seconds');
+            throw TimeoutException('Request timed out after 30 seconds');
+          },
+        );
+        debugPrint('POST request successful, status: ${response.statusCode}');
+        return response;
+      } on SocketException catch (e) {
+        debugPrint('SocketException: $e');
+        debugPrint('URL: $url');
+        debugPrint('This usually means DNS resolution failed or network is unreachable');
+        throw Exception('Network connection failed. Please check your internet connection. (Error: $e)');
+      } on FormatException catch (e) {
+        debugPrint('URL format error: $e');
+        throw Exception('Invalid server URL format: $e');
+      } on TimeoutException catch (e) {
+        debugPrint('Request timeout: $e');
+        throw Exception('Request timed out. Please check your internet connection. (Error: $e)');
+      } catch (e) {
+        debugPrint('Unexpected error: $e');
+        throw Exception('An unexpected error occurred: $e');
+      }
+    });
+  }
+
+  // Enhanced GET request with proper error handling
+  Future<http.Response> _getWithRetry(String url, {Map<String, String>? headers}) async {
+    return await _retryRequest(() async {
+      try {
+        final uri = Uri.parse(url);
+        final response = await _client.get(
+          uri,
+          headers: headers,
+        ).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            throw TimeoutException('Request timed out after 30 seconds');
+          },
+        );
+        return response;
+      } on SocketException catch (e) {
+        debugPrint('Network error: $e');
+        throw Exception('Network connection failed. Please check your internet connection.');
+      } on FormatException catch (e) {
+        debugPrint('URL format error: $e');
+        throw Exception('Invalid server URL format');
+      } on TimeoutException catch (e) {
+        debugPrint('Request timeout: $e');
+        throw Exception('Request timed out. Please check your internet connection.');
+      } catch (e) {
+        debugPrint('Unexpected error: $e');
+        throw Exception('An unexpected error occurred: $e');
+      }
+    });
+  }
 
   Future<User?> login(String email, String password) async {
-    final uri = Uri.parse('$apiBaseUrl/api/auth/login');
-    final res = await _client.post(
-      uri,
+    debugPrint('=== LOGIN ATTEMPT ===');
+    debugPrint('Email: $email');
+    debugPrint('Default API Base URL: $apiBaseUrl');
+    
+    // Find working backend URL
+    final workingUrl = await getWorkingBackendUrl();
+    debugPrint('Using working backend URL: $workingUrl');
+    
+    // Test backend connection first
+    debugPrint('Testing backend connection before login...');
+    final connectionTest = await testBackendConnection();
+    debugPrint('Connection test result: $connectionTest');
+    
+    if (!connectionTest['success']) {
+      debugPrint('Backend connection test failed, attempting login anyway...');
+      // Continue with login attempt even if connection test fails
+      // This allows for cases where the connection test might be blocked but login works
+    }
+    
+    final uri = Uri.parse('$workingUrl/api/auth/login');
+    debugPrint('Login URI: $uri');
+    
+    final res = await _postWithRetry(
+      uri.toString(),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'email': email, 'password': password}),
     );
@@ -22,9 +240,9 @@ class ApiService {
       
       // Try to get user data using the token
       try {
-        final userUri = Uri.parse('$apiBaseUrl/api/auth/me');
-        final userRes = await _client.get(
-          userUri,
+        final userUri = Uri.parse('$workingUrl/api/auth/me');
+        final userRes = await _getWithRetry(
+          userUri.toString(),
           headers: {'Authorization': 'Bearer $token'},
         );
         
@@ -48,7 +266,14 @@ class ApiService {
   }
 
   Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
-    final uri = Uri.parse('$apiBaseUrl/api/auth/register');
+    debugPrint('=== SIGNUP ATTEMPT ===');
+    debugPrint('Email: $email');
+    
+    // Find working backend URL
+    final workingUrl = await getWorkingBackendUrl();
+    debugPrint('Using working backend URL: $workingUrl');
+    
+    final uri = Uri.parse('$workingUrl/api/auth/register');
     
     // Generate username from email (before @ symbol)
     String username = email.split('@')[0];
@@ -60,7 +285,7 @@ class ApiService {
     
     // If still too short, add numbers
     if (username.length < 3) {
-      username = username + '123';
+      username = '${username}123';
     }
     
     // Add timestamp to ensure uniqueness and avoid conflicts
@@ -68,8 +293,8 @@ class ApiService {
     
     debugPrint('Attempting signup with username: $username, email: $email');
     
-    final res = await _client.post(
-      uri,
+    final res = await _postWithRetry(
+      uri.toString(),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'username': username,
