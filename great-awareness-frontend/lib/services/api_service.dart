@@ -20,6 +20,31 @@ class ApiService {
   String getApiBaseUrl() {
     return currentEnvironment == 'production' ? apiBaseUrlProd : apiBaseUrlDev;
   }
+  
+  // Get CORS-safe URL for web requests
+  String getCorsSafeUrl(String originalUrl) {
+    if (kIsWeb) {
+      // For web development, we can use a CORS proxy or modify the URL
+      // Option 1: Use a CORS proxy (for development only)
+      // Note: These proxies may have rate limits or require activation
+      
+      // Try different CORS proxies if needed
+      final corsProxies = [
+        // 'https://cors-anywhere.herokuapp.com/', // May require activation
+        // 'https://api.allorigins.win/raw?url=', // Alternative proxy
+        // 'https://cors-proxy.htmldriven.com/?url=', // Another alternative
+      ];
+      
+      // For now, return the original URL and let the browser handle it
+      // The backend should be configured to allow CORS from your origin
+      debugPrint('Using original URL for web request: $originalUrl');
+      debugPrint('Note: If you encounter CORS issues, the backend needs to be configured');
+      debugPrint('to allow requests from http://localhost:8081');
+      
+      return originalUrl;
+    }
+    return originalUrl;
+  }
 
   // Check network connectivity before making requests
   Future<bool> checkNetworkConnectivity() async {
@@ -144,9 +169,18 @@ class ApiService {
       try {
         debugPrint('Attempting POST request to: $url');
         final uri = Uri.parse(url);
+        
+        // Add proper headers for CORS compatibility
+        final modifiedHeaders = headers ?? {};
+        if (kIsWeb) {
+          // Add origin header for web requests to help with CORS
+          modifiedHeaders['Origin'] = 'http://localhost:8081';
+          modifiedHeaders['Referer'] = 'http://localhost:8081/';
+        }
+        
         final response = await _client.post(
           uri,
-          headers: headers,
+          headers: modifiedHeaders,
           body: body,
         ).timeout(
           const Duration(seconds: 30), // Increased timeout for mobile networks
@@ -328,17 +362,39 @@ class ApiService {
   }
 
   Future<List<Content>> fetchFeed(String token, {int skip = 0}) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content?skip=$skip');
-    final res = await _client.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      final list = data is List ? data : (data['items'] ?? []);
-      return List<Content>.from(list.map((e) => Content.fromJson(e as Map<String, dynamic>)));
+    debugPrint('=== FETCHING FEED ===');
+    debugPrint('Skip: $skip');
+    
+    // Find working backend URL first
+    final workingUrl = await getWorkingBackendUrl();
+    debugPrint('Using working backend URL: $workingUrl');
+    
+    final uri = Uri.parse('$workingUrl/api/content?skip=$skip');
+    debugPrint('Feed fetch URI: $uri');
+    
+    try {
+      final res = await _getWithRetry(
+        uri.toString(),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      debugPrint('fetchFeed response status: ${res.statusCode}');
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final list = data is List ? data : (data['items'] ?? []);
+        final contentList = List<Content>.from(list.map((e) => Content.fromJson(e as Map<String, dynamic>)));
+        debugPrint('Feed fetched successfully! Found ${contentList.length} items');
+        return contentList;
+      } else {
+        debugPrint('Feed fetch failed with status ${res.statusCode}');
+        debugPrint('Error response: ${res.body}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Exception in fetchFeed: $e');
+      return [];
     }
-    return [];
   }
 
   Future<Content?> createContent(String token, {
@@ -350,34 +406,54 @@ class ApiService {
     bool isTextOnly = true,
     String status = 'published',
   }) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content');
-    final res = await _client.post(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'title': title,
-        'body': body,
-        'topic': topic,
-        'post_type': postType,
-        'image_path': imagePath,
-        'is_text_only': isTextOnly,
-        'status': status,
-      }),
-    );
+    debugPrint('=== CREATING CONTENT ===');
+    debugPrint('Title: $title');
+    debugPrint('Topic: $topic');
+    debugPrint('Post Type: $postType');
+    debugPrint('Is Text Only: $isTextOnly');
     
-    debugPrint('createContent response status: ${res.statusCode}');
-    debugPrint('createContent response body: ${res.body}');
+    // Find working backend URL first
+    final workingUrl = await getWorkingBackendUrl();
+    debugPrint('Using working backend URL: $workingUrl');
     
-    if (res.statusCode == 201) {
-      final data = json.decode(res.body);
-      return Content.fromJson(data as Map<String, dynamic>);
-    } else {
-      // Throw an exception with the actual error message
-      final errorData = json.decode(res.body);
-      throw Exception('API Error ${res.statusCode}: ${errorData['detail'] ?? 'Unknown error'}');
+    final uri = Uri.parse('$workingUrl/api/content');
+    debugPrint('Content creation URI: $uri');
+    
+    try {
+      final res = await _postWithRetry(
+        uri.toString(),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'title': title,
+          'body': body,
+          'topic': topic,
+          'post_type': postType,
+          'image_path': imagePath,
+          'is_text_only': isTextOnly,
+          'status': status,
+        }),
+      );
+      
+      debugPrint('createContent response status: ${res.statusCode}');
+      debugPrint('createContent response body: ${res.body}');
+      
+      if (res.statusCode == 201) {
+        final data = json.decode(res.body);
+        debugPrint('Content created successfully!');
+        return Content.fromJson(data as Map<String, dynamic>);
+      } else {
+        // Throw an exception with the actual error message
+        final errorData = json.decode(res.body);
+        debugPrint('Content creation failed with status ${res.statusCode}');
+        debugPrint('Error details: ${errorData['detail'] ?? 'Unknown error'}');
+        throw Exception('API Error ${res.statusCode}: ${errorData['detail'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      debugPrint('Exception in createContent: $e');
+      rethrow;
     }
   }
 
@@ -440,40 +516,140 @@ class ApiService {
   }
 
   Future<bool> deleteContent(String token, int contentId) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId');
-    final res = await _client.delete(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    return res.statusCode == 204;
+    debugPrint('=== DELETING CONTENT ===');
+    debugPrint('Content ID: $contentId');
+    
+    // Find working backend URL first
+    final workingUrl = await getWorkingBackendUrl();
+    debugPrint('Using working backend URL: $workingUrl');
+    
+    final uri = Uri.parse('$workingUrl/api/content/$contentId');
+    debugPrint('Delete content URI: $uri');
+    
+    try {
+      final res = await _retryRequest<http.Response>(
+        () async {
+          return await _client.delete(
+            uri,
+            headers: {'Authorization': 'Bearer $token'},
+          ).timeout(const Duration(seconds: 30));
+        },
+      );
+      
+      debugPrint('deleteContent response status: ${res.statusCode}');
+      
+      if (res.statusCode == 204) {
+        debugPrint('Content deleted successfully!');
+        return true;
+      } else {
+        debugPrint('Delete content failed with status ${res.statusCode}');
+        debugPrint('Error response: ${res.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Exception in deleteContent: $e');
+      return false;
+    }
   }
 
   Future<Content?> likeContent(String token, int contentId) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/like');
-    final res = await _client.post(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    debugPrint('=== LIKING CONTENT ===');
+    debugPrint('Content ID: $contentId');
     
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      return Content.fromJson(data as Map<String, dynamic>);
+    // Find working backend URL first
+    final workingUrl = await getWorkingBackendUrl();
+    debugPrint('Using working backend URL: $workingUrl');
+    
+    final originalUri = Uri.parse('$workingUrl/api/content/$contentId/like');
+    final corsSafeUrl = getCorsSafeUrl(originalUri.toString());
+    debugPrint('Like content URI: $corsSafeUrl');
+    
+    try {
+      final res = await _postWithRetry(
+        corsSafeUrl,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+      
+      debugPrint('likeContent response status: ${res.statusCode}');
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        debugPrint('Content liked successfully!');
+        return Content.fromJson(data as Map<String, dynamic>);
+      } else {
+        debugPrint('Like content failed with status ${res.statusCode}');
+        debugPrint('Error response: ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Exception in likeContent: $e');
+      
+      // Check if this is a CORS error
+      if (e.toString().contains('CORS') || e.toString().contains('Access-Control-Allow-Origin')) {
+        debugPrint('CORS error detected. This is a server-side configuration issue.');
+        debugPrint('The backend server needs to be configured to allow requests from your origin.');
+        debugPrint('For development, you can:');
+        debugPrint('1. Use a CORS proxy extension in your browser');
+        debugPrint('2. Configure the backend to allow CORS from http://localhost:8081');
+        debugPrint('3. Use a local development server that handles CORS properly');
+      }
+      
+      return null;
     }
-    return null;
   }
 
   Future<Content?> unlikeContent(String token, int contentId) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/unlike');
-    final res = await _client.post(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
+    debugPrint('=== UNLIKING CONTENT ===');
+    debugPrint('Content ID: $contentId');
     
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      return Content.fromJson(data as Map<String, dynamic>);
+    // Find working backend URL first
+    final workingUrl = await getWorkingBackendUrl();
+    debugPrint('Using working backend URL: $workingUrl');
+    
+    final originalUri = Uri.parse('$workingUrl/api/content/$contentId/unlike');
+    final corsSafeUrl = getCorsSafeUrl(originalUri.toString());
+    debugPrint('Unlike content URI: $corsSafeUrl');
+    
+    try {
+      final res = await _postWithRetry(
+        corsSafeUrl,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+      
+      debugPrint('unlikeContent response status: ${res.statusCode}');
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        debugPrint('Content unliked successfully!');
+        return Content.fromJson(data as Map<String, dynamic>);
+      } else {
+        debugPrint('Unlike content failed with status ${res.statusCode}');
+        debugPrint('Error response: ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Exception in unlikeContent: $e');
+      
+      // Check if this is a CORS error
+      if (e.toString().contains('CORS') || e.toString().contains('Access-Control-Allow-Origin')) {
+        debugPrint('CORS error detected. This is a server-side configuration issue.');
+        debugPrint('The backend server needs to be configured to allow requests from your origin.');
+        debugPrint('For development, you can:');
+        debugPrint('1. Use a CORS proxy extension in your browser');
+        debugPrint('2. Configure the backend to allow CORS from http://localhost:8081');
+        debugPrint('3. Use a local development server that handles CORS properly');
+      }
+      
+      return null;
     }
-    return null;
   }
 
   Future<Map<String, dynamic>?> createComment(String token, int contentId, String text) async {

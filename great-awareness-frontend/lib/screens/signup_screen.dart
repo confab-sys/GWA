@@ -503,7 +503,7 @@ class _SignupScreenState extends State<SignupScreen> {
               value: county,
               child: Text(
                 county,
-                style: GoogleFonts.judson(color: Colors.white),
+                style: GoogleFonts.judson(color: Colors.black),
               ),
             );
           }).toList(),

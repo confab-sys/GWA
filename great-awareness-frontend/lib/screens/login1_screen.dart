@@ -116,13 +116,14 @@ class _Login1ScreenState extends State<Login1Screen> {
                       controller: _emailController,
                       decoration: InputDecoration(
                         labelText: 'Email',
-                        labelStyle: GoogleFonts.judson(),
+                        labelStyle: GoogleFonts.judson(color: Colors.black),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                         filled: true,
                         fillColor: Colors.white,
                       ),
+                      style: GoogleFonts.judson(color: Colors.black),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -139,7 +140,7 @@ class _Login1ScreenState extends State<Login1Screen> {
                       controller: _passwordController,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        labelStyle: GoogleFonts.judson(),
+                        labelStyle: GoogleFonts.judson(color: Colors.black),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -156,6 +157,7 @@ class _Login1ScreenState extends State<Login1Screen> {
                           },
                         ),
                       ),
+                      style: GoogleFonts.judson(color: Colors.black),
                       obscureText: _obscurePassword,
                       validator: (value) {
                         if (value == null || value.isEmpty) {

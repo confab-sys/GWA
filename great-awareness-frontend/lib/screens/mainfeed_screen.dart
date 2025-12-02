@@ -3,9 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'post_detail_screen.dart';
 import 'admin_posting_screen.dart';
+import 'notification_screen.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../models/content.dart';
+import '../models/notification.dart';
 
 class MainFeedScreen extends StatefulWidget {
   const MainFeedScreen({super.key});
@@ -23,7 +26,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
   bool _showSearch = false;
   final AuthService _authService = AuthService();
   final ApiService _apiService = ApiService();
-  final Set<int> _likedPosts = {}; // Track locally liked posts
+
   final Map<int, List<dynamic>> _postComments = {}; // Cache comments for each post
   final Map<int, bool> _loadingComments = {}; // Track loading state for each post
 
@@ -43,8 +46,23 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     
     // Mock admin login for testing - remove this in production
     _authService.mockAdminLogin();
+    
+    // Listen for new notifications
+    Provider.of<NotificationService>(context, listen: false).notificationStream.listen((notification) {
+      // Optional: Show a snackbar for new notifications
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New ${notification.type == NotificationType.post ? 'post' : 'question'} in ${notification.category}'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    });
   }
 
+  // ignore: unused_element
   Future<void> _refreshPost(int postId) async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = authService.currentUser?.token;
@@ -129,9 +147,60 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       return;
     }
     
-    // Show loading indicator
+    // Optimistic UI update - update comment count immediately
+    setState(() {
+      final postIndex = _posts.indexWhere((p) => p.id == postId);
+      if (postIndex != -1) {
+        _posts[postIndex] = Content(
+          id: _posts[postIndex].id,
+          title: _posts[postIndex].title,
+          body: _posts[postIndex].body,
+          topic: _posts[postIndex].topic,
+          postType: _posts[postIndex].postType,
+          imagePath: _posts[postIndex].imagePath,
+          isTextOnly: _posts[postIndex].isTextOnly,
+          authorName: _posts[postIndex].authorName,
+          authorAvatar: _posts[postIndex].authorAvatar,
+          likesCount: _posts[postIndex].likesCount,
+          commentsCount: _posts[postIndex].commentsCount + 1,
+          isLikedByUser: _posts[postIndex].isLikedByUser,
+          status: _posts[postIndex].status,
+          isFeatured: _posts[postIndex].isFeatured,
+          createdAt: _posts[postIndex].createdAt,
+          updatedAt: _posts[postIndex].updatedAt,
+          publishedAt: _posts[postIndex].publishedAt,
+          createdBy: _posts[postIndex].createdBy,
+        );
+        
+        final filteredIndex = _filteredPosts.indexWhere((p) => p.id == postId);
+        if (filteredIndex != -1) {
+          _filteredPosts[filteredIndex] = Content(
+            id: _filteredPosts[filteredIndex].id,
+            title: _filteredPosts[filteredIndex].title,
+            body: _filteredPosts[filteredIndex].body,
+            topic: _filteredPosts[filteredIndex].topic,
+            postType: _filteredPosts[filteredIndex].postType,
+            imagePath: _filteredPosts[filteredIndex].imagePath,
+            isTextOnly: _filteredPosts[filteredIndex].isTextOnly,
+            authorName: _filteredPosts[filteredIndex].authorName,
+            authorAvatar: _filteredPosts[filteredIndex].authorAvatar,
+            likesCount: _filteredPosts[filteredIndex].likesCount,
+            commentsCount: _filteredPosts[filteredIndex].commentsCount + 1,
+            isLikedByUser: _filteredPosts[filteredIndex].isLikedByUser,
+            status: _filteredPosts[filteredIndex].status,
+            isFeatured: _filteredPosts[filteredIndex].isFeatured,
+            createdAt: _filteredPosts[filteredIndex].createdAt,
+            updatedAt: _filteredPosts[filteredIndex].updatedAt,
+            publishedAt: _filteredPosts[filteredIndex].publishedAt,
+            createdBy: _filteredPosts[filteredIndex].createdBy,
+          );
+        }
+      }
+    });
+    
+    // Show brief posting feedback
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Posting comment...'), duration: Duration(seconds: 1)),
+      const SnackBar(content: Text('Posting comment...'), duration: Duration(milliseconds: 300)),
     );
     
     try {
@@ -160,6 +229,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
               authorAvatar: _posts[postIndex].authorAvatar,
               likesCount: _posts[postIndex].likesCount,
               commentsCount: _posts[postIndex].commentsCount + 1,
+              isLikedByUser: _posts[postIndex].isLikedByUser,
               status: _posts[postIndex].status,
               isFeatured: _posts[postIndex].isFeatured,
               createdAt: _posts[postIndex].createdAt,
@@ -182,6 +252,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                 authorAvatar: _filteredPosts[filteredIndex].authorAvatar,
                 likesCount: _filteredPosts[filteredIndex].likesCount,
                 commentsCount: _filteredPosts[filteredIndex].commentsCount + 1,
+                isLikedByUser: _filteredPosts[filteredIndex].isLikedByUser,
                 status: _filteredPosts[filteredIndex].status,
                 isFeatured: _filteredPosts[filteredIndex].isFeatured,
                 createdAt: _filteredPosts[filteredIndex].createdAt,
@@ -193,13 +264,64 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
           }
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment added successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
-        );
-      } else {
-        // Handle case when comment creation failed
-        debugPrint('Comment creation failed - newComment is null');
         if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Comment added!'), backgroundColor: Colors.green, duration: Duration(milliseconds: 500)),
+          );
+        }
+      } else {
+        // API failed, rollback comment count
+        if (mounted) {
+          setState(() {
+            final postIndex = _posts.indexWhere((p) => p.id == postId);
+            if (postIndex != -1) {
+              _posts[postIndex] = Content(
+                id: _posts[postIndex].id,
+                title: _posts[postIndex].title,
+                body: _posts[postIndex].body,
+                topic: _posts[postIndex].topic,
+                postType: _posts[postIndex].postType,
+                imagePath: _posts[postIndex].imagePath,
+                isTextOnly: _posts[postIndex].isTextOnly,
+                authorName: _posts[postIndex].authorName,
+                authorAvatar: _posts[postIndex].authorAvatar,
+                likesCount: _posts[postIndex].likesCount,
+                commentsCount: _posts[postIndex].commentsCount - 1,
+                isLikedByUser: _posts[postIndex].isLikedByUser,
+                status: _posts[postIndex].status,
+                isFeatured: _posts[postIndex].isFeatured,
+                createdAt: _posts[postIndex].createdAt,
+                updatedAt: _posts[postIndex].updatedAt,
+                publishedAt: _posts[postIndex].publishedAt,
+                createdBy: _posts[postIndex].createdBy,
+              );
+              
+              final filteredIndex = _filteredPosts.indexWhere((p) => p.id == postId);
+              if (filteredIndex != -1) {
+                _filteredPosts[filteredIndex] = Content(
+                  id: _filteredPosts[filteredIndex].id,
+                  title: _filteredPosts[filteredIndex].title,
+                  body: _filteredPosts[filteredIndex].body,
+                  topic: _filteredPosts[filteredIndex].topic,
+                  postType: _filteredPosts[filteredIndex].postType,
+                  imagePath: _filteredPosts[filteredIndex].imagePath,
+                  isTextOnly: _filteredPosts[filteredIndex].isTextOnly,
+                  authorName: _filteredPosts[filteredIndex].authorName,
+                  authorAvatar: _filteredPosts[filteredIndex].authorAvatar,
+                  likesCount: _filteredPosts[filteredIndex].likesCount,
+                  commentsCount: _filteredPosts[filteredIndex].commentsCount - 1,
+                  isLikedByUser: _filteredPosts[filteredIndex].isLikedByUser,
+                  status: _filteredPosts[filteredIndex].status,
+                  isFeatured: _filteredPosts[filteredIndex].isFeatured,
+                  createdAt: _filteredPosts[filteredIndex].createdAt,
+                  updatedAt: _filteredPosts[filteredIndex].updatedAt,
+                  publishedAt: _filteredPosts[filteredIndex].publishedAt,
+                  createdBy: _filteredPosts[filteredIndex].createdBy,
+                );
+              }
+            }
+          });
+          
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to add comment. Please try again.'), backgroundColor: Colors.red),
           );
@@ -207,7 +329,58 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       }
     } catch (e) {
       debugPrint('Exception in _addComment: $e');
+      // Error occurred, rollback comment count
       if (mounted) {
+        setState(() {
+          final postIndex = _posts.indexWhere((p) => p.id == postId);
+          if (postIndex != -1) {
+            _posts[postIndex] = Content(
+              id: _posts[postIndex].id,
+              title: _posts[postIndex].title,
+              body: _posts[postIndex].body,
+              topic: _posts[postIndex].topic,
+              postType: _posts[postIndex].postType,
+              imagePath: _posts[postIndex].imagePath,
+              isTextOnly: _posts[postIndex].isTextOnly,
+              authorName: _posts[postIndex].authorName,
+              authorAvatar: _posts[postIndex].authorAvatar,
+              likesCount: _posts[postIndex].likesCount,
+              commentsCount: _posts[postIndex].commentsCount - 1,
+              isLikedByUser: _posts[postIndex].isLikedByUser,
+              status: _posts[postIndex].status,
+              isFeatured: _posts[postIndex].isFeatured,
+              createdAt: _posts[postIndex].createdAt,
+              updatedAt: _posts[postIndex].updatedAt,
+              publishedAt: _posts[postIndex].publishedAt,
+              createdBy: _posts[postIndex].createdBy,
+            );
+            
+            final filteredIndex = _filteredPosts.indexWhere((p) => p.id == postId);
+            if (filteredIndex != -1) {
+              _filteredPosts[filteredIndex] = Content(
+                id: _filteredPosts[filteredIndex].id,
+                title: _filteredPosts[filteredIndex].title,
+                body: _filteredPosts[filteredIndex].body,
+                topic: _filteredPosts[filteredIndex].topic,
+                postType: _filteredPosts[filteredIndex].postType,
+                imagePath: _filteredPosts[filteredIndex].imagePath,
+                isTextOnly: _filteredPosts[filteredIndex].isTextOnly,
+                authorName: _filteredPosts[filteredIndex].authorName,
+                authorAvatar: _filteredPosts[filteredIndex].authorAvatar,
+                likesCount: _filteredPosts[filteredIndex].likesCount,
+                commentsCount: _filteredPosts[filteredIndex].commentsCount - 1,
+                isLikedByUser: _filteredPosts[filteredIndex].isLikedByUser,
+                status: _filteredPosts[filteredIndex].status,
+                isFeatured: _filteredPosts[filteredIndex].isFeatured,
+                createdAt: _filteredPosts[filteredIndex].createdAt,
+                updatedAt: _filteredPosts[filteredIndex].updatedAt,
+                publishedAt: _filteredPosts[filteredIndex].publishedAt,
+                createdBy: _filteredPosts[filteredIndex].createdBy,
+              );
+            }
+          }
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error adding comment: ${e.toString()}'),
@@ -381,48 +554,98 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       return;
     }
 
+    // Optimistic UI update - update immediately for instant feedback
+    setState(() {
+      // Toggle like status and count locally first
+      final optimisticPost = Content(
+        id: post.id,
+        title: post.title,
+        body: post.body,
+        topic: post.topic,
+        postType: post.postType,
+        imagePath: post.imagePath,
+        isTextOnly: post.isTextOnly,
+        authorName: post.authorName,
+        authorAvatar: post.authorAvatar,
+        likesCount: post.isLikedByUser ? post.likesCount - 1 : post.likesCount + 1,
+        commentsCount: post.commentsCount,
+        isLikedByUser: !post.isLikedByUser,
+        status: post.status,
+        isFeatured: post.isFeatured,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+        publishedAt: post.publishedAt,
+        createdBy: post.createdBy,
+      );
+      
+      // Update both lists
+      final postIndexInPosts = _posts.indexWhere((p) => p.id == post.id);
+      if (postIndexInPosts != -1) {
+        _posts[postIndexInPosts] = optimisticPost;
+      }
+      _filteredPosts[index] = optimisticPost;
+    });
+
     try {
       Content? updatedPost;
       
-      if (_likedPosts.contains(post.id)) {
+      if (post.isLikedByUser) {
         // Unlike the post
         updatedPost = await _apiService.unlikeContent(token, post.id);
-        if (updatedPost != null && mounted) {
-          setState(() {
-            _likedPosts.remove(post.id);
-            _posts[_posts.indexWhere((p) => p.id == post.id)] = updatedPost!;
-            _filteredPosts[index] = updatedPost!;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Post unliked!'),
-              backgroundColor: Colors.grey,
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
       } else {
         // Like the post
         updatedPost = await _apiService.likeContent(token, post.id);
-        if (updatedPost != null && mounted) {
+      }
+      
+      if (updatedPost != null && mounted) {
+        // Update with server response for accuracy
+        setState(() {
+          final postIndexInPosts = _posts.indexWhere((p) => p.id == post.id);
+          if (postIndexInPosts != -1) {
+            _posts[postIndexInPosts] = updatedPost!;
+          }
+          _filteredPosts[index] = updatedPost!;
+        });
+        
+        // Show brief success feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(post.isLikedByUser ? 'Post unliked' : 'Post liked'),
+            backgroundColor: post.isLikedByUser ? Colors.grey : Colors.green,
+            duration: const Duration(milliseconds: 500),
+          ),
+        );
+      } else {
+        // API failed, rollback to original state
+        if (mounted) {
           setState(() {
-            _likedPosts.add(post.id);
-            _posts[_posts.indexWhere((p) => p.id == post.id)] = updatedPost!;
-            _filteredPosts[index] = updatedPost!;
+            // Revert to original state
+            final postIndexInPosts = _posts.indexWhere((p) => p.id == post.id);
+            if (postIndexInPosts != -1) {
+              _posts[postIndexInPosts] = post;
+            }
+            _filteredPosts[index] = post;
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Post liked!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 1),
+            const SnackBar(
+              content: Text('Failed to update like. Please try again.'),
+              backgroundColor: Colors.red,
             ),
           );
         }
       }
     } catch (e) {
+      // Error occurred, rollback to original state
       if (mounted) {
+        setState(() {
+          final postIndexInPosts = _posts.indexWhere((p) => p.id == post.id);
+          if (postIndexInPosts != -1) {
+            _posts[postIndexInPosts] = post;
+          }
+          _filteredPosts[index] = post;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
@@ -471,7 +694,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('New post created successfully!'),
             backgroundColor: Colors.green,
           ),
@@ -663,6 +886,54 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                 ),
               ),
         actions: [
+          // Notification button with badge
+          Consumer<NotificationService>(
+            builder: (context, notificationService, child) {
+              final unreadCount = notificationService.unreadCount;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: Colors.black),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationScreen(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Notifications',
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Center(
+                          child: Text(
+                            unreadCount > 99 ? '99+' : unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           // Admin posting button (visible only to admins)
           if (_authService.isAdmin)
             IconButton(
@@ -950,8 +1221,8 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                       child: Row(
                                         children: [
                                           Icon(
-                                            _likedPosts.contains(post.id) ? Icons.favorite : Icons.favorite_border,
-                                            color: _likedPosts.contains(post.id) ? Colors.red : Colors.grey,
+                                            post.isLikedByUser ? Icons.favorite : Icons.favorite_border,
+                                            color: post.isLikedByUser ? Colors.red : Colors.grey,
                                             size: 20,
                                           ),
                                           const SizedBox(width: 6),
@@ -1028,7 +1299,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: Icon(
+                                      child: const Icon(
                                         Icons.bookmark_border,
                                         color: Colors.grey,
                                         size: 20,

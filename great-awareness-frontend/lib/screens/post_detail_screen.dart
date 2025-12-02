@@ -231,9 +231,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildInteractionButton(
-                        icon: Icons.favorite_border, // TODO: Implement like state
+                        icon: post.isLikedByUser ? Icons.favorite : Icons.favorite_border,
                         label: '${post.likesCount} Likes',
-                        color: Colors.grey, // TODO: Implement like state
+                        color: post.isLikedByUser ? Colors.red : Colors.grey,
                         onTap: () {
                           widget.onLikeToggle(widget.postIndex);
                           setState(() {});

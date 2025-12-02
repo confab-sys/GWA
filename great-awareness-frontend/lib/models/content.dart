@@ -10,6 +10,7 @@ class Content {
   final String? authorAvatar;
   final int likesCount;
   final int commentsCount;
+  final bool isLikedByUser;
   final String status;
   final bool isFeatured;
   final DateTime createdAt;
@@ -29,6 +30,7 @@ class Content {
     this.authorAvatar,
     required this.likesCount,
     required this.commentsCount,
+    required this.isLikedByUser,
     required this.status,
     required this.isFeatured,
     required this.createdAt,
@@ -50,6 +52,7 @@ class Content {
       authorAvatar: json['author_avatar'],
       likesCount: json['likes_count'] ?? 0,
       commentsCount: json['comments_count'] ?? 0,
+      isLikedByUser: json['is_liked_by_user'] ?? false,
       status: json['status'] ?? 'published',
       isFeatured: json['is_featured'] ?? false,
       createdAt: json['created_at'] != null 
@@ -79,6 +82,7 @@ class Content {
       'author_avatar': authorAvatar,
       'likes_count': likesCount,
       'comments_count': commentsCount,
+      'is_liked_by_user': isLikedByUser,
       'status': status,
       'is_featured': isFeatured,
       'created_at': createdAt.toIso8601String(),

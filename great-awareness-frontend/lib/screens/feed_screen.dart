@@ -403,10 +403,13 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFD3E4DE),
+      backgroundColor: isDarkMode ? theme.scaffoldBackgroundColor : const Color(0xFFD3E4DE),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         title: Row(
           children: [
@@ -419,8 +422,8 @@ class _FeedScreenState extends State<FeedScreen> {
             Text(
               'Great Awareness',
               style: GoogleFonts.judson(
-                textStyle: const TextStyle(
-                  color: Colors.black,
+                textStyle: TextStyle(
+                  color: theme.appBarTheme.foregroundColor,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -430,14 +433,14 @@ class _FeedScreenState extends State<FeedScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.black),
+            icon: Icon(Icons.notifications, color: theme.appBarTheme.foregroundColor),
             tooltip: 'Notifications',
             onPressed: () {
               // Add navigation to notifications screen when available
             },
           ),
           IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black),
+            icon: Icon(Icons.menu, color: theme.appBarTheme.foregroundColor),
             tooltip: 'Navigation Menu',
             onPressed: () {
               _showNavigationMenu();
@@ -468,9 +471,9 @@ class _FeedScreenState extends State<FeedScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey[600],
+        backgroundColor: theme.bottomNavigationBarTheme.backgroundColor ?? theme.cardColor,
+        selectedItemColor: theme.bottomNavigationBarTheme.selectedItemColor ?? (isDarkMode ? Colors.white : Colors.black),
+        unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor ?? Colors.grey[600],
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {

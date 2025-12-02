@@ -3,7 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:path/path.dart' as path;
+import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/theme_provider.dart';
+import '../models/user.dart';
 import 'admin_posting_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -15,19 +21,35 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
   bool _dataSaverEnabled = false;
   String _userName = 'John Doe';
   String _userEmail = 'john.doe@example.com';
   String _accountType = 'Premium'; // Can be 'Premium', 'Trial', or 'Free'
   int _trialDaysLeft = 7; // Only relevant for trial accounts
   String? _profileImagePath;
-  final AuthService _authService = AuthService();
+  Uint8List? _profileImageBytes; // For web compatibility
+  late final AuthService _authService;
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    // Initialize AuthService via Provider to access app-wide instance
+    _authService = Provider.of<AuthService>(context, listen: false);
+    _loadUserSettings();
+    
+    // Listen for auth changes to update user data
+    _authService.addListener(_onAuthChanged);
+  }
+  
+  @override
+  void dispose() {
+    _authService.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+  
+  void _onAuthChanged() {
+    // Reload user settings when auth state changes
     _loadUserSettings();
   }
 
@@ -52,15 +74,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadUserSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Use real user data from AuthService if available, otherwise fall back to SharedPreferences
+    final currentUser = _authService.currentUser;
+    final userName = currentUser?.name ?? prefs.getString('user_name') ?? 'John Doe';
+    final userEmail = currentUser?.email ?? prefs.getString('user_email') ?? 'john.doe@example.com';
+    
     setState(() {
       _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
-      _darkModeEnabled = prefs.getBool('dark_mode_enabled') ?? false;
       _dataSaverEnabled = prefs.getBool('data_saver_enabled') ?? false;
-      _userName = prefs.getString('user_name') ?? 'John Doe';
-      _userEmail = prefs.getString('user_email') ?? 'john.doe@example.com';
+      _userName = userName;
+      _userEmail = userEmail;
       _accountType = prefs.getString('account_type') ?? 'Premium';
       _trialDaysLeft = prefs.getInt('trial_days_left') ?? 7;
       _profileImagePath = prefs.getString('profile_image_path');
+      
+      // Load image data for web if available
+      if (kIsWeb) {
+        _profileImageBytes = null; // Reset bytes
+        _profileImagePath = null; // Don't use path on web
+      }
     });
   }
 
@@ -85,10 +118,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       
       if (pickedFile != null) {
-        setState(() {
-          _profileImagePath = pickedFile.path;
-        });
-        await _saveSetting('profile_image_path', pickedFile.path);
+        if (kIsWeb) {
+          // For web, read the image bytes
+          final bytes = await pickedFile.readAsBytes();
+          setState(() {
+            _profileImageBytes = bytes;
+            _profileImagePath = null; // Don't use path on web
+          });
+          // Store the bytes as base64 for persistence
+          await _saveSetting('profile_image_data', bytes.toString());
+        } else {
+          // For mobile, use the file path
+          setState(() {
+            _profileImagePath = pickedFile.path;
+            _profileImageBytes = null;
+          });
+          await _saveSetting('profile_image_path', pickedFile.path);
+        }
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -114,8 +160,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _removeProfileImage() async {
     setState(() {
       _profileImagePath = null;
+      _profileImageBytes = null;
     });
     await _saveSetting('profile_image_path', '');
+    await _saveSetting('profile_image_data', '');
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -160,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _pickProfileImage();
                 },
               ),
-              if (_profileImagePath != null)
+              if (_profileImagePath != null || _profileImageBytes != null)
                 ListTile(
                   leading: const Icon(Icons.delete, color: Colors.red),
                   title: Text(
@@ -223,18 +271,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               child: ClipOval(
-                child: _profileImagePath != null
-                    ? Image.file(
-                        File(_profileImagePath!),
+                child: _profileImageBytes != null
+                    ? Image.memory(
+                        _profileImageBytes!,
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.person,
+                            size: 30,
+                            color: Colors.black,
+                          );
+                        },
                       )
-                    : const Icon(
-                        Icons.person,
-                        size: 30,
-                        color: Colors.black,
-                      ),
+                    : _profileImagePath != null && !kIsWeb
+                        ? Image.file(
+                            File(_profileImagePath!),
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.person,
+                                size: 30,
+                                color: Colors.black,
+                              );
+                            },
+                          )
+                        : const Icon(
+                            Icons.person,
+                            size: 30,
+                            color: Colors.black,
+                          ),
               ),
             ),
           ),
@@ -411,7 +480,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showEditProfileDialog() {
     final nameController = TextEditingController(text: _userName);
-    final emailController = TextEditingController(text: _userEmail);
 
     showDialog(
       context: context,
@@ -444,19 +512,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 style: GoogleFonts.judson(),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  labelStyle: GoogleFonts.judson(),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                style: GoogleFonts.judson(),
-                keyboardType: TextInputType.emailAddress,
-              ),
             ],
           ),
           actions: [
@@ -473,10 +528,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () {
                 setState(() {
                   _userName = nameController.text;
-                  _userEmail = emailController.text;
                 });
                 _saveSetting('user_name', _userName);
-                _saveSetting('user_email', _userEmail);
+                
+                // Update AuthService with new user data (keep original email)
+                if (_authService.currentUser != null) {
+                  final updatedUser = User(
+                    id: _authService.currentUser!.id,
+                    email: _authService.currentUser!.email, // Keep original email
+                    name: _userName,
+                    token: _authService.currentUser!.token,
+                    role: _authService.currentUser!.role,
+                    firstName: _authService.currentUser!.firstName,
+                    lastName: _authService.currentUser!.lastName,
+                    phoneNumber: _authService.currentUser!.phoneNumber,
+                    county: _authService.currentUser!.county,
+                  );
+                  _authService.updateUser(updatedUser);
+                }
+                
                 Navigator.of(context).pop();
               },
               style: ElevatedButton.styleFrom(
@@ -620,16 +690,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFD3E4DE),
+      backgroundColor: isDarkMode ? theme.scaffoldBackgroundColor : const Color(0xFFD3E4DE),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         title: Text(
           'Settings',
           style: GoogleFonts.judson(
-            textStyle: const TextStyle(
-              color: Colors.black,
+            textStyle: TextStyle(
+              color: theme.appBarTheme.foregroundColor,
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
@@ -659,15 +732,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _saveSetting('notifications_enabled', value);
                   },
                 ),
-                _buildSwitchItem(
-                  icon: Icons.dark_mode,
-                  title: 'Dark Mode',
-                  value: _darkModeEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _darkModeEnabled = value;
-                    });
-                    _saveSetting('dark_mode_enabled', value);
+                Consumer<ThemeProvider>(
+                  builder: (context, themeProvider, child) {
+                    return _buildSwitchItem(
+                      icon: Icons.dark_mode,
+                      title: 'Dark Mode',
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) {
+                        themeProvider.setDarkMode(value);
+                      },
+                    );
                   },
                 ),
                 _buildSwitchItem(
@@ -964,18 +1038,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop();
                 // Handle sign out logic here
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Signed out successfully',
-                      style: GoogleFonts.judson(),
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                _authService.logout();
+                if (mounted) {
+                  // Navigate to login screen after successful sign out
+                  Navigator.of(context).pushReplacementNamed('/login1');
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,

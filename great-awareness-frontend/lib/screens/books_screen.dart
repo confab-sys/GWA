@@ -333,62 +333,7 @@ class _BooksScreenState extends State<BooksScreen> {
                         ),
                       ),
                     ),
-                  // Favorite and action buttons
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Download button
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          decoration: BoxDecoration(
-                            color: book.isDownloaded ? Colors.green.withValues(alpha: 0.8) : Colors.black.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Icon(
-                                book.isDownloaded ? Icons.check : Icons.download,
-                                color: Colors.white,
-                                size: 14,
-                                key: ValueKey<bool>(book.isDownloaded),
-                              ),
-                            ),
-                            onPressed: book.isDownloaded ? null : () => _downloadBook(book),
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        // Favorite button
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              transitionBuilder: (child, animation) {
-                                return ScaleTransition(scale: animation, child: child);
-                              },
-                              child: Icon(
-                                book.isFavorite ? Icons.favorite : Icons.favorite_border,
-                                color: book.isFavorite ? Colors.red : Colors.white,
-                                size: 14,
-                                key: ValueKey<bool>(book.isFavorite),
-                              ),
-                            ),
-                            onPressed: () => _toggleFavorite(book),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+
                 ],
               ),
             ),
@@ -462,11 +407,12 @@ class _BooksScreenState extends State<BooksScreen> {
         ),
         child: Container(
           padding: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 book.title,
                 style: GoogleFonts.judson(
@@ -583,6 +529,7 @@ class _BooksScreenState extends State<BooksScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
