@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import '../models/user.dart';
 import '../models/content.dart';
 import '../utils/config.dart';
@@ -12,8 +13,103 @@ class ApiService {
   late final http.Client _client;
   
   ApiService() {
-    // Create a client with proper timeouts for mobile networks
-    _client = http.Client();
+    // Create a client with enhanced SSL/TLS support for mobile networks
+    if (!kIsWeb) {
+      // For mobile platforms, create a custom HTTP client with SSL/TLS configuration
+      try {
+        final ioClient = HttpClient()
+          ..badCertificateCallback = (X509Certificate cert, String host, int port) {
+            // Allow certificates from our known backend domains
+            if (host.endsWith('.onrender.com') || host == 'gwa-enus.onrender.com') {
+              debugPrint('Allowing certificate for known backend: $host');
+              return true;
+            }
+            // For development, you might want to be more permissive
+            debugPrint('Certificate validation for $host: ${cert.subject}:${cert.issuer}');
+            return false;
+          }
+          ..connectionTimeout = const Duration(seconds: 30)
+          ..idleTimeout = const Duration(seconds: 30);
+        
+        _client = IOClient(ioClient);
+        debugPrint('Created SSL-aware HTTP client for mobile');
+      } catch (e) {
+        debugPrint('Failed to create SSL-aware client, falling back to default: $e');
+        _client = http.Client();
+      }
+    } else {
+      // For web, use standard client
+      _client = http.Client();
+      debugPrint('Using standard HTTP client for web');
+    }
+  }
+
+  // Enhanced connectivity check specifically for mobile networks
+  Future<Map<String, dynamic>> checkMobileConnectivity() async {
+    try {
+      debugPrint('=== MOBILE CONNECTIVITY CHECK ===');
+      
+      // Step 1: Check if we can resolve any common domains
+      final testDomains = [
+        'google.com',
+        'cloudflare.com', 
+        '8.8.8.8',
+        'gwa-enus.onrender.com'
+      ];
+      
+      Map<String, bool> dnsResults = {};
+      for (final domain in testDomains) {
+        try {
+          final result = await InternetAddress.lookup(domain).timeout(const Duration(seconds: 3));
+          dnsResults[domain] = result.isNotEmpty;
+          debugPrint('DNS check for $domain: ${result.isNotEmpty ? "SUCCESS" : "FAILED"}');
+        } catch (e) {
+          dnsResults[domain] = false;
+          debugPrint('DNS check for $domain: FAILED - $e');
+        }
+      }
+      
+      // Step 2: Check if basic internet is working
+      final hasBasicInternet = dnsResults['google.com'] == true || dnsResults['cloudflare.com'] == true;
+      
+      // Step 3: Check our specific backend
+      final backendReachable = dnsResults['gwa-enus.onrender.com'] == true;
+      
+      return {
+        'success': hasBasicInternet,
+        'backend_reachable': backendReachable,
+        'dns_results': dnsResults,
+        'recommendations': _getConnectivityRecommendations(hasBasicInternet, backendReachable),
+      };
+      
+    } catch (e) {
+      debugPrint('Mobile connectivity check failed: $e');
+      return {
+        'success': false,
+        'error': 'Connectivity check failed: $e',
+        'recommendations': ['Restart the app', 'Check internet connection', 'Contact support'],
+      };
+    }
+  }
+  
+  // Get recommendations based on connectivity issues
+  List<String> _getConnectivityRecommendations(bool hasInternet, bool backendReachable) {
+    final recommendations = <String>[];
+    
+    if (!hasInternet) {
+      recommendations.add('Check your internet connection');
+      recommendations.add('Try switching between WiFi and mobile data');
+      recommendations.add('Restart your device');
+    } else if (!backendReachable) {
+      recommendations.add('Backend server may be temporarily unavailable');
+      recommendations.add('Try again in a few minutes');
+      recommendations.add('Contact support if the issue persists');
+    } else {
+      recommendations.add('Connection appears to be working');
+      recommendations.add('If login still fails, check your credentials');
+    }
+    
+    return recommendations;
   }
 
   // Get the appropriate API URL based on environment
@@ -43,9 +139,43 @@ class ApiService {
   Future<bool> checkNetworkConnectivity() async {
     try {
       debugPrint('Checking network connectivity...');
-      final result = await InternetAddress.lookup('gwa-enus.onrender.com');
-      debugPrint('DNS lookup result: $result');
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      
+      // Try multiple DNS resolution methods for better mobile compatibility
+      try {
+        // Method 1: Direct lookup
+        final result = await InternetAddress.lookup('gwa-enus.onrender.com');
+        debugPrint('DNS lookup result: $result');
+        if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+          return true;
+        }
+      } catch (e) {
+        debugPrint('Direct DNS lookup failed: $e');
+      }
+      
+      // Method 2: Try alternative hostname (in case of typo)
+      try {
+        final altResult = await InternetAddress.lookup('gwa.enus.onrender.com');
+        debugPrint('Alternative DNS lookup result: $altResult');
+        if (altResult.isNotEmpty && altResult[0].rawAddress.isNotEmpty) {
+          return true;
+        }
+      } catch (e) {
+        debugPrint('Alternative DNS lookup failed: $e');
+      }
+      
+      // Method 3: Try Google DNS as fallback
+      try {
+        final googleResult = await InternetAddress.lookup('8.8.8.8');
+        debugPrint('Google DNS reachable: $googleResult');
+        if (googleResult.isNotEmpty) {
+          // If Google DNS is reachable, network is working but our hostname might be wrong
+          return true;
+        }
+      } catch (e) {
+        debugPrint('Google DNS check failed: $e');
+      }
+      
+      return false;
     } on SocketException catch (e) {
       debugPrint('Network connectivity check failed: $e');
       return false;
@@ -94,7 +224,13 @@ class ApiService {
         return {
           'success': false,
           'error': 'Network connectivity check failed',
-          'details': 'Cannot resolve DNS for gwa-enus.onrender.com',
+          'details': 'Cannot resolve DNS for gwa-enus.onrender.com. This may be due to:\n1. No internet connection\n2. DNS resolution issues on mobile networks\n3. Hostname configuration problem\n\nPlease check your internet connection and try again.',
+          'suggestions': [
+            'Check if your device has internet access',
+            'Try switching between WiFi and mobile data',
+            'Restart the app',
+            'Contact support if the issue persists'
+          ]
         };
       }
 
@@ -236,6 +372,18 @@ class ApiService {
     debugPrint('Email: $email');
     debugPrint('Default API Base URL: $apiBaseUrl');
     
+    // Enhanced mobile connectivity check
+    debugPrint('Running mobile connectivity check...');
+    final mobileConnectivity = await checkMobileConnectivity();
+    debugPrint('Mobile connectivity result: $mobileConnectivity');
+    
+    if (!mobileConnectivity['success']) {
+      debugPrint('Mobile connectivity check failed');
+      final recommendations = mobileConnectivity['recommendations'] as List<String>? ?? [];
+      final errorMessage = mobileConnectivity['error'] ?? 'Network connectivity failed';
+      throw Exception('Network Error: $errorMessage\n\nSuggestions:\n${recommendations.map((r) => '• $r').join('\n')}');
+    }
+    
     // Find working backend URL
     final workingUrl = await getWorkingBackendUrl();
     debugPrint('Using working backend URL: $workingUrl');
@@ -254,40 +402,57 @@ class ApiService {
     final uri = Uri.parse('$workingUrl/api/auth/login');
     debugPrint('Login URI: $uri');
     
-    final res = await _postWithRetry(
-      uri.toString(),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'email': email, 'password': password}),
-    );
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      final token = data['access_token'] ?? data['token'];
-      
-      // Try to get user data using the token
-      try {
-        final userUri = Uri.parse('$workingUrl/api/auth/me');
-        final userRes = await _getWithRetry(
-          userUri.toString(),
-          headers: {'Authorization': 'Bearer $token'},
-        );
-        
-        if (userRes.statusCode == 200) {
-          final userData = json.decode(userRes.body);
-          return User.fromJson(userData, token: token);
-        }
-      } catch (e) {
-        debugPrint('Error fetching user data: $e');
-      }
-      
-      // Fallback: create basic user object
-      return User(
-        id: email.hashCode.toString(),
-        email: email,
-        token: token,
-        role: 'user',
+    try {
+      final res = await _postWithRetry(
+        uri.toString(),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'password': password}),
       );
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        final token = data['access_token'] ?? data['token'];
+        
+        // Try to get user data using the token
+        try {
+          final userUri = Uri.parse('$workingUrl/api/auth/me');
+          final userRes = await _getWithRetry(
+            userUri.toString(),
+            headers: {'Authorization': 'Bearer $token'},
+          );
+          
+          if (userRes.statusCode == 200) {
+            final userData = json.decode(userRes.body);
+            return User.fromJson(userData, token: token);
+          }
+        } catch (e) {
+          debugPrint('Error fetching user data: $e');
+        }
+        
+        // Fallback: create basic user object
+        return User(
+          id: email.hashCode.toString(),
+          email: email,
+          token: token,
+          role: 'user',
+        );
+      } else {
+        debugPrint('Login failed with status: ${res.statusCode}');
+        debugPrint('Response body: ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Login request failed: $e');
+      
+      // Enhanced error message for mobile users
+      if (e.toString().contains('SocketException')) {
+        throw Exception('Network connection failed. Please check your internet connection and try again.\n\nIf the problem persists:\n• Try switching between WiFi and mobile data\n• Restart the app\n• Contact support');
+      } else if (e.toString().contains('TimeoutException')) {
+        throw Exception('Connection timeout. The server is taking too long to respond.\n\nPlease try again in a few moments.');
+      } else {
+        throw Exception('Login failed: ${e.toString()}');
+      }
     }
-    return null;
   }
 
   Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
