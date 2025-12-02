@@ -1,0 +1,16 @@
+{
+  "name": "great-awareness-frontend",
+  "version": "1.0.0",
+  "description": "Great Awareness Flutter Web App",
+  "scripts": {
+    "build": "bash build.sh",
+    "dev": "echo 'Development server not needed for Flutter web'",
+    "start": "echo 'Production server handled by Vercel'"
+  },
+  "devDependencies": {},
+  "dependencies": {},
+  "engines": {
+    "node": ">=18"
+  },
+  "private": true
+}
