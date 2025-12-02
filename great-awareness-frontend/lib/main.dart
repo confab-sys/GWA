@@ -9,6 +9,7 @@ import 'screens/signup_screen.dart';
 import 'screens/feed_screen.dart';
 import 'services/auth_service.dart';
 import 'services/theme_provider.dart';
+import 'services/notification_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => AuthService()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => NotificationService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

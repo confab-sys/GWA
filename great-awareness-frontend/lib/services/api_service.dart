@@ -28,13 +28,6 @@ class ApiService {
       // Option 1: Use a CORS proxy (for development only)
       // Note: These proxies may have rate limits or require activation
       
-      // Try different CORS proxies if needed
-      final corsProxies = [
-        // 'https://cors-anywhere.herokuapp.com/', // May require activation
-        // 'https://api.allorigins.win/raw?url=', // Alternative proxy
-        // 'https://cors-proxy.htmldriven.com/?url=', // Another alternative
-      ];
-      
       // For now, return the original URL and let the browser handle it
       // The backend should be configured to allow CORS from your origin
       debugPrint('Using original URL for web request: $originalUrl');
@@ -66,8 +59,6 @@ class ApiService {
   Future<String> getWorkingBackendUrl() async {
     final urls = [
       apiBaseUrlProd,
-      // Add IP-based fallback if configured
-      if (apiBaseUrlProdIP != 'https://your-render-ip-here.onrender.com') apiBaseUrlProdIP,
     ];
     
     for (final url in urls) {

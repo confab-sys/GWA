@@ -7,10 +7,6 @@ const String apiBaseUrlDev = 'http://localhost:8000';
 // Production (Render) backend - UPDATE THIS with your actual Render URL
 const String apiBaseUrlProd = 'https://gwa-enus.onrender.com';
 
-// Alternative IP-based fallback for mobile networks with DNS issues
-// You can get your Render app's IP address by running: nslookup gwa-enus.onrender.com
-const String apiBaseUrlProdIP = 'https://your-render-ip-here.onrender.com'; // Replace with actual IP if needed
-
 // Current environment - change this to 'production' when ready to deploy
 const String currentEnvironment = 'production'; // or 'development'
 

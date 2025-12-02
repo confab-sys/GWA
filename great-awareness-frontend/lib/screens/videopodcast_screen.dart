@@ -480,7 +480,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(160),
+          preferredSize: const Size.fromHeight(100),
           child: Column(
             children: [
               // Search Bar

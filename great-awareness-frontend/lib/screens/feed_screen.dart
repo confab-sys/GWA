@@ -6,6 +6,7 @@ import 'videopodcast_screen.dart';
 import 'qa_screen.dart';
 import 'settings_screen.dart';
 import 'booking_screen.dart';
+import 'notification_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -436,7 +437,10 @@ class _FeedScreenState extends State<FeedScreen> {
             icon: Icon(Icons.notifications, color: theme.appBarTheme.foregroundColor),
             tooltip: 'Notifications',
             onPressed: () {
-              // Add navigation to notifications screen when available
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
             },
           ),
           IconButton(
