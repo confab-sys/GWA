@@ -5,12 +5,13 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/theme_provider.dart';
 import '../models/user.dart';
 import 'admin_posting_screen.dart';
+import 'about_us_screen.dart';
+import 'help_support_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -874,15 +875,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Help & Support',
                   subtitle: 'Get help and contact support',
                   onTap: () {
-                    // Navigate to help and support screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HelpSupportScreen(),
+                      ),
+                    );
                   },
                 ),
                 _buildSettingsItem(
                   icon: Icons.info_outline,
-                  title: 'About',
-                  subtitle: 'App version and information',
+                  title: 'About Us',
+                  subtitle: 'Learn more about Great Awareness',
                   onTap: () {
-                    _showAboutDialog();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutUsScreen(),
+                      ),
+                    );
                   },
                 ),
                 _buildSettingsItem(
@@ -937,69 +948,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  void _showAboutDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'About Great Awareness',
-            style: GoogleFonts.judson(
-              textStyle: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Version 1.0.0',
-                style: GoogleFonts.judson(
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Your companion for mental health and wellness.',
-                style: GoogleFonts.judson(
-                  textStyle: const TextStyle(fontSize: 14),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '© 2024 Great Awareness. All rights reserved.',
-                style: GoogleFonts.judson(
-                  textStyle: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Close',
-                style: GoogleFonts.judson(
-                  textStyle: TextStyle(color: Colors.grey[600]),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
