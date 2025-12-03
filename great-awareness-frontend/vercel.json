@@ -5,10 +5,6 @@
   "installCommand": "echo 'No install needed'",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://gwa-enus.onrender.com/api/$1"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

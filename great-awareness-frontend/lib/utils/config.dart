@@ -1,26 +1,23 @@
 import 'package:flutter/foundation.dart';
 
 // Configuration for Psychology App Frontend
-// Change currentEnvironment to 'production' when deploying to Render
+// Change currentEnvironment to 'production' when deploying to Neon database
 
 // Development (local) backend
 const String apiBaseUrlDev = 'http://localhost:8000';
 
-// Production (Render) backend - UPDATE THIS with your actual Render URL
+// Production (Neon) backend - UPDATE THIS with your actual Neon URL
 const String apiBaseUrlProd = 'https://gwa-enus.onrender.com';
 
 // Vercel deployment URL (for web proxy)
 const String apiBaseUrlVercel = '/api';
 
 // Current environment - change this to 'production' when ready to deploy
-const String currentEnvironment = 'production'; // or 'development'
+const String currentEnvironment = 'development'; // or 'development'
 
 // Get the appropriate API URL based on environment
 String getApiBaseUrl() {
-  if (kIsWeb && currentEnvironment == 'production') {
-    // For web production, use Vercel proxy to avoid CORS issues
-    return apiBaseUrlVercel;
-  }
+  // Use direct backend URL for all environments - CORS is handled by backend
   return currentEnvironment == 'production' ? apiBaseUrlProd : apiBaseUrlDev;
 }
 

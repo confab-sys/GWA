@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     
     # Database
-    database_url: str = "sqlite:///./psychology_app.db"  # SQLite for development
-    database_url_neon: Optional[str] = None  # PostgreSQL for production - set via NEON_DATABASE_URL env var
+    database_url: str = "postgresql://neondb_owner:npg_liZTRxQeq23k@ep-odd-leaf-adse08ig-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"  # Neon database for development
+    database_url_neon: Optional[str] = None  # PostgreSQL for Neon database - will be loaded from NEON_DATABASE_URL env var
     
     # CORS
     cors_origins: List[str] = [
@@ -52,7 +52,8 @@ class Settings(BaseSettings):
     @property
     def database_uri(self) -> str:
         """Get the appropriate database URL based on environment"""
-        if self.environment == "production" and self.database_url_neon:
+        # Use Neon database if available, regardless of environment
+        if self.database_url_neon:
             return self.database_url_neon
         return self.database_url
     
@@ -65,6 +66,11 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        fields = {
+            'database_url_neon': {
+                'env': 'NEON_DATABASE_URL'
+            }
+        }
 
 # Create settings instance
 settings = Settings()
