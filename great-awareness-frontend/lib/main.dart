@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -17,6 +16,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+  
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -31,9 +31,9 @@ class MyApp extends StatelessWidget {
             title: 'Great Awareness',
             debugShowCheckedModeBanner: false,
             theme: themeProvider.getTheme(),
-            initialRoute: '/',
+            home: const AuthWrapper(),
             routes: {
-              '/': (_) => const SplashScreen(),
+              '/splash': (_) => const SplashScreen(),
               '/welcome': (_) => const WelcomeScreen(),
               '/login': (_) => const LoginScreen(),
               '/login1': (_) => const Login1Screen(),
@@ -43,6 +43,24 @@ class MyApp extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+        // Check if user is authenticated
+        if (authService.isAuthenticated) {
+          return const FeedScreen();
+        } else {
+          return const SplashScreen();
+        }
+      },
     );
   }
 }

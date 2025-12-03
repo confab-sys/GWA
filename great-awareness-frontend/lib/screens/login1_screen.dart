@@ -23,6 +23,20 @@ class _Login1ScreenState extends State<Login1Screen> {
   final ApiService _apiService = ApiService();
 
   @override
+  void initState() {
+    super.initState();
+    _checkExistingAuth();
+  }
+
+  void _checkExistingAuth() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (authService.isAuthenticated) {
+      // User is already authenticated, redirect to home
+      Navigator.of(context).pushReplacementNamed('/home');
+    }
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();

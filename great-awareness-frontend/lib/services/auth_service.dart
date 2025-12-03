@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/user.dart';
 
 class AuthService extends ChangeNotifier {
@@ -10,14 +12,86 @@ class AuthService extends ChangeNotifier {
   bool get isAdmin => _currentUser?.isAdmin ?? false;
   bool get canCreateContent => _currentUser?.canPost ?? false;
   
-  void login(User user) {
+  AuthService() {
+    _loadUserFromStorage();
+  }
+  
+  Future<void> _loadUserFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userData = prefs.getString('user_data');
+      final token = prefs.getString('auth_token');
+      
+      if (userData != null && token != null && token.isNotEmpty) {
+        // Optionally validate token expiration or format
+        if (_isTokenValid(token)) {
+          final userJson = json.decode(userData);
+          _currentUser = User.fromJson(userJson, token: token);
+          notifyListeners();
+        } else {
+          // Token is invalid, clear stored data
+          await _clearUserFromStorage();
+        }
+      }
+    } catch (e) {
+      print('Error loading user from storage: $e');
+      await _clearUserFromStorage();
+    }
+  }
+  
+  bool _isTokenValid(String token) {
+    // Basic token validation - you can enhance this based on your token format
+    // For now, just check if token exists and has minimum length
+    return token.length > 10;
+  }
+  
+  // Method to check if user should stay authenticated
+  Future<bool> checkAuthentication() async {
+    if (_currentUser == null) {
+      await _loadUserFromStorage();
+    }
+    return isAuthenticated;
+  }
+  
+  Future<void> login(User user) async {
     _currentUser = user;
+    await _saveUserToStorage(user);
     notifyListeners();
   }
   
-  void logout() {
+  Future<void> logout() async {
     _currentUser = null;
+    await _clearUserFromStorage();
     notifyListeners();
+  }
+  
+  Future<void> _saveUserToStorage(User user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_data', json.encode({
+        'id': user.id,
+        'email': user.email,
+        'name': user.name,
+        'first_name': user.firstName,
+        'last_name': user.lastName,
+        'phone_number': user.phoneNumber,
+        'county': user.county,
+        'role': user.role,
+      }));
+      await prefs.setString('auth_token', user.token ?? '');
+    } catch (e) {
+      print('Error saving user to storage: $e');
+    }
+  }
+  
+  Future<void> _clearUserFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_data');
+      await prefs.remove('auth_token');
+    } catch (e) {
+      print('Error clearing user from storage: $e');
+    }
   }
   
   void updateUser(User user) {

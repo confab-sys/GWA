@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 import '../utils/storage.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -16,9 +18,19 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _bootstrap() async {
     final token = await Storage.getToken();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    
+    // Wait a moment for AuthService to load user from storage
+    await Future.delayed(const Duration(milliseconds: 500));
+    
     if (!mounted) return;
-    final target = '/login';
-    Navigator.of(context).pushReplacementNamed(target);
+    
+    // Check if user is already authenticated
+    if (authService.isAuthenticated) {
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/welcome');
+    }
   }
 
   @override

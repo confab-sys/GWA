@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'book_reader_screen.dart';
+import 'books_sales_screen.dart';
 
 
 class Book {
@@ -60,13 +61,15 @@ class BooksScreen extends StatefulWidget {
   State<BooksScreen> createState() => _BooksScreenState();
 }
 
-class _BooksScreenState extends State<BooksScreen> {
+class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStateMixin {
   List<Book> books = [];
   bool isLoading = true;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadBooks();
   }
 
@@ -186,6 +189,12 @@ class _BooksScreenState extends State<BooksScreen> {
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFD3E4DE),
@@ -203,32 +212,116 @@ class _BooksScreenState extends State<BooksScreen> {
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.black),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Main Books'),
+            Tab(text: 'On Sale'),
+          ],
+          labelStyle: GoogleFonts.judson(
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          unselectedLabelStyle: GoogleFonts.judson(
+            textStyle: const TextStyle(
+              fontSize: 14,
+            ),
+          ),
+          labelColor: Colors.black,
+          unselectedLabelColor: Colors.grey[600],
+          indicatorColor: Colors.black,
+        ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.black))
-          : books.isEmpty
-              ? Center(
-                  child: Text(
-                    'No books available',
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(color: Colors.black, fontSize: 18),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Main Books Tab
+          isLoading
+              ? const Center(child: CircularProgressIndicator(color: Colors.black))
+              : books.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No books available',
+                        style: GoogleFonts.judson(
+                          textStyle: const TextStyle(color: Colors.black, fontSize: 18),
+                        ),
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        childAspectRatio: 0.65,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      itemCount: books.length,
+                      itemBuilder: (context, index) {
+                        final book = books[index];
+                        return _buildBookCard(book);
+                      },
+                    ),
+          // On Sale Tab
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Special Book Offers',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.65,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: books.length,
-                  itemBuilder: (context, index) {
-                    final book = books[index];
-                    return _buildBookCard(book);
-                  },
                 ),
+                const SizedBox(height: 16),
+                Text(
+                  'Get these exclusive books at special prices',
+                  style: GoogleFonts.judson(
+                    textStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BooksSalesScreen(),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'View Books on Sale',
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -279,7 +372,7 @@ class _BooksScreenState extends State<BooksScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: 3,
+              flex: 2,
               child: Stack(
                 children: [
                   Container(
@@ -338,35 +431,56 @@ class _BooksScreenState extends State<BooksScreen> {
               ),
             ),
             Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
+              flex: 3,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      book.title,
-                      style: GoogleFonts.judson(
-                        textStyle: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                    // Book title with better text wrapping
+                    Flexible(
+                      child: Container(
+                        width: double.infinity,
+                        child: Text(
+                          book.title,
+                          style: GoogleFonts.judson(
+                            textStyle: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              height: 1.2,
+                            ),
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.left,
+                          softWrap: true,
                         ),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      book.description,
-                      style: GoogleFonts.judson(
-                        textStyle: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 10,
+                    const SizedBox(height: 4),
+                    // Book description with better text wrapping
+                    Flexible(
+                      child: Container(
+                        width: double.infinity,
+                        child: Text(
+                          book.description,
+                          style: GoogleFonts.judson(
+                            textStyle: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 9,
+                              height: 1.3,
+                            ),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.left,
+                          softWrap: true,
                         ),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

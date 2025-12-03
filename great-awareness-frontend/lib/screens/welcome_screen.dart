@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -16,6 +18,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
+    _checkExistingAuth();
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -36,6 +39,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
         Navigator.of(context).pushReplacementNamed('/login1');
       }
     });
+  }
+
+  void _checkExistingAuth() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    if (authService.isAuthenticated) {
+      // User is already authenticated, redirect to home
+      Navigator.of(context).pushReplacementNamed('/home');
+      return;
+    }
   }
 
   @override
