@@ -139,6 +139,13 @@ class ApiService {
   Future<bool> checkNetworkConnectivity() async {
     try {
       debugPrint('Checking network connectivity...');
+      debugPrint('Current API base URL: $apiBaseUrl');
+      
+      // For local development, skip DNS checks
+      if (apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
+        debugPrint('Local development detected, skipping DNS checks');
+        return true;
+      }
       
       // Try multiple DNS resolution methods for better mobile compatibility
       try {
@@ -188,7 +195,9 @@ class ApiService {
   // Try alternative backend URLs if the main one fails
   Future<String> getWorkingBackendUrl() async {
     final urls = [
-      apiBaseUrlProd,
+      apiBaseUrl, // Use the current environment URL first
+      apiBaseUrlProd, // Fallback to production
+      apiBaseUrlDev, // Fallback to development
     ];
     
     for (final url in urls) {
@@ -212,13 +221,47 @@ class ApiService {
     }
     
     debugPrint('No working backend URL found, returning default');
-    return apiBaseUrlProd; // Return default even if it might not work
+    return apiBaseUrl; // Return the current environment URL as default
   }
 
   // Test if the backend API is reachable
   Future<Map<String, dynamic>> testBackendConnection() async {
     try {
       debugPrint('Testing backend connection to: $apiBaseUrl');
+      
+      // For local development, skip extensive connectivity checks
+      if (apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
+        debugPrint('Local development detected, using simple connectivity test');
+        try {
+          final response = await _client.get(
+            Uri.parse('$apiBaseUrl/'),
+          ).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => throw TimeoutException('Connection test timed out'),
+          );
+          
+          if (response.statusCode < 500) {
+            return {
+              'success': true,
+              'statusCode': response.statusCode,
+              'message': 'Local backend is reachable',
+            };
+          }
+        } catch (e) {
+          debugPrint('Local backend test failed: $e');
+          return {
+            'success': false,
+            'error': 'Local backend connection failed',
+            'details': 'Could not connect to local server at $apiBaseUrl. Make sure your local backend is running.',
+            'suggestions': [
+              'Check if your local backend server is running on port 8000',
+              'Try restarting your local backend server',
+              'Verify the backend URL configuration'
+            ]
+          };
+        }
+      }
+      
       final connectivity = await checkNetworkConnectivity();
       if (!connectivity) {
         return {
@@ -372,16 +415,21 @@ class ApiService {
     debugPrint('Email: $email');
     debugPrint('Default API Base URL: $apiBaseUrl');
     
-    // Enhanced mobile connectivity check
-    debugPrint('Running mobile connectivity check...');
-    final mobileConnectivity = await checkMobileConnectivity();
-    debugPrint('Mobile connectivity result: $mobileConnectivity');
-    
-    if (!mobileConnectivity['success']) {
-      debugPrint('Mobile connectivity check failed');
-      final recommendations = mobileConnectivity['recommendations'] as List<String>? ?? [];
-      final errorMessage = mobileConnectivity['error'] ?? 'Network connectivity failed';
-      throw Exception('Network Error: $errorMessage\n\nSuggestions:\n${recommendations.map((r) => '• $r').join('\n')}');
+    // Skip mobile connectivity check for local development
+    if (!apiBaseUrl.contains('localhost') && !apiBaseUrl.contains('127.0.0.1')) {
+      // Enhanced mobile connectivity check (only for production)
+      debugPrint('Running mobile connectivity check...');
+      final mobileConnectivity = await checkMobileConnectivity();
+      debugPrint('Mobile connectivity result: $mobileConnectivity');
+      
+      if (!mobileConnectivity['success']) {
+        debugPrint('Mobile connectivity check failed');
+        final recommendations = mobileConnectivity['recommendations'] as List<String>? ?? [];
+        final errorMessage = mobileConnectivity['error'] ?? 'Network connectivity failed';
+        throw Exception('Network Error: $errorMessage\n\nSuggestions:\n${recommendations.map((r) => '• $r').join('\n')}');
+      }
+    } else {
+      debugPrint('Local development detected, skipping mobile connectivity check');
     }
     
     // Find working backend URL
