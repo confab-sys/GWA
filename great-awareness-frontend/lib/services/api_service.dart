@@ -141,9 +141,9 @@ class ApiService {
       debugPrint('Checking network connectivity...');
       debugPrint('Current API base URL: $apiBaseUrl');
       
-      // For local development, skip DNS checks
-      if (apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
-        debugPrint('Local development detected, skipping DNS checks');
+      // For web and local development, skip DNS checks
+      if (kIsWeb || apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
+        debugPrint('Web platform or local development detected, skipping DNS checks');
         return true;
       }
       
@@ -229,9 +229,9 @@ class ApiService {
     try {
       debugPrint('Testing backend connection to: $apiBaseUrl');
       
-      // For local development, skip extensive connectivity checks
-      if (apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
-        debugPrint('Local development detected, using simple connectivity test');
+      // For local development and web, skip extensive connectivity checks
+      if (kIsWeb || apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
+        debugPrint('Web platform or local development detected, using simple connectivity test');
         try {
           final response = await _client.get(
             Uri.parse('$apiBaseUrl/'),
@@ -415,9 +415,11 @@ class ApiService {
     debugPrint('Email: $email');
     debugPrint('Default API Base URL: $apiBaseUrl');
     
-    // Skip mobile connectivity check for local development
-    if (!apiBaseUrl.contains('localhost') && !apiBaseUrl.contains('127.0.0.1')) {
-      // Enhanced mobile connectivity check (only for production)
+    // Skip mobile connectivity check for web production and local development
+    if (kIsWeb || apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
+      debugPrint('Web platform or local development detected, skipping mobile connectivity check');
+    } else {
+      // Enhanced mobile connectivity check (only for mobile production)
       debugPrint('Running mobile connectivity check...');
       final mobileConnectivity = await checkMobileConnectivity();
       debugPrint('Mobile connectivity result: $mobileConnectivity');
@@ -428,8 +430,6 @@ class ApiService {
         final errorMessage = mobileConnectivity['error'] ?? 'Network connectivity failed';
         throw Exception('Network Error: $errorMessage\n\nSuggestions:\n${recommendations.map((r) => '• $r').join('\n')}');
       }
-    } else {
-      debugPrint('Local development detected, skipping mobile connectivity check');
     }
     
     // Find working backend URL
