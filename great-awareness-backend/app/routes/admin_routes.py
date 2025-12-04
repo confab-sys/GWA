@@ -14,7 +14,7 @@ from app.schemas.admin_schema import UserResponse, TopQuestionResponse, Analytic
 router = APIRouter(prefix="/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
 
-@router.get("/admin/users", response_model=List[UserResponse])
+@router.get("/users", response_model=List[UserResponse])
 async def get_all_users(
     skip: int = 0,
     limit: int = 100,
@@ -30,15 +30,34 @@ async def get_all_users(
     
     try:
         users = db.query(User).offset(skip).limit(limit).all()
-        return users
+        
+        # Convert users to response format manually to handle is_active field
+        user_responses = []
+        for user in users:
+            user_responses.append({
+                "id": user.id,
+                "email": user.email,
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "phone_number": user.phone_number,
+                "county": user.county,
+                "role": user.role,
+                "is_active": user.is_active,  # This uses the property
+                "created_at": user.created_at
+            })
+        
+        return user_responses
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch users"
+            detail=f"Failed to fetch users: {str(e)}"
         )
 
-@router.get("/admin/questions/top", response_model=List[TopQuestionResponse])
+@router.get("/questions/top", response_model=List[TopQuestionResponse])
 async def get_top_questions(
     limit: int = 5,
     days: int = 30,
@@ -93,7 +112,7 @@ async def get_top_questions(
             detail="Failed to fetch top questions"
         )
 
-@router.get("/admin/analytics", response_model=AnalyticsResponse)
+@router.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
