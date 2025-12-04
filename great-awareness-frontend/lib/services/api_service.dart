@@ -1097,4 +1097,71 @@ class ApiService {
     }
     return null;
   }
+
+  // Admin endpoints
+  Future<List<dynamic>?> getAllUsers(String token) async {
+    try {
+      final uri = Uri.parse('$apiBaseUrl/api/admin/users');
+      final res = await _getWithRetry(
+        uri.toString(),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return data as List<dynamic>;
+      } else if (res.statusCode == 403) {
+        debugPrint('Admin access denied');
+        throw Exception('Admin access required');
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching all users: $e');
+      return null;
+    }
+  }
+
+  Future<List<dynamic>?> getTopQuestions(String token, {int limit = 5}) async {
+    try {
+      final uri = Uri.parse('$apiBaseUrl/api/admin/questions/top?limit=$limit');
+      final res = await _getWithRetry(
+        uri.toString(),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return data as List<dynamic>;
+      } else if (res.statusCode == 403) {
+        debugPrint('Admin access denied');
+        throw Exception('Admin access required');
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching top questions: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getAdminAnalytics(String token) async {
+    try {
+      final uri = Uri.parse('$apiBaseUrl/api/admin/analytics');
+      final res = await _getWithRetry(
+        uri.toString(),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return data as Map<String, dynamic>;
+      } else if (res.statusCode == 403) {
+        debugPrint('Admin access denied');
+        throw Exception('Admin access required');
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching admin analytics: $e');
+      return null;
+    }
+  }
 }

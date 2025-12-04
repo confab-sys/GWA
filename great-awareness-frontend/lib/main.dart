@@ -8,6 +8,7 @@ import 'screens/signup_screen.dart';
 import 'screens/feed_screen.dart';
 import 'screens/about_us_screen.dart';
 import 'screens/help_support_screen.dart';
+import 'screens/admin_manage_users_screen.dart';
 import 'services/auth_service.dart';
 import 'services/theme_provider.dart';
 import 'services/notification_service.dart';
@@ -43,6 +44,7 @@ class MyApp extends StatelessWidget {
               '/home': (_) => const FeedScreen(),
               '/about': (_) => const AboutUsScreen(),
               '/help': (_) => const HelpSupportScreen(),
+              '/admin/users': (_) => const AdminManageUsersScreen(),
             },
           );
         },

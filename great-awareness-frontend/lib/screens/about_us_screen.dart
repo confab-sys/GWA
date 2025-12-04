@@ -203,7 +203,7 @@ class AboutUsScreen extends StatelessWidget {
                       Icon(Icons.email, color: Colors.grey[600], size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'contact@greatawareness.com',
+                        'contact@greatawareness1.com',
                         style: GoogleFonts.judson(
                           textStyle: TextStyle(
                             fontSize: 14,

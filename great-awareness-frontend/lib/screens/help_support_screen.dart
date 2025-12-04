@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -192,7 +193,7 @@ class HelpSupportScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildSocialMediaItem(
-                    icon: Icons.chat_bubble,
+                    icon: FontAwesomeIcons.whatsapp,
                     title: 'WhatsApp Group',
                     subtitle: 'Join our community group',
                     onTap: () => _launchUrl('https://chat.whatsapp.com/H8DGK7wnp6IHMcR91KajlC?mode=hqrc'),
@@ -200,7 +201,7 @@ class HelpSupportScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildSocialMediaItem(
-                    icon: Icons.broadcast_on_personal,
+                    icon: FontAwesomeIcons.whatsapp,
                     title: 'WhatsApp Channel',
                     subtitle: 'Follow our updates',
                     onTap: () => _launchUrl('https://whatsapp.com/channel/0029Vb6Ej107IUYZJY9gPI0o'),
@@ -208,11 +209,19 @@ class HelpSupportScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   _buildSocialMediaItem(
-                    icon: Icons.music_note,
+                    icon: FontAwesomeIcons.tiktok,
                     title: 'TikTok',
                     subtitle: 'Follow us on TikTok',
                     onTap: () => _launchUrl('https://www.tiktok.com/@ashwa.vlogs'),
-                    iconColor: Colors.pink,
+                    iconColor: Colors.black,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSocialMediaItem(
+                    icon: FontAwesomeIcons.youtube,
+                    title: 'YouTube',
+                    subtitle: 'Subscribe to our channel',
+                    onTap: () => _launchUrl('https://www.youtube.com/@GreatAwareness1'),
+                    iconColor: Colors.red,
                   ),
                 ],
               ),
@@ -293,7 +302,7 @@ class HelpSupportScreen extends StatelessWidget {
                 color: iconColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: iconColor, size: 24),
+              child: icon is IconData ? Icon(icon, color: iconColor, size: 24) : FaIcon(icon, color: iconColor, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -331,7 +340,7 @@ class HelpSupportScreen extends StatelessWidget {
   }
 
   Widget _buildSocialMediaItem({
-    required IconData icon,
+    required dynamic icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,

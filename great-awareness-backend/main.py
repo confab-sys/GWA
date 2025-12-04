@@ -12,7 +12,7 @@ from app.models.user_model import User
 from app.models.question_model import Question, QuestionComment, QuestionLike, QuestionSave
 from app.models.notification_model import Notification
 from app.schemas.user_schema import UserCreate, UserResponse
-from app.routes import auth_routes, content_routes, question_routes, notification_routes
+from app.routes import auth_routes, content_routes, question_routes, notification_routes, admin_routes
 
 # Configure logging
 logging.basicConfig(level=logging.INFO if settings.debug else logging.WARNING)
@@ -41,6 +41,7 @@ app.include_router(auth_routes.router, prefix="/api/auth", tags=["authentication
 app.include_router(content_routes.router, prefix="/api/content", tags=["content"])
 app.include_router(question_routes.router, prefix="/api/qa", tags=["qa"])
 app.include_router(notification_routes.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(admin_routes.router, prefix="/api", tags=["admin"])
 
 @app.on_event("startup")
 async def startup_event():

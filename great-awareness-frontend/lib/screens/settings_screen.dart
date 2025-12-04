@@ -814,10 +814,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Manage Users',
                     subtitle: 'View and manage user accounts',
                     onTap: () {
-                      // Navigate to user management screen
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('User management coming soon!')),
-                      );
+                      Navigator.pushNamed(context, '/admin/users');
                     },
                   ),
                   _buildSettingsItem(
