@@ -1101,20 +1101,32 @@ class ApiService {
   // Admin endpoints
   Future<List<dynamic>?> getAllUsers(String token) async {
     try {
+      debugPrint('=== getAllUsers called ===');
+      debugPrint('API Base URL: $apiBaseUrl');
+      debugPrint('Token: ${token.substring(0, 20)}...');
+      
       final uri = Uri.parse('$apiBaseUrl/api/admin/users');
+      debugPrint('Request URI: $uri');
+      
       final res = await _getWithRetry(
         uri.toString(),
         headers: {'Authorization': 'Bearer $token'},
       );
       
+      debugPrint('Response status: ${res.statusCode}');
+      debugPrint('Response body: ${res.body}');
+      
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
+        debugPrint('Successfully fetched ${(data as List).length} users');
         return data as List<dynamic>;
       } else if (res.statusCode == 403) {
         debugPrint('Admin access denied');
         throw Exception('Admin access required');
+      } else {
+        debugPrint('Unexpected status code: ${res.statusCode}');
+        return null;
       }
-      return null;
     } catch (e) {
       debugPrint('Error fetching all users: $e');
       return null;
@@ -1123,20 +1135,32 @@ class ApiService {
 
   Future<List<dynamic>?> getTopQuestions(String token, {int limit = 5}) async {
     try {
+      debugPrint('=== getTopQuestions called ===');
+      debugPrint('API Base URL: $apiBaseUrl');
+      debugPrint('Token: ${token.substring(0, 20)}...');
+      
       final uri = Uri.parse('$apiBaseUrl/api/admin/questions/top?limit=$limit');
+      debugPrint('Request URI: $uri');
+      
       final res = await _getWithRetry(
         uri.toString(),
         headers: {'Authorization': 'Bearer $token'},
       );
       
+      debugPrint('Response status: ${res.statusCode}');
+      debugPrint('Response body: ${res.body}');
+      
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
+        debugPrint('Successfully fetched ${(data as List).length} top questions');
         return data as List<dynamic>;
       } else if (res.statusCode == 403) {
         debugPrint('Admin access denied');
         throw Exception('Admin access required');
+      } else {
+        debugPrint('Unexpected status code: ${res.statusCode}');
+        return null;
       }
-      return null;
     } catch (e) {
       debugPrint('Error fetching top questions: $e');
       return null;

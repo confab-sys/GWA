@@ -814,6 +814,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Manage Users',
                     subtitle: 'View and manage user accounts',
                     onTap: () {
+                      // Navigate to user management screen
                       Navigator.pushNamed(context, '/admin/users');
                     },
                   ),
@@ -822,10 +823,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Content Analytics',
                     subtitle: 'View post performance metrics',
                     onTap: () {
-                      // Navigate to analytics screen
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Analytics coming soon!')),
-                      );
+                      // Navigate to analytics screen - for now just show the admin users screen which has analytics
+                      Navigator.pushNamed(context, '/admin/users');
                     },
                   ),
                 ],

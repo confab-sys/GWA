@@ -12,8 +12,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, engine, init_db
+# Import models in correct order (User first, then models that reference User)
 from app.models.user_model import User
-from app.models.content_model import Content  # Import Content model
+from app.models.content_model import Content
+from app.models.comment_model import Comment
+from app.models.question_model import Question, QuestionComment, QuestionLike, QuestionSave
+from app.models.notification_model import Notification
 from passlib.context import CryptContext
 
 # Password hashing (match backend auth_routes.py)

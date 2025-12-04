@@ -6,9 +6,9 @@ import logging
 
 from app.core.config import settings
 from app.core.database import engine, Base, get_db, init_db, check_db_connection
-# Import models in dependency order (Content before User due to relationships)
-from app.models.content_model import Content
+# Import models in dependency order (User before Content due to relationships)
 from app.models.user_model import User
+from app.models.content_model import Content
 from app.models.question_model import Question, QuestionComment, QuestionLike, QuestionSave
 from app.models.notification_model import Notification
 from app.schemas.user_schema import UserCreate, UserResponse

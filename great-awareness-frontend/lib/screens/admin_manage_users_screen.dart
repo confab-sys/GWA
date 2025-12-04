@@ -39,22 +39,50 @@ class _AdminManageUsersScreenState extends State<AdminManageUsersScreen> {
         throw Exception('No authentication token available');
       }
 
-      // Fetch all data in parallel
-      final results = await Future.wait([
-        apiService.getAllUsers(authService.currentUser!.token!),
-        apiService.getTopQuestions(authService.currentUser!.token!),
-        apiService.getAdminAnalytics(authService.currentUser!.token!),
-      ]);
+      // Fetch data individually to handle failures gracefully
+      List<dynamic> users = [];
+      List<dynamic> topQuestions = [];
+      Map<String, dynamic> analytics = {};
+      
+      String errorMessages = '';
+
+      // Fetch users
+      try {
+        users = await apiService.getAllUsers(authService.currentUser!.token!) ?? [];
+        print('✅ Successfully fetched ${users.length} users');
+      } catch (e) {
+        errorMessages += 'Failed to fetch users: ${e.toString()}\n';
+        print('❌ Failed to fetch users: $e');
+      }
+
+      // Fetch top questions
+      try {
+        topQuestions = await apiService.getTopQuestions(authService.currentUser!.token!) ?? [];
+        print('✅ Successfully fetched ${topQuestions.length} top questions');
+      } catch (e) {
+        errorMessages += 'Failed to fetch top questions: ${e.toString()}\n';
+        print('❌ Failed to fetch top questions: $e');
+      }
+
+      // Fetch analytics
+      try {
+        analytics = await apiService.getAdminAnalytics(authService.currentUser!.token!) ?? {};
+        print('✅ Successfully fetched analytics: $analytics');
+      } catch (e) {
+        errorMessages += 'Failed to fetch analytics: ${e.toString()}\n';
+        print('❌ Failed to fetch analytics: $e');
+      }
 
       setState(() {
-        _users = (results[0] as List<dynamic>?) ?? [];
-        _topQuestions = (results[1] as List<dynamic>?) ?? [];
-        _analytics = (results[2] as Map<String, dynamic>?) ?? {};
+        _users = users;
+        _topQuestions = topQuestions;
+        _analytics = analytics;
+        _error = errorMessages.isNotEmpty ? errorMessages : null;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = 'Critical error: ${e.toString()}';
         _isLoading = false;
       });
     }
@@ -260,7 +288,7 @@ class _AdminManageUsersScreenState extends State<AdminManageUsersScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        question['question_text'] ?? 'Unknown question',
+                        question['question'] ?? 'Unknown question',
                         style: GoogleFonts.judson(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -269,7 +297,7 @@ class _AdminManageUsersScreenState extends State<AdminManageUsersScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Asked ${question['asked_count'] ?? 0} times',
+                        'Asked ${question['count'] ?? 0} times • Category: ${question['category'] ?? 'Unknown'}',
                         style: GoogleFonts.judson(
                           fontSize: 12,
                           color: Colors.grey[600],
