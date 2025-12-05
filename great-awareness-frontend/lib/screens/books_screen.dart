@@ -243,23 +243,19 @@ class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStat
                         ),
                       ),
                     )
-                  : SizedBox(
-                      height: 600, // Even larger height for books
-                      child: GridView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.all(12),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3, // Exactly 3 books per row
-                          childAspectRatio: 0.85, // Even taller aspect ratio for larger books
-                          crossAxisSpacing: 8, // Reduced horizontal spacing between books
-                          mainAxisSpacing: 16, // Keep vertical spacing as is
-                        ),
-                        itemCount: books.length,
-                        itemBuilder: (context, index) {
-                          final book = books[index];
-                          return _buildBookCard(book);
-                        },
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3, // 3 books per row
+                        childAspectRatio: 0.7, // Adjusted for vertical layout
+                        crossAxisSpacing: 16, // Space between books horizontally
+                        mainAxisSpacing: 16, // Space between books vertically
                       ),
+                      itemCount: books.length,
+                      itemBuilder: (context, index) {
+                        final book = books[index];
+                        return _buildBookCard(book);
+                      },
                     ),
           // On Sale Tab
           Center(

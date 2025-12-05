@@ -171,23 +171,19 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
                     ),
                   ),
                 )
-              : SizedBox(
-                  height: 600,
-                  child: GridView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.all(12),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      childAspectRatio: 0.85,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: books.length,
-                    itemBuilder: (context, index) {
-                      final book = books[index];
-                      return _buildBookCard(book);
-                    },
+              : GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3, // 3 books per row
+                    childAspectRatio: 0.7, // Adjusted for vertical layout
+                    crossAxisSpacing: 16, // Space between books horizontally
+                    mainAxisSpacing: 16, // Space between books vertically
                   ),
+                  itemCount: books.length,
+                  itemBuilder: (context, index) {
+                    final book = books[index];
+                    return _buildBookCard(book);
+                  },
                 ),
     );
   }
@@ -199,61 +195,11 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
         onTap: () {
           _showBookDetails(book);
         },
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            image: DecorationImage(
-              image: AssetImage(book.imagePath),
-              fit: BoxFit.contain,
-            ),
-          ),
-          child: Stack(
-            children: [
-              // Reading progress indicator
-              if (book.readingProgress > 0)
-                Positioned(
-                  bottom: 8,
-                  left: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Expanded(
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeInOutCubic,
-                            child: LinearProgressIndicator(
-                              value: book.readingProgress / 100,
-                              backgroundColor: Colors.grey[300],
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                              minHeight: 4,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 300),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          child: Text('${book.readingProgress.toInt()}%'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        child: Image.asset(
+             book.imagePath,
+             fit: BoxFit.cover, // Fill entire container to eliminate gaps
+             alignment: Alignment.center,
+           ),
       ),
     );
   }
