@@ -77,12 +77,6 @@ class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStat
     // Initialize books from assets
     final initialBooks = [
       Book(
-        id: '1',
-        title: 'No More Confusion - Finding Your Calling',
-        imagePath: 'assets/images/book1.png',
-        description: 'The real reason why you haven\'t found your calling yet.',
-      ),
-      Book(
         id: '2',
         title: 'Master Your Finances',
         imagePath: 'assets/images/Master your finances, how the primal brain hijacks your financial decisions.png',
@@ -249,19 +243,23 @@ class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStat
                         ),
                       ),
                     )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(12),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.65,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
+                  : SizedBox(
+                      height: 600, // Even larger height for books
+                      child: GridView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.all(12),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, // Exactly 3 books per row
+                          childAspectRatio: 0.85, // Even taller aspect ratio for larger books
+                          crossAxisSpacing: 8, // Reduced horizontal spacing between books
+                          mainAxisSpacing: 16, // Keep vertical spacing as is
+                        ),
+                        itemCount: books.length,
+                        itemBuilder: (context, index) {
+                          final book = books[index];
+                          return _buildBookCard(book);
+                        },
                       ),
-                      itemCount: books.length,
-                      itemBuilder: (context, index) {
-                        final book = books[index];
-                        return _buildBookCard(book);
-                      },
                     ),
           // On Sale Tab
           Center(
@@ -328,169 +326,93 @@ class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStat
   Widget _buildBookCard(Book book) {
     return Hero(
       tag: 'book_${book.id}',
-      child: Card(
-        color: Colors.white,
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Colors.black12, width: 1),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            // Navigate to book reader if EPUB URL is available
-            if (book.epubUrl != null) {
-              print('Opening book: ${book.title} with URL: ${book.epubUrl}');
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BookReaderScreen(
-                    bookId: book.id,
-                    bookTitle: book.title,
-                    bookPath: book.imagePath,
-                    isAsset: false,
-                    cloudUrl: book.epubUrl!,
-                  ),
+      child: GestureDetector(
+        onTap: () {
+          // Navigate to book reader if EPUB URL is available
+          if (book.epubUrl != null) {
+            print('Opening book: ${book.title} with URL: ${book.epubUrl}');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BookReaderScreen(
+                  bookId: book.id,
+                  bookTitle: book.title,
+                  bookPath: book.imagePath,
+                  isAsset: false,
+                  cloudUrl: book.epubUrl!,
                 ),
-              ).then((_) {
-                print('Book reader closed for: ${book.title}');
-              }).catchError((error) {
-                print('Error opening book reader: $error');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error opening book: $error')),
-                );
-              });
-            } else {
-              // Show message if no EPUB available
-              print('No EPUB URL for book: ${book.title}');
+              ),
+            ).then((_) {
+              print('Book reader closed for: ${book.title}');
+            }).catchError((error) {
+              print('Error opening book reader: $error');
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('EPUB version not available for this book')),
+                SnackBar(content: Text('Error opening book: $error')),
               );
-            }
-          },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+            });
+          } else {
+            // Show message if no EPUB available
+            print('No EPUB URL for book: ${book.title}');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('EPUB version not available for this book')),
+            );
+          }
+        },
+        child: Stack(
           children: [
-            Expanded(
-              flex: 2,
-              child: Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      image: DecorationImage(
-                        image: AssetImage(book.imagePath),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  // Reading progress indicator
-                  if (book.readingProgress > 0)
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Expanded(
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 500),
-                                curve: Curves.easeInOutCubic,
-                                child: LinearProgressIndicator(
-                                  value: book.readingProgress / 100,
-                                  backgroundColor: Colors.grey[300],
-                                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                                  minHeight: 4,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 300),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              child: Text('${book.readingProgress.toInt()}%'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                ],
+            // Full cover image
+            Positioned.fill(
+              child: Image.asset(
+                book.imagePath,
+                fit: BoxFit.contain, // Show full cover without cropping
+                alignment: Alignment.center,
               ),
             ),
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Book title with better text wrapping
-                    Flexible(
-                      child: Container(
-                        width: double.infinity,
-                        child: Text(
-                          book.title,
-                          style: GoogleFonts.judson(
-                            textStyle: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                            ),
+            // Reading progress indicator
+            if (book.readingProgress > 0)
+              Positioned(
+                bottom: 12,
+                left: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeInOutCubic,
+                          child: LinearProgressIndicator(
+                            value: book.readingProgress / 100,
+                            backgroundColor: Colors.grey[400],
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                            minHeight: 6,
                           ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
-                          softWrap: true,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Book description with better text wrapping
-                    Flexible(
-                      child: Container(
-                        width: double.infinity,
-                        child: Text(
-                          book.description,
-                          style: GoogleFonts.judson(
-                            textStyle: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 9,
-                              height: 1.3,
-                            ),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
-                          softWrap: true,
+                      const SizedBox(width: 10),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 300),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
                         ),
+                        child: Text('${book.readingProgress.toInt()}%'),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
-    ),
-  );
+    );
   }
 
   void _showBookDetails(Book book) {

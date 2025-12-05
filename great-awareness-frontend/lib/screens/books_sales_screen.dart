@@ -171,19 +171,23 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
                     ),
                   ),
                 )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.65,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+              : SizedBox(
+                  height: 600,
+                  child: GridView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.all(12),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      childAspectRatio: 0.85,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 16,
+                    ),
+                    itemCount: books.length,
+                    itemBuilder: (context, index) {
+                      final book = books[index];
+                      return _buildBookCard(book);
+                    },
                   ),
-                  itemCount: books.length,
-                  itemBuilder: (context, index) {
-                    final book = books[index];
-                    return _buildBookCard(book);
-                  },
                 ),
     );
   }
@@ -191,136 +195,62 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
   Widget _buildBookCard(Book book) {
     return Hero(
       tag: 'book_sales_${book.id}',
-      child: Card(
-        color: Colors.white,
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Colors.black12, width: 1),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            // Show book details for sales
-            _showBookDetails(book);
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-              flex: 2,
-              child: Stack(
-                children: [
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                        image: DecorationImage(
-                          image: AssetImage(book.imagePath),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    // Reading progress indicator
-                    if (book.readingProgress > 0)
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Expanded(
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 500),
-                                  curve: Curves.easeInOutCubic,
-                                  child: LinearProgressIndicator(
-                                    value: book.readingProgress / 100,
-                                    backgroundColor: Colors.grey[300],
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                                    minHeight: 4,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 300),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                child: Text('${book.readingProgress.toInt()}%'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Book title with better text wrapping
-                    Flexible(
-                      child: Container(
-                        width: double.infinity,
-                        child: Text(
-                          book.title,
-                          style: GoogleFonts.judson(
-                            textStyle: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              height: 1.2,
-                            ),
-                          ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
-                          softWrap: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Book description with better text wrapping
-                    Flexible(
-                      child: Container(
-                        width: double.infinity,
-                        child: Text(
-                          book.description,
-                          style: GoogleFonts.judson(
-                            textStyle: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 9,
-                              height: 1.3,
-                            ),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
-                          softWrap: true,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+      child: GestureDetector(
+        onTap: () {
+          _showBookDetails(book);
+        },
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            image: DecorationImage(
+              image: AssetImage(book.imagePath),
+              fit: BoxFit.contain,
             ),
+          ),
+          child: Stack(
+            children: [
+              // Reading progress indicator
+              if (book.readingProgress > 0)
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Expanded(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.easeInOutCubic,
+                            child: LinearProgressIndicator(
+                              value: book.readingProgress / 100,
+                              backgroundColor: Colors.grey[300],
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                              minHeight: 4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 300),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          child: Text('${book.readingProgress.toInt()}%'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
