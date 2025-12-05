@@ -7,6 +7,7 @@ import 'qa_screen.dart';
 import 'settings_screen.dart';
 import 'booking_screen.dart';
 import 'notification_screen.dart';
+import 'events_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -356,6 +357,25 @@ class _FeedScreenState extends State<FeedScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const BookingScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.event, color: Colors.black),
+                title: Text(
+                  'Events',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const EventsScreen()),
                   );
                 },
               ),
