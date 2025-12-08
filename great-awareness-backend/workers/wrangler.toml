@@ -1,0 +1,44 @@
+name = "video-worker"
+main = "video-worker.js"
+compatibility_date = "2024-01-01"
+
+# R2 Storage Binding for video files (top-level)
+[[r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "videos"
+
+# D1 Database Binding for video metadata (top-level)
+[[d1_databases]]
+binding = "DB"
+database_name = "gwa"
+database_id = "bebf0f31-d05b-4a96-aeca-9102afdaa84c"
+
+# Production environment
+[env.production]
+name = "video-worker-prod"
+
+# R2 Storage Binding for production
+[[env.production.r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "videos"
+
+# D1 Database Binding for production
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "gwa"
+database_id = "bebf0f31-d05b-4a96-aeca-9102afdaa84c"
+
+# Development environment
+[env.development]
+name = "video-worker-dev"
+
+# R2 Storage Binding for development
+[[env.development.r2_buckets]]
+binding = "VIDEO_BUCKET"
+bucket_name = "great-awareness-videos-dev"
+
+# D1 Database Binding for development
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "great-awareness-d1-dev"
+database_id = "bebf0f31-d05b-4a96-aeca-9102afdaa84c"
