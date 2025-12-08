@@ -40,7 +40,12 @@ class Settings(BaseSettings):
     @validator("cors_origins", pre=True)
     def parse_cors_origins(cls, v):
         if isinstance(v, str):
-            return json.loads(v)
+            try:
+                # Try to parse as JSON array
+                return json.loads(v)
+            except json.JSONDecodeError:
+                # If JSON parsing fails, treat as comma-separated string
+                return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
     
     @validator("allowed_file_types", pre=True)
