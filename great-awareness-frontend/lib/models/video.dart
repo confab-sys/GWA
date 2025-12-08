@@ -9,6 +9,8 @@ class Video {
   final int fileSize;
   final String contentType;
   final String originalName;
+  final int viewCount;
+  final int commentCount;
   String? signedUrl;
   DateTime? signedUrlExpiry;
 
@@ -21,6 +23,8 @@ class Video {
     required this.fileSize,
     required this.contentType,
     required this.originalName,
+    this.viewCount = 0,
+    this.commentCount = 0,
     this.signedUrl,
     this.signedUrlExpiry,
   });
@@ -35,6 +39,8 @@ class Video {
       fileSize: json['file_size'] ?? json['video']['fileSize'] ?? json['fileSize'] ?? 0,
       contentType: json['content_type'] ?? json['video']['contentType'] ?? json['contentType'] ?? 'video/mp4',
       originalName: json['original_name'] ?? json['video']['originalName'] ?? json['originalName'] ?? '',
+      viewCount: json['view_count'] ?? json['video']['viewCount'] ?? json['viewCount'] ?? 0,
+      commentCount: json['comment_count'] ?? json['video']['commentCount'] ?? json['commentCount'] ?? 0,
       signedUrl: json['signedUrl'],
       signedUrlExpiry: json['signedUrlExpiry'] != null ? DateTime.parse(json['signedUrlExpiry']) : null,
     );
@@ -50,6 +56,8 @@ class Video {
       'file_size': fileSize,
       'content_type': contentType,
       'original_name': originalName,
+      'view_count': viewCount,
+      'comment_count': commentCount,
       'signedUrl': signedUrl,
       'signedUrlExpiry': signedUrlExpiry?.toIso8601String(),
     };
@@ -78,6 +86,18 @@ class Video {
     if (duration.inHours > 0) return '${duration.inHours} hours ago';
     if (duration.inMinutes > 0) return '${duration.inMinutes} minutes ago';
     return 'Just now';
+  }
+
+  String get formattedViewCount {
+    if (viewCount < 1000) return viewCount.toString();
+    if (viewCount < 1000000) return '${(viewCount / 1000).toStringAsFixed(1)}K';
+    return '${(viewCount / 1000000).toStringAsFixed(1)}M';
+  }
+
+  String get formattedCommentCount {
+    if (commentCount < 1000) return commentCount.toString();
+    if (commentCount < 1000000) return '${(commentCount / 1000).toStringAsFixed(1)}K';
+    return '${(commentCount / 1000000).toStringAsFixed(1)}M';
   }
 }
 

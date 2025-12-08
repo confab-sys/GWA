@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/video.dart';
 import '../services/video_service.dart';
-import 'video_upload_screen.dart';
-import 'video_player_screen.dart';
+import '../widgets/cloudflare_video_player.dart';
+// TODO: Create video_upload_screen.dart or implement upload functionality
+// import 'video_upload_screen.dart';
 
 class VideosScreen extends StatefulWidget {
   const VideosScreen({super.key});
@@ -13,6 +14,7 @@ class VideosScreen extends StatefulWidget {
 }
 
 class _VideosScreenState extends State<VideosScreen> {
+  // ignore: prefer_final_fields
   List<Video> _videos = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -95,6 +97,11 @@ class _VideosScreenState extends State<VideosScreen> {
   }
 
   void _navigateToUpload() async {
+    // TODO: Implement video upload functionality or create VideoUploadScreen
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Video upload not implemented yet')),
+    );
+    /*
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -106,63 +113,24 @@ class _VideosScreenState extends State<VideosScreen> {
     if (result == true) {
       _refreshVideos();
     }
+    */
   }
 
   void _playVideo(Video video) async {
-    try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        },
-      );
-
-      // Get video with signed URL
-      final videoWithUrl = await VideoService.getVideoWithSignedUrl(video.id);
-      
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-        
-        // Navigate to video player
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VideoPlayerScreen(
-              videoUrl: videoWithUrl.signedUrl!,
-              title: videoWithUrl.title,
-              subtitle: videoWithUrl.description,
-              initialLikes: 0,
-              initialIsLiked: false,
-              initialComments: [],
-              onLikeChanged: (likes, isLiked) {
-                // Handle like changes
-              },
-              onCommentAdded: (comment) {
-                // Handle comment additions
-              },
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-        
-        // Show error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to play video: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    // Navigate directly to the CloudflareVideoPlayer widget
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CloudflareVideoPlayer(
+          video: video,
+          title: video.title,
+          subtitle: video.description,
+          onVideoCompleted: () {
+            // Handle video completion if needed
+          },
+        ),
+      ),
+    );
   }
 
   String _formatDuration(DateTime dateTime) {
@@ -367,7 +335,7 @@ class _VideosScreenState extends State<VideosScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
+                          color: Colors.black.withValues(alpha: 0.7),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -433,6 +401,34 @@ class _VideosScreenState extends State<VideosScreen> {
                   const SizedBox(width: 4),
                   Text(
                     video.contentType.split('/').last.toUpperCase(),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.visibility,
+                    size: 16,
+                    color: Colors.grey[500],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    video.formattedViewCount,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.comment,
+                    size: 16,
+                    color: Colors.grey[500],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    video.formattedCommentCount,
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: Colors.grey[500],

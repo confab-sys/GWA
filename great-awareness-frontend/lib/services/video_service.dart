@@ -167,4 +167,55 @@ class VideoService {
     final signedUrlResponse = await getSignedUrl(video.id);
     return signedUrlResponse.signedUrl;
   }
+
+  // Track video view
+  static Future<ViewTrackResponse> trackView(String videoId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/videos/$videoId/track-view'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        return ViewTrackResponse.fromJson(jsonResponse);
+      } else {
+        final errorResponse = json.decode(response.body);
+        return ViewTrackResponse(
+          success: false,
+          error: errorResponse['error'] ?? 'Failed to track view',
+          message: errorResponse['message'],
+        );
+      }
+    } catch (e) {
+      return ViewTrackResponse(
+        success: false,
+        error: 'Track view error',
+        message: e.toString(),
+      );
+    }
+  }
+}
+
+class ViewTrackResponse {
+  final bool success;
+  final int? viewCount;
+  final String? error;
+  final String? message;
+
+  ViewTrackResponse({
+    required this.success,
+    this.viewCount,
+    this.error,
+    this.message,
+  });
+
+  factory ViewTrackResponse.fromJson(Map<String, dynamic> json) {
+    return ViewTrackResponse(
+      success: json['success'] ?? false,
+      viewCount: json['viewCount'],
+      error: json['error'],
+      message: json['message'],
+    );
+  }
 }

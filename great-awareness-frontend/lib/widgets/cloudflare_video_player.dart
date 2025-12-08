@@ -37,6 +37,7 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
   String? _errorMessage;
   bool _isRetrying = false;
   Timer? _urlRefreshTimer;
+  bool _viewTracked = false;
 
   @override
   void initState() {
@@ -69,6 +70,14 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
       
       // Set up completion listener
       _videoPlayerController!.addListener(_onVideoStateChanged);
+      
+      // Track view when video starts playing
+      _videoPlayerController!.addListener(() {
+        if (_videoPlayerController!.value.isPlaying && !_viewTracked) {
+          _viewTracked = true;
+          _trackVideoView();
+        }
+      });
       
       // Create Chewie controller
       _chewieController = ChewieController(
@@ -303,6 +312,20 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
     }
   }
 
+  Future<void> _trackVideoView() async {
+    try {
+      final response = await VideoService.trackView(widget.video.id);
+      if (response.success && mounted) {
+        // Optionally update the local view count if needed
+        // For now, we'll just track it silently
+        print('View tracked successfully. New count: ${response.viewCount}');
+      }
+    } catch (e) {
+      // Silently fail - view tracking shouldn't interrupt video playback
+      print('Failed to track view: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -376,7 +399,18 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 8),
+                if (widget.video.description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.video.description,
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withValues(alpha: 0.7), // Use withValues instead of withOpacity
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Icon(
@@ -401,6 +435,34 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                     const SizedBox(width: 4),
                     Text(
                       widget.video.formattedFileSize,
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.visibility,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.video.formattedViewCount,
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.comment,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.video.formattedCommentCount,
                       style: GoogleFonts.inter(
                         color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
                         fontSize: 12,

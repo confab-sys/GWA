@@ -29,12 +29,16 @@ export default {
         return await handleListVideos(request, env, corsHeaders);
       } else if (path.startsWith('/api/videos/') && path.endsWith('/signed-url') && method === 'GET') {
         return await handleSignedUrl(request, env, corsHeaders);
+      } else if (path.startsWith('/api/videos/') && path.endsWith('/track-view') && method === 'POST') {
+        return await handleTrackView(request, env, corsHeaders);
       } else if (path.startsWith('/api/videos/') && method === 'GET') {
         return await handleGetVideo(request, env, corsHeaders);
       } else if (path === '/api/debug/schema' && method === 'GET') {
         return await handleDebugSchema(request, env, corsHeaders);
       } else if (path === '/api/debug/migrate' && method === 'POST') {
         return await handleMigrateSchema(request, env, corsHeaders);
+      } else if (path === '/api/videos/sync' && method === 'POST') {
+        return await handleSyncVideos(request, env, corsHeaders);
       } else {
         return new Response('Not Found', { 
           status: 404, 
@@ -582,6 +586,83 @@ async function handleGetVideo(request, env, corsHeaders) {
 }
 
 /**
+ * Handle view tracking for a video
+ * Increments the view count for a video
+ */
+async function handleTrackView(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const videoId = pathParts[3]; // /api/videos/{id}/track-view
+
+    if (!videoId) {
+      return new Response(
+        JSON.stringify({ error: 'Video ID is required' }),
+        { 
+          status: 400, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
+
+    // Increment view count
+    const result = await env.DB.prepare(`
+      UPDATE videos 
+      SET view_count = view_count + 1 
+      WHERE id = ?
+    `).bind(videoId).run();
+
+    if (result.meta.changes === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Video not found' }),
+        { 
+          status: 404, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
+
+    // Get updated view count
+    const updatedVideo = await env.DB.prepare(`
+      SELECT view_count FROM videos WHERE id = ?
+    `).bind(videoId).first();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        viewCount: updatedVideo.view_count
+      }),
+      { 
+        status: 200, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
+
+  } catch (error) {
+    console.error('Track view error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Failed to track view', message: error.message }),
+      { 
+        status: 500, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
+  }
+}
+
+/**
  * Generate signed URL for R2 object
  */
 async function getSignedUrl(bucket, objectKey, expirySeconds = 3600) {
@@ -601,4 +682,183 @@ async function getSignedUrl(bucket, objectKey, expirySeconds = 3600) {
   // In a real implementation, you'd use AWS SDK v3 or similar to generate presigned URLs
   // For this example, we'll return a URL with expiry parameter
   return `https://your-r2-domain.com/${objectKey}?expiry=${expiry}&signature=generated-signature`;
+}
+
+/**
+ * Sync videos from R2 bucket to database
+ * Scans R2 bucket for video files and creates database entries
+ */
+async function handleSyncVideos(request, env, corsHeaders) {
+  try {
+    console.log('Starting video sync from R2 bucket...');
+    
+    // Check if R2 bucket is configured
+    if (!env.BUCKET) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'R2 bucket not configured',
+          message: 'Please configure your R2 bucket binding in the Cloudflare Worker'
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
+    
+    // List objects in R2 bucket
+    const objects = await env.BUCKET.list({ prefix: '' });
+    console.log(`Found ${objects.objects?.length || 0} objects in R2 bucket`);
+    
+    if (!objects.objects || objects.objects.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No videos found in R2 bucket',
+          synced: 0,
+          skipped: 0 
+        }),
+        { 
+          status: 200, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
+    
+    let syncedCount = 0;
+    let skippedCount = 0;
+    const syncedVideos = [];
+    
+    // Process each object
+    for (const object of objects.objects) {
+      const key = object.key;
+      
+      // Only process video files
+      if (!key.match(/\.(mp4|mov|avi|webm|mkv)$/i)) {
+        console.log(`Skipping non-video file: ${key}`);
+        skippedCount++;
+        continue;
+      }
+      
+      try {
+        // Check if video already exists in database
+        const existingVideo = await env.DB.prepare(
+          'SELECT id FROM videos WHERE object_key = ?'
+        ).bind(key).first();
+        
+        if (existingVideo) {
+          console.log(`Video already exists in database: ${key}`);
+          skippedCount++;
+          continue;
+        }
+        
+        // Generate video ID and metadata
+        const videoId = generateVideoId();
+        const title = generateTitleFromFilename(key);
+        const fileSize = object.size || 0;
+        const contentType = getContentTypeFromExtension(key);
+        const createdAt = new Date(object.uploaded || Date.now()).toISOString();
+        
+        // Insert video into database
+        await env.DB.prepare(`
+          INSERT INTO videos (
+            id, title, description, object_key, created_at, 
+            file_size, content_type, original_name, view_count, comment_count
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          videoId, title, '', key, createdAt, 
+          fileSize, contentType, key, 0, 0
+        ).run();
+        
+        console.log(`Synced video: ${key} (ID: ${videoId})`);
+        syncedCount++;
+        syncedVideos.push({
+          id: videoId,
+          title: title,
+          object_key: key,
+          file_size: fileSize
+        });
+        
+      } catch (error) {
+        console.error(`Error syncing video ${key}:`, error);
+        skippedCount++;
+      }
+    }
+    
+    console.log(`Video sync completed. Synced: ${syncedCount}, Skipped: ${skippedCount}`);
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: `Video sync completed successfully`,
+        synced: syncedCount,
+        skipped: skippedCount,
+        videos: syncedVideos
+      }),
+      { 
+        status: 200, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
+    
+  } catch (error) {
+    console.error('Video sync error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Failed to sync videos',
+        message: error.message 
+      }),
+      { 
+        status: 500, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        } 
+      }
+    );
+  }
+}
+
+/**
+ * Generate unique video ID
+ */
+function generateVideoId() {
+  return 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * Generate title from filename
+ */
+function generateTitleFromFilename(filename) {
+  // Remove extension and replace special characters
+  const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+  // Replace underscores, hyphens with spaces and capitalize words
+  return nameWithoutExt
+    .replace(/[_-]/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase())
+    .trim();
+}
+
+/**
+ * Get content type from file extension
+ */
+function getContentTypeFromExtension(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const contentTypes = {
+    'mp4': 'video/mp4',
+    'mov': 'video/quicktime',
+    'avi': 'video/x-msvideo',
+    'webm': 'video/webm',
+    'mkv': 'video/x-matroska'
+  };
+  return contentTypes[ext] || 'video/mp4';
 }

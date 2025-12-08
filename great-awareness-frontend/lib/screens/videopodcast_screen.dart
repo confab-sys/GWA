@@ -1,41 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'podcasts_screen.dart';
-import 'video_player_screen.dart';
-import '../models/video_comment.dart';
+import '../models/video.dart';
+
+import '../services/video_service.dart';
 import '../services/cloudflare_storage_service.dart';
-
-class Video {
-  final String id;
-  final String title;
-  final String subtitle;
-  final String category;
-  final String duration;
-  final double watchProgress;
-  final String thumbnailUrl;
-  final String cloudflareUrl;
-  bool isFavorite;
-  bool isSaved;
-  int likes;
-  bool isLiked;
-  List<VideoComment> comments;
-
-  Video({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.category,
-    required this.duration,
-    this.watchProgress = 0.0,
-    required this.thumbnailUrl,
-    required this.cloudflareUrl,
-    this.isFavorite = false,
-    this.isSaved = false,
-    this.likes = 0,
-    this.isLiked = false,
-    this.comments = const [],
-  });
-}
+import '../widgets/cloudflare_video_player.dart';
 
 class Podcast {
   final String id;
@@ -100,38 +70,76 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         isLoading = true;
       });
 
-      print('Loading videos from Cloudflare...');
-      // Get videos from Cloudflare - using configured videos directly since we know they work
-      final cloudflareVideos = CloudflareStorageService.getConfiguredVideos();
-      print('Found ${cloudflareVideos.length} configured videos');
+      print('Loading videos from database...');
+      // Get videos from database using VideoService
+      final response = await VideoService.listVideos(
+        page: 1,
+        perPage: 50, // Load more videos for better selection
+      );
       
-      if (cloudflareVideos.isEmpty) {
-        print('No videos found in configuration');
-        setState(() {
-          isLoading = false;
-        });
-        return;
+      List<Video> loadedVideos = [];
+      
+      if (response.videos.isNotEmpty) {
+        print('Found ${response.videos.length} videos in database');
+        // Log the first video details for debugging
+        if (response.videos.isNotEmpty) {
+          print('First video: ${response.videos.first.title} - ${response.videos.first.id}');
+        }
+        
+        // Convert database videos to the format expected by this screen
+        loadedVideos = response.videos.map((dbVideo) => Video(
+          id: dbVideo.id,
+          title: dbVideo.title,
+          description: dbVideo.description,
+          objectKey: dbVideo.objectKey,
+          createdAt: dbVideo.createdAt,
+          fileSize: dbVideo.fileSize,
+          contentType: dbVideo.contentType,
+          originalName: dbVideo.originalName,
+          signedUrl: dbVideo.signedUrl,
+          signedUrlExpiry: dbVideo.signedUrlExpiry,
+          viewCount: dbVideo.viewCount,
+          commentCount: dbVideo.commentCount,
+        )).toList();
+      } else {
+        print('No videos found in database, falling back to Cloudflare storage...');
+        // Fallback to Cloudflare storage service
+        try {
+          final cloudflareVideos = await CloudflareStorageService.fetchVideosFromBucket();
+          print('Found ${cloudflareVideos.length} videos in Cloudflare storage');
+          
+          // Convert Cloudflare videos to Video model format
+          loadedVideos = cloudflareVideos.map((cfVideo) => Video(
+            id: cfVideo.key.hashCode.toString(), // Use hash of key as ID
+            title: cfVideo.title,
+            description: 'Video from Cloudflare storage',
+            objectKey: cfVideo.key,
+            createdAt: cfVideo.lastModified,
+            fileSize: cfVideo.size,
+            contentType: 'video/mp4',
+            originalName: cfVideo.key,
+            viewCount: 0,
+            commentCount: 0,
+          )).toList();
+        } catch (cfError) {
+          print('Error loading from Cloudflare storage: $cfError');
+          // If both database and Cloudflare fail, use configured videos
+          print('Using configured videos as final fallback');
+          final configuredVideos = CloudflareStorageService.getConfiguredVideos();
+          loadedVideos = configuredVideos.map((cfVideo) => Video(
+            id: cfVideo.key.hashCode.toString(),
+            title: cfVideo.title,
+            description: 'Video from Cloudflare storage',
+            objectKey: cfVideo.key,
+            createdAt: cfVideo.lastModified,
+            fileSize: cfVideo.size,
+            contentType: 'video/mp4',
+            originalName: cfVideo.key,
+            viewCount: 0,
+            commentCount: 0,
+          )).toList();
+        }
       }
-      
-      // Log the first video details for debugging
-      if (cloudflareVideos.isNotEmpty) {
-        print('First video: ${cloudflareVideos.first.title} - ${cloudflareVideos.first.url}');
-      }
-      
-      // Convert CloudflareVideo objects to Video objects
-      final List<Video> loadedVideos = cloudflareVideos.map((cfVideo) => Video(
-        id: cfVideo.key.hashCode.toString(),
-        title: cfVideo.title,
-        subtitle: 'Video from Cloudflare bucket',
-        category: cfVideo.category,
-        duration: cfVideo.duration,
-        watchProgress: 0.0,
-        thumbnailUrl: 'assets/images/video_placeholder.jpg', // Default thumbnail
-        cloudflareUrl: cfVideo.url,
-        likes: 0,
-        isLiked: false,
-        comments: [],
-      )).toList();
 
       setState(() {
         allVideos = loadedVideos;
@@ -139,275 +147,20 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         isLoading = false;
       });
       
-      print('Successfully loaded ${loadedVideos.length} accessible videos');
+      print('Successfully loaded ${loadedVideos.length} videos');
       
     } catch (e) {
-      // Error loading videos, fallback to default
-      print('Error loading videos from Cloudflare: $e');
+      // Error loading videos, show empty state
+      print('Error loading videos: $e');
       setState(() {
         isLoading = false;
+        allVideos = [];
+        filteredVideos = [];
       });
-      
-      // Fallback to default videos if loading fails
-      _initializeDefaultVideos();
     }
   }
 
-  void _initializeDefaultVideos() {
-    // Sample video data organized by categories with Cloudflare streaming URLs
-    allVideos = [
-      // Overcoming Addictions
-      Video(
-        id: '1',
-        title: 'Understanding Addiction Psychology',
-        subtitle: 'Learn the science behind addictive behaviors',
-        category: 'Overcoming Addictions',
-        duration: '15:30',
-        watchProgress: 45.0,
-        thumbnailUrl: 'assets/images/addiction_psychology.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/understanding-addiction-psychology.mp4',
-        likes: 124,
-        isLiked: false,
-        comments: [
-          VideoComment(
-            id: 'c1',
-            userId: 'user1',
-            userName: 'Sarah M.',
-            text: 'This video really helped me understand my patterns. Thank you!',
-            timestamp: DateTime.now().subtract(const Duration(days: 1)),
-          ),
-          VideoComment(
-            id: 'c2',
-            userId: 'user2',
-            userName: 'Mike R.',
-            text: 'Great insights into the psychology behind addiction.',
-            timestamp: DateTime.now().subtract(const Duration(hours: 12)),
-          ),
-        ],
-      ),
-      Video(
-        id: '2',
-        title: 'Breaking Free from Pornography',
-        subtitle: 'Practical steps to overcome porn addiction',
-        category: 'Overcoming Addictions',
-        duration: '22:15',
-        watchProgress: 80.0,
-        thumbnailUrl: 'assets/images/breaking_free.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/breaking-free-pornography.mp4',
-        likes: 89,
-        isLiked: true,
-        comments: [
-          VideoComment(
-            id: 'c3',
-            userId: 'user3',
-            userName: 'David K.',
-            text: 'These practical steps are life-changing.',
-            timestamp: DateTime.now().subtract(const Duration(hours: 6)),
-          ),
-        ],
-      ),
-      Video(
-        id: '3',
-        title: 'Building Healthy Habits',
-        subtitle: 'Replace bad habits with positive ones',
-        category: 'Overcoming Addictions',
-        duration: '18:45',
-        watchProgress: 0.0,
-        thumbnailUrl: 'assets/images/healthy_habits.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/building-healthy-habits.mp4',
-        likes: 156,
-        isLiked: false,
-        comments: [],
-      ),
-      
-      // Healing Trauma
-      Video(
-        id: '4',
-        title: 'Understanding Childhood Trauma',
-        subtitle: 'How early experiences shape adult behavior',
-        category: 'Healing Trauma',
-        duration: '25:20',
-        watchProgress: 30.0,
-        thumbnailUrl: 'assets/images/childhood_trauma.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/understanding-childhood-trauma.mp4',
-        likes: 203,
-        isLiked: false,
-        comments: [
-          VideoComment(
-            id: 'c4',
-            userId: 'user4',
-            userName: 'Emma L.',
-            text: 'This explained so much about my childhood experiences.',
-            timestamp: DateTime.now().subtract(const Duration(days: 2)),
-          ),
-        ],
-      ),
-      Video(
-        id: '5',
-        title: 'EMDR Therapy Explained',
-        subtitle: 'Effective trauma processing technique',
-        category: 'Healing Trauma',
-        duration: '30:10',
-        watchProgress: 65.0,
-        thumbnailUrl: 'assets/images/emdr_therapy.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/emdr-therapy-explained.mp4',
-        likes: 167,
-        isLiked: true,
-        comments: [],
-      ),
-      Video(
-        id: '6',
-        title: 'Self-Compassion Practices',
-        subtitle: 'Healing through kindness to yourself',
-        category: 'Healing Trauma',
-        duration: '12:30',
-        watchProgress: 100.0,
-        thumbnailUrl: 'assets/images/self_compassion.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/self-compassion-practices.mp4',
-        likes: 278,
-        isLiked: false,
-        comments: [
-          VideoComment(
-            id: 'c5',
-            userId: 'user5',
-            userName: 'Lisa K.',
-            text: 'I practice these daily and they have transformed my life!',
-            timestamp: DateTime.now().subtract(const Duration(hours: 3)),
-          ),
-        ],
-      ),
-      
-      // Relationships
-      Video(
-        id: '7',
-        title: 'Healthy Communication Skills',
-        subtitle: 'Build stronger connections with others',
-        category: 'Relationships',
-        duration: '20:15',
-        watchProgress: 15.0,
-        thumbnailUrl: 'assets/images/communication.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/healthy-communication-skills.mp4',
-        likes: 145,
-        isLiked: false,
-        comments: [],
-      ),
-      Video(
-        id: '8',
-        title: 'Setting Boundaries',
-        subtitle: 'Protect your emotional well-being',
-        category: 'Relationships',
-        duration: '16:40',
-        watchProgress: 0.0,
-        thumbnailUrl: 'assets/images/boundaries.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/setting-boundaries.mp4',
-        likes: 98,
-        isLiked: false,
-        comments: [
-          VideoComment(
-            id: 'c6',
-            userId: 'user6',
-            userName: 'Anna P.',
-            text: 'Setting boundaries has been crucial for my mental health.',
-            timestamp: DateTime.now().subtract(const Duration(days: 1)),
-          ),
-        ],
-      ),
-      Video(
-        id: '9',
-        title: 'Healing from Heartbreak',
-        subtitle: 'Moving forward after relationship loss',
-        category: 'Relationships',
-        duration: '28:50',
-        watchProgress: 90.0,
-        thumbnailUrl: 'assets/images/heartbreak.jpg',
-        cloudflareUrl: 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/healing-from-heartbreak.mp4',
-        likes: 234,
-        isLiked: true,
-        comments: [
-          VideoComment(
-            id: 'c7',
-            userId: 'user7',
-            userName: 'Tom W.',
-            text: 'This helped me through a very difficult time. Thank you.',
-            timestamp: DateTime.now().subtract(const Duration(hours: 8)),
-          ),
-          VideoComment(
-            id: 'c8',
-            userId: 'user8',
-            userName: 'Rachel S.',
-            text: 'The healing process takes time, but this video gives hope.',
-            timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-          ),
-        ],
-      ),
-    ];
-    
-    // Sample podcast data organized by categories
-    allPodcasts = [
-      // Overcoming Addictions
-      Podcast(
-        id: 'p1',
-        title: 'Addiction Recovery Stories',
-        subtitle: 'Real stories from people who overcame addiction',
-        category: 'Overcoming Addictions',
-        duration: '45:20',
-        listenProgress: 25.0,
-        thumbnailUrl: 'assets/images/podcast_addiction.jpg',
-      ),
-      Podcast(
-        id: 'p2',
-        title: 'Breaking the Cycle',
-        subtitle: 'Expert advice on addiction recovery',
-        category: 'Overcoming Addictions',
-        duration: '38:15',
-        listenProgress: 0.0,
-        thumbnailUrl: 'assets/images/podcast_cycle.jpg',
-      ),
-      
-      // Healing Trauma
-      Podcast(
-        id: 'p3',
-        title: 'Trauma-Informed Therapy',
-        subtitle: 'Understanding trauma and healing approaches',
-        category: 'Healing Trauma',
-        duration: '52:10',
-        listenProgress: 60.0,
-        thumbnailUrl: 'assets/images/podcast_trauma.jpg',
-      ),
-      Podcast(
-        id: 'p4',
-        title: 'Inner Child Healing',
-        subtitle: 'Reconnecting with your inner child for healing',
-        category: 'Healing Trauma',
-        duration: '41:30',
-        listenProgress: 100.0,
-        thumbnailUrl: 'assets/images/podcast_inner_child.jpg',
-      ),
-      
-      // Relationships
-      Podcast(
-        id: 'p5',
-        title: 'Healthy Relationship Dynamics',
-        subtitle: 'Building strong and supportive relationships',
-        category: 'Relationships',
-        duration: '35:45',
-        listenProgress: 15.0,
-        thumbnailUrl: 'assets/images/podcast_relationships.jpg',
-      ),
-      Podcast(
-        id: 'p6',
-        title: 'Communication in Marriage',
-        subtitle: 'Effective communication strategies for couples',
-        category: 'Relationships',
-        duration: '48:20',
-        listenProgress: 0.0,
-        thumbnailUrl: 'assets/images/podcast_marriage.jpg',
-      ),
-    ];
-    
-    filteredVideos = List.from(allVideos);
-    filteredPodcasts = List.from(allPodcasts);
-  }
+
 
   void _onSearchChanged() {
     final query = searchController.text.toLowerCase();
@@ -419,8 +172,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       } else {
         filteredVideos = allVideos.where((video) {
           return video.title.toLowerCase().contains(query) ||
-                 video.subtitle.toLowerCase().contains(query) ||
-                 video.category.toLowerCase().contains(query);
+                 video.description.toLowerCase().contains(query);
         }).toList();
         
         filteredPodcasts = allPodcasts.where((podcast) {
@@ -430,27 +182,26 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         }).toList();
       }
       
-      // Filter by category if not 'All'
+      // Filter by category if not 'All' - removed since Video model doesn't have category field
+      // For now, show all videos regardless of category selection
       if (selectedCategory != 'All') {
-        filteredVideos = filteredVideos.where((video) => video.category == selectedCategory).toList();
-        filteredPodcasts = filteredPodcasts.where((podcast) => podcast.category == selectedCategory).toList();
+        // Category filtering disabled - real Video model doesn't have category field
+        // filteredVideos = filteredVideos.where((video) => video.category == selectedCategory).toList();
+        // filteredPodcasts = filteredPodcasts.where((podcast) => podcast.category == selectedCategory).toList();
       }
     });
   }
 
   List<String> get _categories {
-    final videoCategories = allVideos.map((video) => video.category).toSet();
-    final podcastCategories = allPodcasts.map((podcast) => podcast.category).toSet();
-    final allCategories = videoCategories.union(podcastCategories).toList();
-    allCategories.insert(0, 'All');
-    return allCategories;
+    // Since real Video model doesn't have category field, return only 'All'
+    // This can be enhanced later when categories are added to the database
+    return ['All'];
   }
 
   Map<String, List<Video>> get _videosByCategory {
+    // Since real Video model doesn't have category field, return all videos under 'All' category
     final Map<String, List<Video>> grouped = {};
-    for (final video in filteredVideos) {
-      grouped.putIfAbsent(video.category, () => []).add(video);
-    }
+    grouped.putIfAbsent('All', () => []).addAll(filteredVideos);
     return grouped;
   }
 
@@ -587,7 +338,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
             Text(
-              'Loading videos from Cloudflare...',
+              'Loading videos...',
               style: GoogleFonts.judson(
                 textStyle: TextStyle(
                   color: Colors.grey[600],
@@ -603,7 +354,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     if (filteredVideos.isEmpty) {
       return Center(
         child: Text(
-          'No videos found in your Cloudflare bucket',
+          'No videos available',
           style: GoogleFonts.judson(
             textStyle: TextStyle(
               color: Colors.grey[600],
@@ -730,23 +481,12 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => VideoPlayerScreen(
-              videoUrl: video.cloudflareUrl,
+            builder: (context) => CloudflareVideoPlayer(
+              video: video,
               title: video.title,
-              subtitle: video.subtitle,
-              initialLikes: video.likes,
-              initialIsLiked: video.isLiked,
-              initialComments: video.comments,
-              onLikeChanged: (likes, isLiked) {
-                setState(() {
-                  video.likes = likes;
-                  video.isLiked = isLiked;
-                });
-              },
-              onCommentAdded: (comment) {
-                setState(() {
-                  video.comments.add(comment);
-                });
+              subtitle: video.description,
+              onVideoCompleted: () {
+                // Handle video completion if needed
               },
             ),
           ),
@@ -776,23 +516,14 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  image: DecorationImage(
-                    image: AssetImage(video.thumbnailUrl),
-                    fit: BoxFit.cover,
-                    onError: (exception, stackTrace) {
-                      // Fallback to icon if image fails to load
-                    },
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.play_circle_outline,
+                    size: 40,
+                    color: Colors.grey[600],
                   ),
                 ),
-                child: video.thumbnailUrl.contains('assets/images/')
-                    ? Center(
-                        child: Icon(
-                          Icons.play_circle_outline,
-                          size: 40,
-                          color: Colors.grey[600],
-                        ),
-                      )
-                    : null,
               ),
               // Duration badge
               Positioned(
@@ -805,7 +536,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    video.duration,
+                    video.formattedDuration,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -814,37 +545,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   ),
                 ),
               ),
-              // Watch progress indicator
-              if (video.watchProgress > 0)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: video.watchProgress.round(),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          flex: (100 - video.watchProgress).round(),
-                          child: const SizedBox(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+
             ],
           ),
           // Content
@@ -870,7 +571,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   const SizedBox(height: 4),
                   // Subtitle
                   Text(
-                    video.subtitle,
+                    video.description,
                     style: GoogleFonts.judson(
                       textStyle: TextStyle(
                         fontSize: 11,
@@ -885,36 +586,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Favorite button
-                      IconButton(
-                        icon: Icon(
-                          video.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          size: 16,
-                          color: video.isFavorite ? Colors.red : Colors.grey[600],
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () {
-                          setState(() {
-                            video.isFavorite = !video.isFavorite;
-                          });
-                        },
-                      ),
-                      // Save button
-                      IconButton(
-                        icon: Icon(
-                          video.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                          size: 16,
-                          color: video.isSaved ? Colors.blue : Colors.grey[600],
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () {
-                          setState(() {
-                            video.isSaved = !video.isSaved;
-                          });
-                        },
-                      ),
+
                     ],
                   ),
                 ],
