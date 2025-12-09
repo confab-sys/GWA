@@ -8,6 +8,7 @@ import 'settings_screen.dart';
 import 'booking_screen.dart';
 import 'notification_screen.dart';
 import 'events_screen.dart';
+import 'wellness_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -392,7 +393,10 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
                 onTap: () {
                   Navigator.pop(context);
-                  // Add navigation to wellness screen when available
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const WellnessScreen()),
+                  );
                 },
               ),
               ListTile(
