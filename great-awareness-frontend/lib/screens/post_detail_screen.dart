@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/content.dart';
+import '../widgets/network_image_widget.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final Content post;
@@ -30,120 +31,113 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 80,
             pinned: true,
             floating: false,
             backgroundColor: Colors.white,
+            elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black87),
               onPressed: () => Navigator.pop(context),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: post.imagePath != null && !post.isTextOnly
-                  ? Container(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage(post.imagePath!),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.7),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: const Color(0xFFD3E4DE),
-                      child: Center(
-                        child: Icon(
-                          Icons.psychology,
-                          size: 80,
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ),
+            title: Text(
+              'Post Details',
+              style: GoogleFonts.judson(
+                textStyle: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
             ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(60),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                color: Colors.white,
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFD3E4DE),
-                          width: 2,
-                        ),
-                      ),
-                      child: CircleAvatar(
-                        backgroundImage: AssetImage(post.authorAvatar ?? 'assets/images/main logo man.png'),
-                        radius: 24,
-                        backgroundColor: Colors.white,
+            centerTitle: true,
+          ),
+          // Author information section
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFD3E4DE),
+                        width: 2,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            post.authorName,
-                            style: GoogleFonts.judson(
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.black87,
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.white,
+                      child: ClipOval(
+                        child: post.authorAvatar != null && post.authorAvatar!.isNotEmpty
+                            ? NetworkImageWidget(
+                                imageUrl: post.authorAvatar,
+                                height: 48,
+                                width: 48,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.asset(
+                                'assets/images/main logo man.png',
+                                height: 48,
+                                width: 48,
+                                fit: BoxFit.cover,
                               ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          post.authorName,
+                          style: GoogleFonts.judson(
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.black87,
                             ),
                           ),
-                          Row(
-                            children: [
-                              Text(
-                                _formatTimestamp(post.createdAt),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              _formatTimestamp(post.createdAt),
+                              style: GoogleFonts.judson(
+                                textStyle: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD3E4DE).withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                post.topic,
                                 style: GoogleFonts.judson(
                                   textStyle: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
+                                    fontSize: 11,
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD3E4DE).withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  post.topic,
-                                  style: GoogleFonts.judson(
-                                    textStyle: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -164,6 +158,32 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  // Full image display below title
+                  if (post.imagePath != null && !post.isTextOnly) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: NetworkImageWidget(
+                          imageUrl: post.imagePath,
+                          height: 300,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (post.body.isNotEmpty) ...[
                     Text(

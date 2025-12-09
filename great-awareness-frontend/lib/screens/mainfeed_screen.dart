@@ -7,6 +7,7 @@ import 'admin_posting_screen.dart';
 import 'notification_screen.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/cache_service.dart';
 import '../services/notification_service.dart';
 import '../models/content.dart';
 import '../models/notification.dart';
@@ -62,6 +63,59 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
         );
       }
     });
+  }
+
+  // Pull-to-refresh functionality
+  Future<void> _refreshPosts() async {
+    if (kDebugMode) {
+      debugPrint('Refreshing posts...');
+    }
+    
+    try {
+      // Get current user and token
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.currentUser?.token;
+      
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      // Fetch fresh posts from backend (reset pagination)
+      final freshPosts = await _apiService.fetchFeed(token, skip: 0);
+      
+      // Update cache with fresh data
+      await CacheService.cachePosts(freshPosts);
+      
+      setState(() {
+        _posts.clear();
+        _filteredPosts.clear();
+        _posts.addAll(freshPosts);
+        _filteredPosts.addAll(freshPosts);
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Feed updated successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error refreshing posts: $e');
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh feed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // ignore: unused_element
@@ -455,33 +509,31 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     });
 
     try {
-      // Get current user and token
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final token = authService.currentUser?.token;
+      // First, try to load cached posts for immediate display
+      final cachedPosts = await CacheService.getCachedPosts();
       
-      if (token == null) {
-        throw Exception('No authentication token found');
+      if (cachedPosts != null && cachedPosts.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint('=== CACHED POSTS LOADED ===');
+          debugPrint('Loaded ${cachedPosts.length} posts from cache');
+        }
+        
+        setState(() {
+          _posts.clear();
+          _filteredPosts.clear();
+          _posts.addAll(cachedPosts);
+          _filteredPosts.addAll(cachedPosts);
+          _isLoading = false;
+        });
+        
+        // Load fresh posts in background to update cache
+        _loadFreshPostsInBackground();
+        return;
       }
-
-      // Fetch posts from backend
-      final posts = await _apiService.fetchFeed(token);
       
-      // Debug: Print post data to see what we're getting
-       if (kDebugMode) {
-         debugPrint('=== POSTS LOADED ===');
-         for (final post in posts) {
-           debugPrint('Post ID: ${post.id}, Title: ${post.title}, isTextOnly: ${post.isTextOnly}, imagePath: ${post.imagePath}, postType: ${post.postType}');
-         }
-         debugPrint('====================');
-       }
+      // If no cache, fetch from backend
+      await _loadFreshPostsFromBackend();
       
-      setState(() {
-        _posts.clear();
-        _filteredPosts.clear();
-        _posts.addAll(posts);
-        _filteredPosts.addAll(posts);
-        _isLoading = false;
-      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -497,8 +549,78 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
         );
       }
       
-      // Don't fallback to mock data - just show error
       debugPrint('Failed to load posts: $e');
+    }
+  }
+
+  // Load fresh posts from backend and update cache
+  Future<void> _loadFreshPostsFromBackend() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = authService.currentUser?.token;
+    
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    // Fetch posts from backend
+    final posts = await _apiService.fetchFeed(token);
+    
+    // Debug: Print post data to see what we're getting
+    if (kDebugMode) {
+      debugPrint('=== FRESH POSTS LOADED FROM BACKEND ===');
+      for (final post in posts) {
+        debugPrint('Post ID: ${post.id}, Title: ${post.title}, isTextOnly: ${post.isTextOnly}, imagePath: ${post.imagePath}, postType: ${post.postType}');
+      }
+      debugPrint('====================');
+    }
+    
+    // Cache the fresh posts
+    await CacheService.cachePosts(posts);
+    
+    setState(() {
+      _posts.clear();
+      _filteredPosts.clear();
+      _posts.addAll(posts);
+      _filteredPosts.addAll(posts);
+      _isLoading = false;
+    });
+  }
+
+  // Load fresh posts in background to update cache without showing loading indicator
+  Future<void> _loadFreshPostsInBackground() async {
+    try {
+      if (kDebugMode) {
+        debugPrint('Loading fresh posts in background...');
+      }
+      
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = authService.currentUser?.token;
+      
+      if (token == null) return;
+
+      final freshPosts = await _apiService.fetchFeed(token);
+      
+      // Update cache with fresh data
+      await CacheService.cachePosts(freshPosts);
+      
+      if (kDebugMode) {
+        debugPrint('Background refresh completed. Found ${freshPosts.length} fresh posts');
+      }
+      
+      // Update UI with fresh data if cache was stale
+      final isCacheValid = await CacheService.isCacheValid();
+      if (!isCacheValid && freshPosts.isNotEmpty) {
+        setState(() {
+          _posts.clear();
+          _filteredPosts.clear();
+          _posts.addAll(freshPosts);
+          _filteredPosts.addAll(freshPosts);
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Background refresh failed: $e');
+      }
     }
   }
 
@@ -950,22 +1072,26 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
           
           // Posts List
           Expanded(
-            child: _filteredPosts.isEmpty && !_isLoading
-                ? Center(
-                    child: Text(
-                      'No posts found',
-                      style: GoogleFonts.judson(
-                        textStyle: const TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey,
+            child: RefreshIndicator(
+              onRefresh: _refreshPosts,
+              color: const Color(0xFF4A90A4),
+              backgroundColor: Colors.white,
+              child: _filteredPosts.isEmpty && !_isLoading
+                  ? Center(
+                      child: Text(
+                        'No posts found',
+                        style: GoogleFonts.judson(
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    itemCount: _filteredPosts.length + (_isLoading ? 1 : 0),
-                    itemBuilder: (context, index) {
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      itemCount: _filteredPosts.length + (_isLoading ? 1 : 0),
+                      itemBuilder: (context, index) {
                       if (index >= _filteredPosts.length) {
                         return const Center(
                           child: Padding(
@@ -1327,6 +1453,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                       );
                     },
                   ),
+            ), // Close RefreshIndicator
           ),
         ],
       ),

@@ -7,6 +7,15 @@
         <!-- Allow connections to Render backend -->
         <domain includeSubdomains="true">gwa-enus.onrender.com</domain>
         <domain includeSubdomains="true">onrender.com</domain>
+        <!-- Allow connections to Cloudflare R2 storage -->
+        <domain includeSubdomains="true">pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev</domain>
+        <domain includeSubdomains="true">pub-4eccd4b3666347ddb4717a96d01d99fc.r2.dev</domain>
+        <domain includeSubdomains="true">r2.dev</domain>
+        <!-- Allow connections to common image hosting services -->
+        <domain includeSubdomains="true">imgur.com</domain>
+        <domain includeSubdomains="true">cloudinary.com</domain>
+        <domain includeSubdomains="true">amazonaws.com</domain>
+        <domain includeSubdomains="true">s3.amazonaws.com</domain>
     </domain-config>
     
     <!-- Allow cleartext traffic for development -->
