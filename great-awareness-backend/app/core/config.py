@@ -40,13 +40,29 @@ class Settings(BaseSettings):
     @validator("cors_origins", pre=True)
     def parse_cors_origins(cls, v):
         if isinstance(v, str):
-            return json.loads(v)
+            try:
+                # Try to parse as JSON first
+                return json.loads(v)
+            except (json.JSONDecodeError, ValueError):
+                # If JSON parsing fails, treat as comma-separated string
+                if v.strip():
+                    return [origin.strip() for origin in v.split(',') if origin.strip()]
+                # If empty string, return default
+                return cls.__fields__['cors_origins'].default
         return v
     
     @validator("allowed_file_types", pre=True)
     def parse_allowed_file_types(cls, v):
         if isinstance(v, str):
-            return json.loads(v)
+            try:
+                # Try to parse as JSON first
+                return json.loads(v)
+            except (json.JSONDecodeError, ValueError):
+                # If JSON parsing fails, treat as comma-separated string
+                if v.strip():
+                    return [file_type.strip() for file_type in v.split(',') if file_type.strip()]
+                # If empty string, return default
+                return cls.__fields__['allowed_file_types'].default
         return v
     
     @property

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +10,7 @@ import '../services/api_service.dart';
 import '../services/notification_service.dart';
 import '../models/content.dart';
 import '../models/notification.dart';
+import '../utils/image_helper.dart';
 
 class MainFeedScreen extends StatefulWidget {
   const MainFeedScreen({super.key});
@@ -463,6 +465,15 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
 
       // Fetch posts from backend
       final posts = await _apiService.fetchFeed(token);
+      
+      // Debug: Print post data to see what we're getting
+       if (kDebugMode) {
+         debugPrint('=== POSTS LOADED ===');
+         for (final post in posts) {
+           debugPrint('Post ID: ${post.id}, Title: ${post.title}, isTextOnly: ${post.isTextOnly}, imagePath: ${post.imagePath}, postType: ${post.postType}');
+         }
+         debugPrint('====================');
+       }
       
       setState(() {
         _posts.clear();
@@ -997,8 +1008,9 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                                         width: 2,
                                       ),
                                     ),
-                                    child: CircleAvatar(
-                                      backgroundImage: AssetImage(post.authorAvatar ?? 'assets/images/main logo man.png'),
+                                    child: ImageHelper.buildAvatar(
+                                      imagePath: post.authorAvatar,
+                                      fallbackAsset: 'assets/images/main logo man.png',
                                       radius: 22,
                                       backgroundColor: Colors.white,
                                     ),
@@ -1094,16 +1106,63 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                             ),
                             
                             // Post Image (if available)
-                            if (!post.isTextOnly && post.imagePath != null) ...[
+                            // Show image if there's an image path, regardless of isTextOnly flag
+                            if (post.imagePath != null && post.imagePath!.isNotEmpty) ...[
                               Container(
                                 height: 200,
                                 width: double.infinity,
                                 margin: const EdgeInsets.symmetric(horizontal: 16),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
-                                  image: DecorationImage(
-                                    image: AssetImage(post.imagePath!),
+                                  color: Colors.grey[200],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    post.imagePath!,
                                     fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      // Show placeholder when image fails to load
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(12),
+                                          color: Colors.grey[300],
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.broken_image,
+                                                size: 40,
+                                                color: Colors.grey[600],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Image unavailable',
+                                                style: GoogleFonts.judson(
+                                                  textStyle: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                              : null,
+                                          strokeWidth: 2,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
