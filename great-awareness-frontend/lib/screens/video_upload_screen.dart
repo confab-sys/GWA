@@ -29,21 +29,86 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
 
   Future<void> _pickVideo() async {
     try {
+      print('Starting file picker...');
+      
+      // Try with FileType.video first (this should work for most video files)
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v', '3gp', 'wmv', 'flv'],
+        type: FileType.video,
         allowCompression: false,
-        withData: false,
-        withReadStream: true,
+        withData: true,
       );
 
-      if (result != null && result.files.single.path != null) {
-        setState(() {
-          _selectedVideo = File(result.files.single.path!);
-          _uploadError = null;
-        });
+      // If video type doesn't work, try with custom extensions
+      if (result == null) {
+        print('Video type failed, trying custom extensions...');
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v', '3gp', 'wmv', 'flv'],
+          allowCompression: false,
+          withData: true,
+        );
       }
-    } catch (e) {
+
+      // If still no result, try with any file type as fallback
+      if (result == null) {
+        print('Custom extensions failed, trying any file type...');
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.any,
+          allowCompression: false,
+          withData: true,
+        );
+      }
+
+      print('File picker result: $result');
+      
+      if (result != null) {
+        print('Files selected: ${result.files.length}');
+        if (result.files.isNotEmpty) {
+          final file = result.files.single;
+          print('File path: ${file.path}');
+          print('File name: ${file.name}');
+          print('File size: ${file.size}');
+          
+          // Validate that it's actually a video file
+          final fileExtension = file.name.split('.').last.toLowerCase();
+          final validVideoExtensions = ['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v', '3gp', 'wmv', 'flv'];
+          
+          if (!validVideoExtensions.contains(fileExtension)) {
+            setState(() {
+              _uploadError = 'Selected file is not a supported video format. Please select MP4, MOV, AVI, WebM, MKV, M4V, 3GP, WMV, or FLV file.';
+            });
+            print('Invalid file format: $fileExtension');
+            return;
+          }
+          
+          if (file.path != null) {
+            final selectedFile = File(file.path!);
+            // Verify the file exists and is accessible
+            if (await selectedFile.exists()) {
+              setState(() {
+                _selectedVideo = selectedFile;
+                _uploadError = null;
+              });
+              print('Video selected successfully: ${file.path}');
+            } else {
+              setState(() {
+                _uploadError = 'Selected file does not exist or is not accessible';
+              });
+              print('File does not exist at path: ${file.path}');
+            }
+          } else {
+            setState(() {
+              _uploadError = 'File path is null - file picker may not have proper permissions';
+            });
+            print('File path is null');
+          }
+        }
+      } else {
+        print('File picker was cancelled or returned null');
+      }
+    } catch (e, stackTrace) {
+      print('Error selecting video: $e');
+      print('Stack trace: $stackTrace');
       setState(() {
         _uploadError = 'Error selecting video: $e';
       });

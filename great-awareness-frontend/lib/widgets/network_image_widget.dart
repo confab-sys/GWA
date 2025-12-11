@@ -1,5 +1,3 @@
-import 'dart:html' as html if (dart.library.html) '';
-import 'dart:ui_web' as ui_web if (dart.library.html) '';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -113,7 +111,7 @@ class NetworkImageWidget extends StatelessWidget {
             },
             errorBuilder: (context, error, stackTrace) {
               debugPrint('Web Image failed, trying proxy approach: $error');
-              return _buildWebImageWithProxy(imageUrl);
+              return _buildPlaceholder(); // Fallback to placeholder for web
             },
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
@@ -129,52 +127,10 @@ class NetworkImageWidget extends StatelessWidget {
           }
           return imageWidget;
         } else {
-          // Image not accessible, use proxy or placeholder
-          return _buildWebImageWithProxy(imageUrl);
+          // Image not accessible, use placeholder
+          return _buildPlaceholder();
         }
       },
-    );
-  }
-
-  Widget _buildWebImageWithProxy(String imageUrl) {
-    // Use HTML ImageElement for better CORS handling on web
-    if (kIsWeb) {
-      return _buildHtmlImage(imageUrl);
-    }
-    
-    // Fallback to placeholder for non-web platforms
-    return _buildPlaceholder();
-  }
-
-  Widget _buildHtmlImage(String imageUrl) {
-    // Create a unique key for this image
-    final String viewId = 'html_image_${imageUrl.hashCode}';
-    
-    // Register the view factory
-    ui_web.platformViewRegistry.registerViewFactory(viewId, (int viewId) {
-      final image = html.ImageElement()
-        ..src = imageUrl
-        ..style.width = '100%'
-        ..style.height = '100%'
-        ..style.objectFit = 'cover'
-        ..crossOrigin = 'anonymous'; // This helps with CORS
-        
-      // Handle load errors
-      image.onError.listen((event) {
-        debugPrint('HTML Image failed to load: $imageUrl');
-        // You could trigger a state update here to show placeholder
-      });
-      
-      return image;
-    });
-    
-    return Container(
-      height: height,
-      width: width,
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-      ),
-      child: HtmlElementView(viewType: viewId),
     );
   }
 

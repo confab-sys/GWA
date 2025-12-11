@@ -26,8 +26,12 @@ class User(Base):
     profile_image = Column(String(500), nullable=True)
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
-    phone_number = Column(String(20), nullable=True)
+    phone_number = Column(String(20), nullable=True, unique=True, index=True)
     county = Column(String(100), nullable=True)
+    
+    # Identity verification fields
+    verified_otp = Column(String(6), nullable=True, unique=True, index=True)
+    device_id_hash = Column(String(255), nullable=True, unique=True, index=True)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

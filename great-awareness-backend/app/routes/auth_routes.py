@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 # Import models in dependency order (Content before User due to relationships)
 from app.models.content_model import Content
 from app.models.user_model import User
-from app.schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
+from app.schemas.user_schema import UserCreate, UserResponse, UserLogin, Token, UserRegister
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.dependencies import get_current_user
@@ -28,7 +28,9 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 @router.post("/register", response_model=UserResponse)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(user: UserRegister, db: Session = Depends(get_db)):
+    # Strict single-identity validation
+    
     # Check if email already exists
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
@@ -38,6 +40,33 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already taken")
+    
+    # Check if phone number already exists and is verified
+    if user.phone_number:
+        db_user = db.query(User).filter(User.phone_number == user.phone_number, User.verified_otp.isnot(None)).first()
+        if db_user:
+            raise HTTPException(
+                status_code=409, 
+                detail="This phone number is already associated with a verified account. Please log in to your existing account."
+            )
+    
+    # Check if device ID already exists and is registered
+    if user.device_id_hash:
+        db_user = db.query(User).filter(User.device_id_hash == user.device_id_hash).first()
+        if db_user:
+            raise HTTPException(
+                status_code=409, 
+                detail="This device is already registered to an existing account. Please log in to your existing account."
+            )
+    
+    # Check if OTP is already verified for another account
+    if user.verified_otp:
+        db_user = db.query(User).filter(User.verified_otp == user.verified_otp).first()
+        if db_user:
+            raise HTTPException(
+                status_code=409, 
+                detail="This verification code is already associated with a verified account. Please log in to your existing account."
+            )
     
     # Create new user with enhanced model
     hashed_password = get_password_hash(user.password)
@@ -51,7 +80,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         county=user.county,
         status="active",
         role="user",
-        is_verified=False
+        is_verified=False,
+        verified_otp=user.verified_otp,
+        device_id_hash=user.device_id_hash
     )
     
     db.add(new_user)
@@ -73,7 +104,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         "profile_image": new_user.profile_image,
         "created_at": new_user.created_at,
         "updated_at": new_user.updated_at,
-        "last_login": new_user.last_login
+        "last_login": new_user.last_login,
+        "verified_otp": new_user.verified_otp,
+        "device_id_hash": new_user.device_id_hash
     }
 
 @router.post("/login", response_model=Token)
@@ -112,5 +145,7 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
         "profile_image": current_user.profile_image,
         "created_at": current_user.created_at,
         "updated_at": current_user.updated_at,
-        "last_login": current_user.last_login
+        "last_login": current_user.last_login,
+        "verified_otp": current_user.verified_otp,
+        "device_id_hash": current_user.device_id_hash
     }

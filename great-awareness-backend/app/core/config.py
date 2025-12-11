@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseSettings, validator
 import json
 
@@ -18,13 +18,23 @@ class Settings(BaseSettings):
     database_url_neon: Optional[str] = None  # PostgreSQL for Neon database - will be loaded from NEON_DATABASE_URL env var
     
     # CORS
-    cors_origins: List[str] = [
+    cors_origins: Union[str, List[str]] = [
         "http://localhost:3000", 
         "http://localhost:8080", 
         "https://your-frontend-domain.com",
         "https://great-awareness-frontend.vercel.app",
         "https://great-awareness-frontend-9urb9gcqx-confab-sys-projects.vercel.app"
     ]
+    
+    @validator("cors_origins", pre=True)
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            # Handle comma-separated string
+            if v.strip():
+                return [origin.strip() for origin in v.split(',') if origin.strip()]
+            # If empty string, return default
+            return cls.__fields__['cors_origins'].default
+        return v
     
     # File Upload Settings
     max_file_size: int = 5 * 1024 * 1024  # 5MB
@@ -37,33 +47,7 @@ class Settings(BaseSettings):
     user_status_inactive: str = "inactive"
     user_status_suspended: str = "suspended"
     
-    @validator("cors_origins", pre=True)
-    def parse_cors_origins(cls, v):
-        if isinstance(v, str):
-            try:
-                # Try to parse as JSON first
-                return json.loads(v)
-            except (json.JSONDecodeError, ValueError):
-                # If JSON parsing fails, treat as comma-separated string
-                if v.strip():
-                    return [origin.strip() for origin in v.split(',') if origin.strip()]
-                # If empty string, return default
-                return cls.__fields__['cors_origins'].default
-        return v
-    
-    @validator("allowed_file_types", pre=True)
-    def parse_allowed_file_types(cls, v):
-        if isinstance(v, str):
-            try:
-                # Try to parse as JSON first
-                return json.loads(v)
-            except (json.JSONDecodeError, ValueError):
-                # If JSON parsing fails, treat as comma-separated string
-                if v.strip():
-                    return [file_type.strip() for file_type in v.split(',') if file_type.strip()]
-                # If empty string, return default
-                return cls.__fields__['allowed_file_types'].default
-        return v
+
     
     @property
     def database_uri(self) -> str:

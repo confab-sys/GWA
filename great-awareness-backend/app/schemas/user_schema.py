@@ -9,6 +9,8 @@ class UserBase(BaseModel):
     last_name: Optional[str] = Field(None, max_length=100)
     phone_number: Optional[str] = Field(None, max_length=20)
     county: Optional[str] = Field(None, max_length=100)
+    verified_otp: Optional[str] = Field(None, max_length=6)
+    device_id_hash: Optional[str] = Field(None, max_length=255)
     
     @validator('username')
     def validate_username(cls, v):
@@ -42,6 +44,8 @@ class UserUpdate(BaseModel):
     status: Optional[str] = Field(None, pattern="^(active|inactive|suspended)$")
     role: Optional[str] = Field(None, pattern="^(user|admin|content_creator)$")
     is_verified: Optional[bool] = None
+    verified_otp: Optional[str] = Field(None, max_length=6)
+    device_id_hash: Optional[str] = Field(None, max_length=255)
     
     @validator('username')
     def validate_username(cls, v):
@@ -62,6 +66,8 @@ class UserInDB(UserBase):
     last_name: Optional[str]
     phone_number: Optional[str]
     county: Optional[str]
+    verified_otp: Optional[str]
+    device_id_hash: Optional[str]
     
     class Config:
         from_attributes = True
@@ -72,6 +78,11 @@ class UserResponse(UserInDB):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class UserRegister(UserCreate):
+    """Extended user registration schema with device identification"""
+    device_id_hash: Optional[str] = Field(None, max_length=255)
+    verified_otp: Optional[str] = Field(None, max_length=6)
 
 class Token(BaseModel):
     access_token: str
