@@ -41,8 +41,8 @@ class Video {
       originalName: json['original_name'] ?? json['video']['originalName'] ?? json['originalName'] ?? '',
       viewCount: json['view_count'] ?? json['video']['viewCount'] ?? json['viewCount'] ?? 0,
       commentCount: json['comment_count'] ?? json['video']['commentCount'] ?? json['commentCount'] ?? 0,
-      signedUrl: json['signedUrl'],
-      signedUrlExpiry: json['signedUrlExpiry'] != null ? DateTime.parse(json['signedUrlExpiry']) : null,
+      signedUrl: json['signed_url'] ?? json['signedUrl'],
+      signedUrlExpiry: (json['signed_url_expires_at'] ?? json['signedUrlExpiry']) != null ? DateTime.parse(json['signed_url_expires_at'] ?? json['signedUrlExpiry']) : null,
     );
   }
 
@@ -58,8 +58,8 @@ class Video {
       'original_name': originalName,
       'view_count': viewCount,
       'comment_count': commentCount,
-      'signedUrl': signedUrl,
-      'signedUrlExpiry': signedUrlExpiry?.toIso8601String(),
+      'signed_url': signedUrl,
+      'signed_url_expires_at': signedUrlExpiry?.toIso8601String(),
     };
   }
 

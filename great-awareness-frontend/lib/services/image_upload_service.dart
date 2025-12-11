@@ -7,7 +7,7 @@ import 'package:mime/mime.dart';
 import 'package:flutter/foundation.dart';
 
 class ImageUploadService {
-  static const String baseUrl = 'https://video-worker-prod.aashardcustomz.workers.dev'; // Same Cloudflare worker
+  static const String baseUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev'; // Same Cloudflare worker
   static const Duration requestTimeout = Duration(seconds: 30);
 
   /// Upload image file to Cloudflare R2 storage

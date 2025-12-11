@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'podcasts_screen.dart';
+import 'video_upload_screen.dart';
 import '../models/video.dart';
 
 import '../services/video_service.dart';
@@ -70,7 +71,9 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         isLoading = true;
       });
 
-      print('Loading videos from database...');
+      print('Loading videos from Cloudflare database...');
+      print('Attempting to fetch videos from database using VideoService...');
+      
       // Get videos from database using VideoService
       final response = await VideoService.listVideos(
         page: 1,
@@ -80,29 +83,34 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       List<Video> loadedVideos = [];
       
       if (response.videos.isNotEmpty) {
-        print('Found ${response.videos.length} videos in database');
-        // Log the first video details for debugging
-        if (response.videos.isNotEmpty) {
-          print('First video: ${response.videos.first.title} - ${response.videos.first.id}');
+        print('✅ SUCCESS: Found ${response.videos.length} videos in Cloudflare database');
+        
+        // Log detailed information about the first few videos for debugging
+        for (int i = 0; i < response.videos.length && i < 3; i++) {
+          final video = response.videos[i];
+          print('Video ${i + 1}: ${video.title}');
+          print('  - ID: ${video.id}');
+          print('  - Object Key: ${video.objectKey}');
+          print('  - File Size: ${video.formattedFileSize}');
+          print('  - Content Type: ${video.contentType}');
+          print('  - Views: ${video.viewCount}');
+          print('  - Comments: ${video.commentCount}');
+          print('  - Has Signed URL: ${video.hasValidSignedUrl}');
+          print('  - Original Name: ${video.originalName}');
         }
         
-        // Convert database videos to the format expected by this screen
-        loadedVideos = response.videos.map((dbVideo) => Video(
-          id: dbVideo.id,
-          title: dbVideo.title,
-          description: dbVideo.description,
-          objectKey: dbVideo.objectKey,
-          createdAt: dbVideo.createdAt,
-          fileSize: dbVideo.fileSize,
-          contentType: dbVideo.contentType,
-          originalName: dbVideo.originalName,
-          signedUrl: dbVideo.signedUrl,
-          signedUrlExpiry: dbVideo.signedUrlExpiry,
-          viewCount: dbVideo.viewCount,
-          commentCount: dbVideo.commentCount,
-        )).toList();
+        // Use videos directly from database - they already have all fields
+        loadedVideos = response.videos;
+        
+        print('📊 Database Summary:');
+        print('  - Total videos: ${loadedVideos.length}');
+        print('  - Average file size: ${loadedVideos.isNotEmpty ? (loadedVideos.map((v) => v.fileSize).reduce((a, b) => a + b) / loadedVideos.length / 1024 / 1024).toStringAsFixed(1) : 0} MB');
+        print('  - Total views: ${loadedVideos.map((v) => v.viewCount).reduce((a, b) => a + b)}');
+        print('  - Total comments: ${loadedVideos.map((v) => v.commentCount).reduce((a, b) => a + b)}');
+        
       } else {
-        print('No videos found in database, falling back to Cloudflare storage...');
+        print('⚠️  No videos found in database, checking Cloudflare storage...');
+        
         // Fallback to Cloudflare storage service
         try {
           final cloudflareVideos = await CloudflareStorageService.fetchVideosFromBucket();
@@ -122,9 +130,29 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
             commentCount: 0,
           )).toList();
         } catch (cfError) {
-          print('Error loading from Cloudflare storage: $cfError');
-          // If both database and Cloudflare fail, use configured videos
+          print('❌ Error loading from Cloudflare storage: $cfError');
           print('Using configured videos as final fallback');
+          
+          // Final fallback to configured videos
+          final configuredVideos = CloudflareStorageService.getConfiguredVideos();
+          loadedVideos = configuredVideos.map((cfVideo) => Video(
+            id: cfVideo.key.hashCode.toString(),
+            title: cfVideo.title,
+            description: 'Video from Cloudflare storage',
+            objectKey: cfVideo.key,
+            createdAt: cfVideo.lastModified,
+            fileSize: cfVideo.size,
+            contentType: 'video/mp4',
+            originalName: cfVideo.key,
+            viewCount: 0,
+            commentCount: 0,
+          )).toList();
+          
+        } catch (cfError) {
+          print('❌ Error loading from Cloudflare storage: $cfError');
+          print('Using configured videos as final fallback');
+          
+          // Final fallback to configured videos
           final configuredVideos = CloudflareStorageService.getConfiguredVideos();
           loadedVideos = configuredVideos.map((cfVideo) => Video(
             id: cfVideo.key.hashCode.toString(),
@@ -205,6 +233,140 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     return grouped;
   }
 
+  void _showVideoDetails(Video video) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            video.title,
+            style: GoogleFonts.judson(
+              textStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // File information
+                _buildDetailRow('Original Name:', video.originalName),
+                _buildDetailRow('Object Key:', video.objectKey),
+                _buildDetailRow('Content Type:', video.contentType),
+                _buildDetailRow('File Size:', video.formattedFileSize),
+                const SizedBox(height: 8),
+                
+                // Upload information
+                _buildDetailRow('Upload Date:', video.createdAt.toString()),
+                _buildDetailRow('Time Ago:', video.formattedDuration),
+                const SizedBox(height: 8),
+                
+                // Statistics
+                _buildDetailRow('Views:', video.formattedViewCount),
+                _buildDetailRow('Comments:', video.formattedCommentCount),
+                const SizedBox(height: 8),
+                
+                // Description
+                if (video.description.isNotEmpty) ...[
+                  Text(
+                    'Description:',
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    video.description,
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                
+                // Signed URL status
+                _buildDetailRow('Signed URL:', video.hasValidSignedUrl ? 'Valid' : 'Expired/None'),
+                if (video.signedUrlExpiry != null) ...[
+                  _buildDetailRow('URL Expires:', video.signedUrlExpiry.toString()),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Close',
+                style: GoogleFonts.judson(),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CloudflareVideoPlayer(
+                      video: video,
+                      title: video.title,
+                      subtitle: video.description,
+                      onVideoCompleted: () {},
+                    ),
+                  ),
+                );
+              },
+              child: Text(
+                'Play Video',
+                style: GoogleFonts.judson(),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: GoogleFonts.judson(
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.judson(
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -223,6 +385,17 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.upload, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const VideoUploadScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.black),
             onPressed: () {
@@ -323,6 +496,18 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           _buildVideosTab(),
           _buildPodcastsTab(),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const VideoUploadScreen(),
+            ),
+          );
+        },
+        backgroundColor: Colors.black,
+        child: const Icon(Icons.upload, color: Colors.white),
       ),
     );
   }
@@ -493,7 +678,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         );
       },
       child: Container(
-        width: 160,
+        width: 180, // Increased width for more information
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -512,7 +697,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           Stack(
             children: [
               Container(
-                height: 90,
+                height: 100,
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
@@ -520,12 +705,12 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                 child: Center(
                   child: Icon(
                     Icons.play_circle_outline,
-                    size: 40,
+                    size: 45,
                     color: Colors.grey[600],
                   ),
                 ),
               ),
-              // Duration badge
+              // File size badge
               Positioned(
                 top: 8,
                 right: 8,
@@ -536,10 +721,30 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    video.formattedDuration,
+                    video.formattedFileSize,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              // Content type badge
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    video.contentType.split('/').last.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -560,7 +765,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                     video.title,
                     style: GoogleFonts.judson(
                       textStyle: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
@@ -569,24 +774,133 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  // Subtitle
+                  // Original filename
                   Text(
-                    video.description,
+                    'File: ${video.originalName}',
                     style: GoogleFonts.judson(
                       textStyle: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  // Description
+                  if (video.description.isNotEmpty) ...[
+                    Text(
+                      video.description,
+                      style: GoogleFonts.judson(
+                        textStyle: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  // Upload date and view count
+                  Row(
+                    children: [
+                      Icon(Icons.schedule, size: 12, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Text(
+                        video.formattedDuration,
+                        style: GoogleFonts.judson(
+                          textStyle: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.visibility, size: 12, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Text(
+                        video.formattedViewCount,
+                        style: GoogleFonts.judson(
+                          textStyle: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Object key and comment count
+                  Row(
+                    children: [
+                      Icon(Icons.key, size: 12, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          video.objectKey,
+                          style: GoogleFonts.judson(
+                            textStyle: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (video.commentCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Icon(Icons.comment, size: 12, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Text(
+                          video.formattedCommentCount,
+                          style: GoogleFonts.judson(
+                            textStyle: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const Spacer(),
                   // Action buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-
+                      // Play button
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.play_arrow, size: 14, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Play',
+                              style: GoogleFonts.judson(
+                                textStyle: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // More info
+                      GestureDetector(
+                        onTap: () => _showVideoDetails(video),
+                        child: Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                      ),
                     ],
                   ),
                 ],

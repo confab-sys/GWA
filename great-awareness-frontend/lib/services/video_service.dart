@@ -7,7 +7,7 @@ import '../models/video.dart';
 import '../utils/config.dart';
 
 class VideoService {
-  static const String baseUrl = 'https://video-worker-prod.aashardcustomz.workers.dev'; // Your deployed worker domain
+  static const String baseUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev'; // Your deployed worker domain
   static const Duration requestTimeout = Duration(seconds: 30);
 
   // Upload video file
@@ -195,6 +195,67 @@ class VideoService {
       );
     }
   }
+
+  // Sync videos from R2 bucket to database
+  static Future<VideoSyncResponse> syncVideos() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/videos/sync'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        return VideoSyncResponse.fromJson(jsonResponse);
+      } else {
+        final errorResponse = json.decode(response.body);
+        throw Exception(errorResponse['error'] ?? 'Failed to sync videos');
+      }
+    } catch (e) {
+      throw Exception('Failed to sync videos: $e');
+    }
+  }
+
+  // Update signed URLs for videos
+  static Future<UpdateSignedUrlsResponse> updateSignedUrls() async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/videos/update-signed-urls'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        return UpdateSignedUrlsResponse.fromJson(jsonResponse);
+      } else {
+        final errorResponse = json.decode(response.body);
+        throw Exception(errorResponse['error'] ?? 'Failed to update signed URLs');
+      }
+    } catch (e) {
+      throw Exception('Failed to update signed URLs: $e');
+    }
+  }
+
+  // Bulk update video URLs in database
+  static Future<BulkUpdateUrlsResponse> bulkUpdateUrls(List<Map<String, dynamic>> videos) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/videos/bulk-update-urls'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'videos': videos}),
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        return BulkUpdateUrlsResponse.fromJson(jsonResponse);
+      } else {
+        final errorResponse = json.decode(response.body);
+        throw Exception(errorResponse['error'] ?? 'Failed to bulk update URLs');
+      }
+    } catch (e) {
+      throw Exception('Failed to bulk update URLs: $e');
+    }
+  }
 }
 
 class ViewTrackResponse {
@@ -216,6 +277,87 @@ class ViewTrackResponse {
       viewCount: json['viewCount'],
       error: json['error'],
       message: json['message'],
+    );
+  }
+}
+
+class VideoSyncResponse {
+  final bool success;
+  final String message;
+  final int synced;
+  final int skipped;
+  final List<dynamic>? videos;
+  final String? error;
+
+  VideoSyncResponse({
+    required this.success,
+    required this.message,
+    required this.synced,
+    required this.skipped,
+    this.videos,
+    this.error,
+  });
+
+  factory VideoSyncResponse.fromJson(Map<String, dynamic> json) {
+    return VideoSyncResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      synced: json['synced'] ?? 0,
+      skipped: json['skipped'] ?? 0,
+      videos: json['videos'],
+      error: json['error'],
+    );
+  }
+}
+
+class UpdateSignedUrlsResponse {
+  final bool success;
+  final String message;
+  final int updated;
+  final List<dynamic>? videos;
+  final String? error;
+
+  UpdateSignedUrlsResponse({
+    required this.success,
+    required this.message,
+    required this.updated,
+    this.videos,
+    this.error,
+  });
+
+  factory UpdateSignedUrlsResponse.fromJson(Map<String, dynamic> json) {
+    return UpdateSignedUrlsResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      updated: json['updated'] ?? 0,
+      videos: json['videos'],
+      error: json['error'],
+    );
+  }
+}
+
+class BulkUpdateUrlsResponse {
+  final bool success;
+  final String message;
+  final int updated;
+  final List<dynamic>? errors;
+  final String? error;
+
+  BulkUpdateUrlsResponse({
+    required this.success,
+    required this.message,
+    required this.updated,
+    this.errors,
+    this.error,
+  });
+
+  factory BulkUpdateUrlsResponse.fromJson(Map<String, dynamic> json) {
+    return BulkUpdateUrlsResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      updated: json['updated'] ?? 0,
+      errors: json['errors'],
+      error: json['error'],
     );
   }
 }

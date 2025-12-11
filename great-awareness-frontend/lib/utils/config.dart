@@ -22,7 +22,7 @@ String getApiBaseUrl() {
 }
 
 // Cloudflare Configuration
-const String cloudflareWorkerUrl = 'https://video-worker-prod.aashardcustomz.workers.dev';
+const String cloudflareWorkerUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev';
 const String cloudflarePublicUrl = 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev'; // Deprecated - use Worker API instead
 
 // App Configuration

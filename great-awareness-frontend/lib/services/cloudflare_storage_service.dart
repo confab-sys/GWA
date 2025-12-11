@@ -4,7 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 class CloudflareStorageService {
-  static const String workerUrl = 'https://video-worker-prod.aashardcustomz.workers.dev';
+  static const String workerUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev';
   static const String accountId = 'd972c9d3656cd9fd1377ccd22fb6462d';
   static const String bucketName = 'videos';
   static const String publicUrl = 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev';

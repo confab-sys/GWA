@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/video.dart';
 import '../services/video_service.dart';
+import '../services/video_sync_service.dart';
 import '../widgets/cloudflare_video_player.dart';
 // TODO: Create video_upload_screen.dart or implement upload functionality
 // import 'video_upload_screen.dart';
@@ -77,6 +78,21 @@ class _VideosScreenState extends State<VideosScreen> {
           _isLoadingMore = false;
           _errorMessage = 'Failed to load videos: $e';
         });
+        
+        // If this is the first load and we have no videos, try to sync
+        if (_currentPage == 1 && _videos.isEmpty) {
+          // Auto-sync in the background
+          VideoSyncService.checkAndSyncIfNeeded().then((synced) {
+            if (synced) {
+              // If sync was successful, reload videos
+              if (mounted) {
+                _refreshVideos();
+              }
+            }
+          }).catchError((error) {
+            print('Auto-sync failed: $error');
+          });
+        }
       }
     }
   }
@@ -117,6 +133,56 @@ class _VideosScreenState extends State<VideosScreen> {
   }
 
   void _playVideo(Video video) async {
+    // First check if the video has a valid signed URL
+    if (!video.hasValidSignedUrl) {
+      // Show loading dialog while we refresh the signed URL
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Preparing video...'),
+            ],
+          ),
+        ),
+      );
+
+      try {
+        // Try to get a fresh signed URL
+        final freshVideo = await VideoSyncService.getVideoWithFreshSignedUrl(video.id);
+        Navigator.pop(context); // Close loading dialog
+        
+        // Navigate to the video player with fresh signed URL
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CloudflareVideoPlayer(
+              video: freshVideo,
+              title: freshVideo.title,
+              subtitle: freshVideo.description,
+              onVideoCompleted: () {
+                // Handle video completion if needed
+              },
+            ),
+          ),
+        );
+      } catch (e) {
+        Navigator.pop(context); // Close loading dialog
+        
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to prepare video: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     // Navigate directly to the CloudflareVideoPlayer widget
     Navigator.push(
       context,
@@ -131,6 +197,56 @@ class _VideosScreenState extends State<VideosScreen> {
         ),
       ),
     );
+  }
+
+  void _syncVideos() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Syncing videos...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final results = await VideoSyncService.completeSync();
+      Navigator.pop(context); // Close loading dialog
+
+      if (results['syncSuccess'] || results['signedUrlsSuccess']) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Sync completed: ${results['totalSynced']} synced, ${results['totalSignedUrls']} URLs updated'
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh the video list
+        _refreshVideos();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: ${results['errors'].join(', ')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sync failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String _formatDuration(DateTime dateTime) {
@@ -158,6 +274,11 @@ class _VideosScreenState extends State<VideosScreen> {
           fontWeight: FontWeight.bold,
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            onPressed: _isLoading ? null : _syncVideos,
+            tooltip: 'Sync videos from bucket',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _isLoading ? null : _refreshVideos,
@@ -225,6 +346,18 @@ class _VideosScreenState extends State<VideosScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _syncVideos,
+              icon: const Icon(Icons.sync, size: 18),
+              label: Text(
+                'Sync from Bucket',
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
               ),
             ),
           ],
