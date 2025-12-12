@@ -4,7 +4,7 @@
 
 **Live URL:** https://great-awareness-frontend-1wx7ily6z-confab-sys-projects.vercel.app
 
-## 🚀 For future deployments
+##  For future deployments
 
 ### Option 1: Vercel Dashboard (Recommended)
 
