@@ -7,6 +7,7 @@ import 'package:http/io_client.dart';
 import '../models/user.dart';
 import '../models/content.dart';
 import '../utils/config.dart';
+import '../utils/device.dart';
 
 
 class ApiService {
@@ -529,6 +530,10 @@ class ApiService {
     // Add timestamp to ensure uniqueness and avoid conflicts
     username = username + DateTime.now().millisecondsSinceEpoch.toString().substring(8);
     
+    // Get device ID hash for single-identity validation
+    final deviceIdHash = await getDeviceId();
+    debugPrint('Device ID hash: $deviceIdHash');
+    
     debugPrint('Attempting signup with username: $username, email: $email');
     
     final res = await _postWithRetry(
@@ -542,6 +547,7 @@ class ApiService {
         'phone_number': phone,
         'county': county,
         'password': password,
+        'device_id_hash': deviceIdHash,
       }),
     );
     
@@ -558,7 +564,9 @@ class ApiService {
       final errorMessage = errorData['detail'] ?? errorData['message'] ?? 'Bad request';
       throw Exception('Signup failed: $errorMessage');
     } else if (res.statusCode == 409) {
-      throw Exception('Email or username already exists');
+      final errorData = json.decode(res.body);
+      final errorMessage = errorData['detail'] ?? errorData['message'] ?? 'Account already exists';
+      throw Exception(errorMessage);
     } else {
       // Handle other status codes
       throw Exception('Signup failed with status ${res.statusCode}: ${res.body}');

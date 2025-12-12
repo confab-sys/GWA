@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
@@ -10,7 +11,7 @@ class VideoService {
   static const String baseUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev'; // Your deployed worker domain
   static const Duration requestTimeout = Duration(seconds: 30);
 
-  // Upload video file
+  // Upload video file (mobile/desktop)
   static Future<VideoUploadResponse> uploadVideo({
     required File videoFile,
     required String title,
@@ -24,12 +25,12 @@ class VideoService {
         Uri.parse('$baseUrl/api/videos/upload'),
       );
 
-      // Add video file
+      // Add video file - Cloudflare Worker expects 'file' field name
       final fileStream = http.ByteStream(videoFile.openRead());
       final fileLength = await videoFile.length();
       
       request.files.add(http.MultipartFile(
-        'video',
+        'file',  // Changed from 'video' to 'file' to match worker expectation
         fileStream,
         fileLength,
         filename: videoFile.path.split('/').last,
@@ -39,6 +40,14 @@ class VideoService {
       // Add form fields
       request.fields['title'] = title;
       request.fields['description'] = description;
+
+      print('Uploading mobile video:');
+      print('  File field: file');
+      print('  File path: ${videoFile.path}');
+      print('  File size: ${fileLength} bytes');
+      print('  MIME type: $mimeType');
+      print('  Title: $title');
+      print('  Description: ${description.isEmpty ? "(empty)" : description}');
 
       // Send request with progress tracking
       final streamedResponse = await request.send();
@@ -56,6 +65,115 @@ class VideoService {
         );
       }
     } catch (e) {
+      return VideoUploadResponse(
+        success: false,
+        error: 'Upload error',
+        message: e.toString(),
+      );
+    }
+  }
+
+  // Upload video file (web platform)
+  static Future<VideoUploadResponse> uploadVideoWeb({
+    required Uint8List videoBytes,
+    required String fileName,
+    required String title,
+    String description = '',
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    try {
+      // Extract just the filename without path (for web safety)
+      final cleanFileName = fileName.split('/').last.split('\\').last;
+      
+      // Ensure we have a valid filename with extension
+      if (!cleanFileName.contains('.')) {
+        return VideoUploadResponse(
+          success: false,
+          error: 'Invalid filename',
+          message: 'Filename must have an extension (e.g., .mp4, .mov)',
+        );
+      }
+      
+      // Determine MIME type from file extension
+      String mimeType = lookupMimeType(cleanFileName) ?? 'video/mp4';
+      
+      // Ensure we have a valid video MIME type
+      if (!mimeType.startsWith('video/')) {
+        print('Warning: MIME type $mimeType does not start with video/, using video/mp4 instead');
+        mimeType = 'video/mp4';
+      }
+      
+      print('Uploading video to web API:');
+      print('  Original file name: $fileName');
+      print('  Clean file name: $cleanFileName');
+      print('  File size: ${videoBytes.length} bytes');
+      print('  MIME type: $mimeType');
+      print('  Title: $title');
+      print('  Description: ${description.isEmpty ? "(empty)" : description}');
+      
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/api/videos/upload'),
+      );
+
+      // Add headers that might be expected by the server
+      request.headers['Accept'] = 'application/json';
+      
+      // Create the multipart file - Cloudflare Worker expects 'file' field name
+      // Convert bytes to stream like mobile version does
+      final byteStream = http.ByteStream.fromBytes(videoBytes);
+      final multipartFile = http.MultipartFile(
+        'file',  // Changed from 'video' to 'file' to match worker expectation
+        byteStream,
+        videoBytes.length,
+        filename: cleanFileName,
+        contentType: MediaType.parse(mimeType),
+      );
+      
+      print('Multipart file details:');
+      print('  Field name: ${multipartFile.field}');
+      print('  Filename: ${multipartFile.filename}');
+      print('  Content type: ${multipartFile.contentType}');
+      print('  Length: ${multipartFile.length}');
+      print('  Byte length: ${videoBytes.length}');
+      
+      request.files.add(multipartFile);
+      
+      print('Request files added:');
+      print('  Field: file');
+      print('  Filename: ${multipartFile.filename}');
+      print('  Size: ${multipartFile.length} bytes');
+
+      // Add form fields
+      request.fields['title'] = title;
+      request.fields['description'] = description;
+
+      print('Sending request to: $baseUrl/api/videos/upload');
+      print('Request headers: ${request.headers}');
+      print('Request fields: ${request.fields}');
+      print('Request files: ${request.files.map((f) => '${f.field}: ${f.filename} (${f.length} bytes)').toList()}');
+      
+      // Send request
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('Response status: ${response.statusCode}');
+      print('Response headers: ${response.headers}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 201) {
+        final jsonResponse = json.decode(response.body);
+        return VideoUploadResponse.fromJson(jsonResponse);
+      } else {
+        final errorResponse = json.decode(response.body);
+        return VideoUploadResponse(
+          success: false,
+          error: errorResponse['error'] ?? 'Upload failed',
+          message: errorResponse['message'] ?? 'HTTP ${response.statusCode}: ${response.body}',
+        );
+      }
+    } catch (e) {
+      print('Upload error: $e');
       return VideoUploadResponse(
         success: false,
         error: 'Upload error',

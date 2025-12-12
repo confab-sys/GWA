@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
@@ -16,6 +18,8 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   File? _selectedVideo;
+  Uint8List? _webVideoBytes;
+  String? _webVideoName;
   bool _isUploading = false;
   String? _uploadError;
   String? _uploadSuccess;
@@ -30,44 +34,118 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   Future<void> _pickVideo() async {
     try {
       print('Starting file picker...');
+      print('Platform: ${kIsWeb ? "Web" : "Mobile/Desktop"}');
       
-      // Try with FileType.video first (this should work for most video files)
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.video,
-        allowCompression: false,
-        withData: true,
-      );
+      FilePickerResult? result;
+      
+      // For web, use a simpler approach to avoid plugin issues
+      if (kIsWeb) {
+        print('Using web-specific file picker approach...');
+        try {
+          result = await FilePicker.platform.pickFiles(
+            type: FileType.video,
+            allowCompression: false,
+            withData: true,
+          );
+          print('Web file picker result: $result');
+        } catch (e) {
+          print('Web file picker error: $e');
+          // Try with any type as fallback for web
+          try {
+            result = await FilePicker.platform.pickFiles(
+              type: FileType.any,
+              allowCompression: false,
+              withData: true,
+            );
+            print('Web fallback file picker result: $result');
+          } catch (e2) {
+            print('Web fallback file picker also failed: $e2');
+            result = null;
+          }
+        }
+      } else {
+        // Mobile/desktop approach with multiple attempts
+        // Try with FileType.video first (this should work for most video files)
+        try {
+          result = await FilePicker.platform.pickFiles(
+            type: FileType.video,
+            allowCompression: false,
+            withData: true, // Always true - required for web, works on mobile too
+          );
+          print('Video file picker result: $result');
+        } catch (e) {
+          print('Error with video file picker: $e');
+          result = null;
+        }
 
-      // If video type doesn't work, try with custom extensions
-      if (result == null) {
-        print('Video type failed, trying custom extensions...');
-        result = await FilePicker.platform.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v', '3gp', 'wmv', 'flv'],
-          allowCompression: false,
-          withData: true,
-        );
-      }
+        // If video type doesn't work, try with custom extensions
+        if (result == null) {
+          print('Video type failed, trying custom extensions...');
+          try {
+            result = await FilePicker.platform.pickFiles(
+              type: FileType.custom,
+              allowedExtensions: ['mp4', 'mov', 'avi', 'webm', 'mkv', 'm4v', '3gp', 'wmv', 'flv'],
+              allowCompression: false,
+              withData: true, // Always true - required for web, works on mobile too
+            );
+            print('Custom extensions file picker result: $result');
+          } catch (e) {
+            print('Error with custom extensions file picker: $e');
+            result = null;
+          }
+        }
 
-      // If still no result, try with any file type as fallback
-      if (result == null) {
-        print('Custom extensions failed, trying any file type...');
-        result = await FilePicker.platform.pickFiles(
-          type: FileType.any,
-          allowCompression: false,
-          withData: true,
-        );
+        // If still no result, try with any file type as fallback
+        if (result == null) {
+          print('Custom extensions failed, trying any file type...');
+          try {
+            result = await FilePicker.platform.pickFiles(
+              type: FileType.any,
+              allowCompression: false,
+              withData: true, // Always true - required for web, works on mobile too
+            );
+            print('Any file type picker result: $result');
+          } catch (e) {
+            print('Error with any file type picker: $e');
+            result = null;
+          }
+        }
       }
 
       print('File picker result: $result');
-      
-      if (result != null) {
-        print('Files selected: ${result.files.length}');
-        if (result.files.isNotEmpty) {
-          final file = result.files.single;
-          print('File path: ${file.path}');
-          print('File name: ${file.name}');
-          print('File size: ${file.size}');
+          
+          if (result != null) {
+            print('Files selected: ${result.files.length}');
+            if (result.files.isNotEmpty) {
+              final file = result.files.single;
+              
+              // CRITICAL: Never access file.path on web platform
+              if (kIsWeb) {
+                print('=== Web File Details (SAFE) ===');
+                print('File name: ${file.name}');
+                print('File size: ${file.size}');
+                print('File path: [INTENTIONALLY HIDDEN ON WEB]');
+                print('File bytes available: ${file.bytes != null}');
+                print('File bytes length: ${file.bytes?.length ?? 0}');
+                print('Platform: Web');
+                print('================================');
+                
+                if (file.bytes == null || file.bytes!.isEmpty) {
+                  print('ERROR: Web platform but no bytes available!');
+                  setState(() {
+                    _uploadError = 'File picker did not provide file data on web. This might be a browser security restriction.';
+                  });
+                  return;
+                }
+              } else {
+                print('=== Mobile/Desktop File Details ===');
+                print('File name: ${file.name}');
+                print('File size: ${file.size}');
+                print('File path: ${file.path}');
+                print('File bytes available: ${file.bytes != null}');
+                print('Platform: Mobile/Desktop');
+                print('=====================================');
+              }
           
           // Validate that it's actually a video file
           final fileExtension = file.name.split('.').last.toLowerCase();
@@ -81,26 +159,76 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
             return;
           }
           
-          if (file.path != null) {
-            final selectedFile = File(file.path!);
-            // Verify the file exists and is accessible
-            if (await selectedFile.exists()) {
+          // Determine platform and handle accordingly
+          if (kIsWeb) {
+            // Handle web platform - must use bytes
+            print('Using web/bytes approach (kIsWeb: true)');
+            
+            try {
+              print('Processing web file: ${file.name}');
+              print('Web file bytes: ${file.bytes}');
+              print('Web file bytes length: ${file.bytes?.length ?? 0}');
+              
+              if (file.bytes != null && file.bytes!.isNotEmpty) {
+                print('Web file bytes length: ${file.bytes!.length}');
+                setState(() {
+                  _webVideoBytes = file.bytes;
+                  _webVideoName = file.name;
+                  _selectedVideo = null; // Ensure _selectedVideo is null on web
+                  _uploadError = null;
+                });
+                print('Video selected successfully on web: ${file.name} (${file.bytes!.length} bytes)');
+                print('State after web selection:');
+                print('  _webVideoBytes: ${_webVideoBytes != null}');
+                print('  _webVideoBytes length: ${_webVideoBytes?.length ?? 0}');
+                print('  _webVideoName: ${_webVideoName}');
+                print('  _selectedVideo: ${_selectedVideo}');
+              } else {
+                setState(() {
+                  _uploadError = 'Could not read video file bytes on web. Please try a different video file. The file picker may not have provided the file data.';
+                });
+                print('File bytes are null or empty on web');
+                print('File details - name: ${file.name}, size: ${file.size}, bytes: ${file.bytes}');
+                print('This might indicate that the file picker is not providing bytes. Check file picker configuration.');
+              }
+            } catch (e, stackTrace) {
               setState(() {
-                _selectedVideo = selectedFile;
-                _uploadError = null;
+                _uploadError = 'Error processing video file on web: $e';
               });
-              print('Video selected successfully: ${file.path}');
+              print('Error processing web video file: $e');
+              print('Stack trace: $stackTrace');
+            }
+          } else if (file.path == null) {
+            // Handle edge case where path is null but not on web (shouldn't happen, but just in case)
+            setState(() {
+              _uploadError = 'File path is null and not on web platform. This is unexpected.';
+            });
+            print('Unexpected state: file.path is null but not on web platform');
+          } else {
+            // Handle mobile/desktop platforms
+            if (file.path != null) {
+              final selectedFile = File(file.path!);
+              // Verify the file exists and is accessible
+              if (await selectedFile.exists()) {
+                setState(() {
+                  _selectedVideo = selectedFile;
+                  _webVideoBytes = null; // Ensure web bytes are null on mobile
+                  _webVideoName = null;
+                  _uploadError = null;
+                });
+                print('Video selected successfully on mobile: ${file.path}');
+              } else {
+                setState(() {
+                  _uploadError = 'Selected file does not exist or is not accessible';
+                });
+                print('File does not exist at path: ${file.path}');
+              }
             } else {
               setState(() {
-                _uploadError = 'Selected file does not exist or is not accessible';
+                _uploadError = 'File path is null - file picker may not have proper permissions';
               });
-              print('File does not exist at path: ${file.path}');
+              print('File path is null');
             }
-          } else {
-            setState(() {
-              _uploadError = 'File path is null - file picker may not have proper permissions';
-            });
-            print('File path is null');
           }
         }
       } else {
@@ -109,8 +237,22 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
     } catch (e, stackTrace) {
       print('Error selecting video: $e');
       print('Stack trace: $stackTrace');
+      
+      String errorMessage = 'Error selecting video: ';
+      if (kIsWeb) {
+        if (e.toString().toLowerCase().contains('path')) {
+          errorMessage += 'File path is not available on web platform. The app is trying to access file.path which is always null on web. Make sure all code uses file.bytes instead.';
+        } else if (e.toString().toLowerCase().contains('webplatform')) {
+          errorMessage += 'File picker error on web platform. This usually means the file picker is trying to access file.path. The app should use file.bytes on web.';
+        } else {
+          errorMessage += 'Web platform error: ${e.toString()}';
+        }
+      } else {
+        errorMessage += e.toString();
+      }
+      
       setState(() {
-        _uploadError = 'Error selecting video: $e';
+        _uploadError = errorMessage;
       });
     }
   }
@@ -120,15 +262,59 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
       return;
     }
 
-    if (_selectedVideo == null) {
-      setState(() {
-        _uploadError = 'Please select a video first';
-      });
-      return;
+    print('=== UPLOAD BUTTON PRESSED ===');
+    print('Platform: ${kIsWeb ? "Web" : "Mobile/Desktop"}');
+    print('Web video bytes: ${_webVideoBytes}');
+    print('Web video bytes length: ${_webVideoBytes?.length ?? 0}');
+    print('Web video name: ${_webVideoName}');
+    print('Selected video (mobile): ${_selectedVideo}');
+    print('Form title: ${_titleController.text.trim()}');
+    print('Form description: ${_descriptionController.text.trim()}');
+    print('=============================');
+
+    // Validate video selection based on platform
+    if (kIsWeb) {
+      if (_webVideoBytes == null) {
+        print('ERROR: _webVideoBytes is null on web!');
+        setState(() {
+          _uploadError = 'Please select a video first';
+        });
+        return;
+      }
+      if (_webVideoBytes!.isEmpty) {
+        print('ERROR: _webVideoBytes is empty on web!');
+        setState(() {
+          _uploadError = 'Video file is empty. Please select a different video.';
+        });
+        return;
+      }
+      if (_webVideoName == null || _webVideoName!.isEmpty) {
+        print('ERROR: _webVideoName is null or empty on web!');
+        setState(() {
+          _uploadError = 'Video filename is missing. Please select a different video.';
+        });
+        return;
+      }
+      print('Web validation passed!');
+    } else {
+      if (_selectedVideo == null) {
+        print('ERROR: _selectedVideo is null on mobile!');
+        setState(() {
+          _uploadError = 'Please select a video first';
+        });
+        return;
+      }
+      print('Mobile validation passed!');
     }
 
     // Check file size (100MB limit)
-    final fileSize = await _selectedVideo!.length();
+    int fileSize;
+    if (kIsWeb) {
+      fileSize = _webVideoBytes!.length;
+    } else {
+      fileSize = await _selectedVideo!.length();
+    }
+    
     const maxSize = 100 * 1024 * 1024; // 100MB in bytes
     
     if (fileSize > maxSize) {
@@ -145,12 +331,58 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
     });
 
     try {
-      // Upload video using VideoService
-      final response = await VideoService.uploadVideo(
-        videoFile: _selectedVideo!,
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-      );
+      print('Starting upload...');
+      print('Platform: ${kIsWeb ? "Web" : "Mobile/Desktop"}');
+      
+      // Pre-upload validation
+      if (kIsWeb) {
+        if (_webVideoBytes == null || _webVideoBytes!.isEmpty) {
+          throw Exception('No video bytes available for upload');
+        }
+        if (_webVideoName == null || _webVideoName!.isEmpty) {
+          throw Exception('No filename available for upload');
+        }
+        
+        // Check file size (100MB limit)
+        const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+        if (_webVideoBytes!.length > maxSize) {
+          throw Exception('File size exceeds 100MB limit');
+        }
+        
+        print('Pre-upload validation passed for web:');
+        print('  File name: $_webVideoName');
+        print('  File size: ${_webVideoBytes!.length} bytes (${(_webVideoBytes!.length / (1024 * 1024)).toStringAsFixed(2)} MB)');
+        print('  Within size limit: ${_webVideoBytes!.length <= maxSize}');
+      }
+      
+      // Upload video using platform-specific method
+      final response;
+      if (kIsWeb) {
+        print('Uploading web video:');
+        print('  File name: ${_webVideoName}');
+        print('  File size: ${_webVideoBytes?.length ?? 0} bytes');
+        print('  Title: ${_titleController.text.trim()}');
+        print('  Description: ${_descriptionController.text.trim().isEmpty ? "(empty)" : _descriptionController.text.trim()}');
+        
+        response = await VideoService.uploadVideoWeb(
+          videoBytes: _webVideoBytes!,
+          fileName: _webVideoName!,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+        );
+      } else {
+        print('Uploading mobile video:');
+        print('  File path: ${_selectedVideo?.path}');
+        print('  File size: ${_selectedVideo?.lengthSync() ?? 0} bytes');
+        print('  Title: ${_titleController.text.trim()}');
+        print('  Description: ${_descriptionController.text.trim().isEmpty ? "(empty)" : _descriptionController.text.trim()}');
+        
+        response = await VideoService.uploadVideo(
+          videoFile: _selectedVideo!,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+        );
+      }
 
       if (response.success) {
         setState(() {
@@ -218,6 +450,24 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 
+  // Safe method to get file name without accessing path on web
+  String _getFileName() {
+    if (kIsWeb) {
+      return _webVideoName ?? 'Unknown';
+    } else {
+      return _selectedVideo?.path.split('/').last ?? 'Unknown';
+    }
+  }
+
+  // Safe method to get file size without accessing File on web
+  int _getFileSizeBytes() {
+    if (kIsWeb) {
+      return _webVideoBytes?.length ?? 0;
+    } else {
+      return _selectedVideo?.lengthSync() ?? 0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -269,7 +519,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                       ),
                       const SizedBox(height: 16),
                       
-                      if (_selectedVideo != null) ...[
+                      if ((kIsWeb ? _webVideoBytes != null : _selectedVideo != null)) ...[
                         Container(
                           height: 200,
                           decoration: BoxDecoration(
@@ -283,7 +533,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                                 const Icon(Icons.videocam, size: 48, color: Colors.grey),
                                 const SizedBox(height: 8),
                                 Text(
-                                  _selectedVideo!.path.split('/').last,
+                                  _getFileName(),
                                   style: GoogleFonts.judson(
                                     textStyle: const TextStyle(fontSize: 14),
                                   ),
@@ -293,7 +543,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Size: ${_getFileSize(_selectedVideo!.lengthSync())}',
+                                  'Size: ${_getFileSize(_getFileSizeBytes())}',
                                   style: GoogleFonts.judson(
                                     textStyle: TextStyle(
                                       fontSize: 12,
