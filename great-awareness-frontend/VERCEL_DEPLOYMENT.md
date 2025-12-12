@@ -1,6 +1,6 @@
 # Great Awareness Frontend - Vercel Deployment Guide
 
-## ✅ Your app is already deployed!
+##  Your app is already deployed!
 
 **Live URL:** https://great-awareness-frontend-1wx7ily6z-confab-sys-projects.vercel.app
 
