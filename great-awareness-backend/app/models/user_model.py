@@ -5,6 +5,12 @@ from sqlalchemy.orm import relationship
 from uuid import uuid4
 from app.core.database import Base
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.content_model import Content
+    from app.models.comment_model import Comment
+    from app.models.notification_model import Notification
 
 class User(Base):
     __tablename__ = "users"
@@ -38,10 +44,10 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     last_login = Column(DateTime(timezone=True), nullable=True)
     
-    # Relationships
-    created_contents = relationship("Content", back_populates="creator")
-    comments = relationship("Comment", back_populates="user")
-    notifications = relationship("Notification", back_populates="user")
+    # Relationships - lazy loading to avoid circular imports
+    created_contents = relationship("Content", back_populates="creator", lazy="select", foreign_keys="Content.created_by")
+    comments = relationship("Comment", back_populates="user", lazy="select", foreign_keys="Comment.user_id")
+    notifications = relationship("Notification", back_populates="user", lazy="select", foreign_keys="Notification.user_id")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}', role='{self.role}')>"
