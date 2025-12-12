@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     cors_origins: Union[str, List[str]] = [
         "http://localhost:3000", 
         "http://localhost:8080", 
+        "http://localhost:8081",
         "https://your-frontend-domain.com",
         "https://great-awareness-frontend.vercel.app",
         "https://great-awareness-frontend-9urb9gcqx-confab-sys-projects.vercel.app"
