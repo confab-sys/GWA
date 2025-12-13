@@ -16,6 +16,7 @@ class VideoService {
     required File videoFile,
     required String title,
     String description = '',
+    String category = 'Uncategorized',
     void Function(int sent, int total)? onProgress,
   }) async {
     try {
@@ -40,6 +41,7 @@ class VideoService {
       // Add form fields
       request.fields['title'] = title;
       request.fields['description'] = description;
+      request.fields['category'] = category;
 
       print('Uploading mobile video:');
       print('  File field: file');
@@ -48,6 +50,7 @@ class VideoService {
       print('  MIME type: $mimeType');
       print('  Title: $title');
       print('  Description: ${description.isEmpty ? "(empty)" : description}');
+      print('  Category: $category');
 
       // Send request with progress tracking
       final streamedResponse = await request.send();
@@ -79,6 +82,7 @@ class VideoService {
     required String fileName,
     required String title,
     String description = '',
+    String category = 'Uncategorized',
     void Function(int sent, int total)? onProgress,
   }) async {
     try {
@@ -110,6 +114,7 @@ class VideoService {
       print('  MIME type: $mimeType');
       print('  Title: $title');
       print('  Description: ${description.isEmpty ? "(empty)" : description}');
+      print('  Category: $category');
       
       final request = http.MultipartRequest(
         'POST',
@@ -147,6 +152,7 @@ class VideoService {
       // Add form fields
       request.fields['title'] = title;
       request.fields['description'] = description;
+      request.fields['category'] = category;
 
       print('Sending request to: $baseUrl/api/videos/upload');
       print('Request headers: ${request.headers}');

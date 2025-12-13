@@ -94,7 +94,7 @@ async function handleListVideos(request, env, corsHeaders) {
     
     // Get videos with pagination
     const videosResult = await env.GWA_VIDEOS_DB.prepare(`
-      SELECT id, title, description, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at
+      SELECT id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at
       FROM videos
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
@@ -128,7 +128,7 @@ async function handleListVideos(request, env, corsHeaders) {
 async function handleGetVideo(request, env, corsHeaders, videoId) {
   try {
     const video = await env.GWA_VIDEOS_DB.prepare(`
-      SELECT id, title, description, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at
+      SELECT id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at
       FROM videos
       WHERE id = ?
     `).bind(videoId).first();
@@ -245,12 +245,13 @@ async function handleSyncVideos(request, env, corsHeaders) {
         // Generate video metadata
         const videoId = crypto.randomUUID();
         const title = generateTitleFromFilename(key);
+        const category = categorizeVideo(title);
         const fileSize = parseInt(object.size || 0);
         const contentType = getContentTypeFromExtension(key);
         const description = `Professional ${contentType} video: ${title}`;
         const createdAt = new Date(object.uploaded || Date.now()).toISOString();
         
-        console.log(`Processing video: ${key}, size: ${fileSize}, type: ${contentType}`);
+        console.log(`Processing video: ${key}, size: ${fileSize}, type: ${contentType}, category: ${category}`);
         
         // Generate signed URL (valid for 7 days)
         const expiryTime = 7 * 24 * 3600; // 7 days in seconds
@@ -259,13 +260,13 @@ async function handleSyncVideos(request, env, corsHeaders) {
         
         // Insert video into database with signed URL
         await env.GWA_VIDEOS_DB.prepare(`
-          INSERT INTO videos (id, title, description, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO videos (id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
-          videoId, title, description, key, createdAt, fileSize, contentType, key, 0, 0, signedUrl, signedUrlExpiresAt
+          videoId, title, description, category, key, createdAt, fileSize, contentType, key, 0, 0, signedUrl, signedUrlExpiresAt
         ).run();
         
-        syncedVideos.push({ id: videoId, title, object_key: key, signed_url: signedUrl });
+        syncedVideos.push({ id: videoId, title, category, object_key: key, signed_url: signedUrl });
         syncedCount++;
         console.log(`Successfully synced video: ${key} (ID: ${videoId})`);
         
@@ -304,6 +305,7 @@ async function handleUploadVideo(request, env, corsHeaders) {
     const file = formData.get('file');
     const title = formData.get('title') || '';
     const description = formData.get('description') || '';
+    const category = formData.get('category') || 'Uncategorized';
     
     if (!file) {
       return new Response(
@@ -345,10 +347,10 @@ async function handleUploadVideo(request, env, corsHeaders) {
     const fileSize = file.size || 0;
     
     await env.GWA_VIDEOS_DB.prepare(`
-      INSERT INTO videos (id, title, description, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO videos (id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      videoId, title, description, objectKey, createdAt, fileSize, file.type, file.name, 0, 0, signedUrl, signedUrlExpiresAt
+      videoId, title, description, category, objectKey, createdAt, fileSize, file.type, file.name, 0, 0, signedUrl, signedUrlExpiresAt
     ).run();
     
     console.log(`Successfully uploaded video: ${file.name} (ID: ${videoId})`);
@@ -360,6 +362,7 @@ async function handleUploadVideo(request, env, corsHeaders) {
         video: {
           id: videoId,
           title,
+          category,
           object_key: objectKey,
           file_size: fileSize,
           content_type: file.type
@@ -442,6 +445,14 @@ function getContentTypeFromExtension(filename) {
     '3gp': 'video/3gpp'
   };
   return contentTypes[ext] || 'video/mp4';
+}
+
+/**
+ * Categorize video based on title
+ * For now, just return 'Uncategorized' as we want to rely on manual categorization
+ */
+function categorizeVideo(title) {
+  return 'Uncategorized';
 }
 
 /**

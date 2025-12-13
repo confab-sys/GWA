@@ -17,6 +17,22 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  
+  // Video categories
+  final List<String> _categories = [
+    'Addictions',
+    'Relationships',
+    'Trauma',
+    'Emotional Intelligence',
+    'Sexual Health',
+    'Finances',
+    'Family',
+    'Consciousness expansion',
+    'Behavior updating',
+    'Uncategorized'
+  ];
+  String _selectedCategory = 'Uncategorized';
+  
   File? _selectedVideo;
   Uint8List? _webVideoBytes;
   String? _webVideoName;
@@ -369,6 +385,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
           fileName: _webVideoName!,
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
+          category: _selectedCategory,
         );
       } else {
         print('Uploading mobile video:');
@@ -376,11 +393,13 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
         print('  File size: ${_selectedVideo?.lengthSync() ?? 0} bytes');
         print('  Title: ${_titleController.text.trim()}');
         print('  Description: ${_descriptionController.text.trim().isEmpty ? "(empty)" : _descriptionController.text.trim()}');
+        print('  Category: $_selectedCategory');
         
         response = await VideoService.uploadVideo(
           videoFile: _selectedVideo!,
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
+          category: _selectedCategory,
         );
       }
 
@@ -514,6 +533,53 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                           textStyle: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Category Dropdown
+                      Text(
+                        'Category',
+                        style: GoogleFonts.judson(
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedCategory,
+                            isExpanded: true,
+                            icon: const Icon(Icons.arrow_drop_down),
+                            elevation: 16,
+                            style: GoogleFonts.judson(
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  _selectedCategory = newValue;
+                                });
+                              }
+                            },
+                            items: _categories.map<DropdownMenuItem<String>>((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
                           ),
                         ),
                       ),

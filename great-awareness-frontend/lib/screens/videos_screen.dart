@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../models/video.dart';
 import '../services/video_service.dart';
 import '../services/video_sync_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/cloudflare_video_player.dart';
 // TODO: Create video_upload_screen.dart or implement upload functionality
 // import 'video_upload_screen.dart';
@@ -289,10 +291,20 @@ class _VideosScreenState extends State<VideosScreen> {
         onRefresh: _refreshVideos,
         child: _buildContent(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToUpload,
-        backgroundColor: Colors.blue,
-        child: const Icon(Icons.add, color: Colors.white),
+      floatingActionButton: Consumer<AuthService>(
+        builder: (context, authService, child) {
+          final currentUser = authService.currentUser;
+          // Only show upload button for admin users
+          if (currentUser == null || !currentUser.isAdmin) {
+            return const SizedBox.shrink();
+          }
+
+          return FloatingActionButton(
+            onPressed: _navigateToUpload,
+            backgroundColor: Colors.blue,
+            child: const Icon(Icons.add, color: Colors.white),
+          );
+        },
       ),
     );
   }
@@ -393,20 +405,30 @@ class _VideosScreenState extends State<VideosScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _navigateToUpload,
-              icon: const Icon(Icons.add),
-              label: Text(
-                'Upload Video',
-                style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+            Consumer<AuthService>(
+              builder: (context, authService, child) {
+                final currentUser = authService.currentUser;
+                // Only show upload button for admin users
+                if (currentUser == null || !currentUser.isAdmin) {
+                  return const SizedBox.shrink();
+                }
+
+                return ElevatedButton.icon(
+                  onPressed: _navigateToUpload,
+                  icon: const Icon(Icons.add),
+                  label: Text(
+                    'Upload Video',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),

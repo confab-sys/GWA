@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'podcasts_screen.dart';
 import 'video_upload_screen.dart';
 import '../models/video.dart';
 
 import '../services/video_service.dart';
 import '../services/cloudflare_storage_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/cloudflare_video_player.dart';
 
 class Podcast {
@@ -497,17 +499,27 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           _buildPodcastsTab(),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const VideoUploadScreen(),
-            ),
+      floatingActionButton: Consumer<AuthService>(
+        builder: (context, authService, child) {
+          final currentUser = authService.currentUser;
+          // Only show upload button for admin users
+          if (currentUser == null || !currentUser.isAdmin) {
+            return const SizedBox.shrink();
+          }
+          
+          return FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const VideoUploadScreen(),
+                ),
+              );
+            },
+            backgroundColor: Colors.black,
+            child: const Icon(Icons.upload, color: Colors.white),
           );
         },
-        backgroundColor: Colors.black,
-        child: const Icon(Icons.upload, color: Colors.white),
       ),
     );
   }
