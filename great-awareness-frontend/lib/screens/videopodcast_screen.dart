@@ -7,8 +7,12 @@ import '../models/video.dart';
 
 import '../services/video_service.dart';
 import '../services/cloudflare_storage_service.dart';
+import '../services/video_sync_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/cloudflare_video_player.dart';
+import '../widgets/premium_video_card.dart';
+import '../widgets/category_button.dart';
+import '../widgets/view_more_card.dart';
 
 class Podcast {
   final String id;
@@ -50,6 +54,31 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   TextEditingController searchController = TextEditingController();
   String selectedCategory = 'All';
   bool isLoading = false;
+  String? _errorMessage;
+
+  final List<String> _categoryLabels = [
+    'Addictions',
+    'Relationships',
+    'Trauma',
+    'Emotional Intelligence',
+    'Sexual Health',
+    'Finances',
+    'Family',
+    'Consciousness Expansion',
+    'Behavior Updating',
+  ];
+
+  final Map<String, Color> _categoryColors = {
+    'Addictions': const Color(0xFFE57373), // Red 300
+    'Relationships': const Color(0xFFF06292), // Pink 300
+    'Trauma': const Color(0xFFBA68C8), // Purple 300
+    'Emotional Intelligence': const Color(0xFF64B5F6), // Blue 300
+    'Sexual Health': const Color(0xFFFF8A65), // Deep Orange 300
+    'Finances': const Color(0xFF81C784), // Green 300
+    'Family': const Color(0xFF4DB6AC), // Teal 300
+    'Consciousness Expansion': const Color(0xFF9575CD), // Deep Purple 300
+    'Behavior Updating': const Color(0xFFFFB74D), // Orange 300
+  };
 
   @override
   void initState() {
@@ -68,76 +97,27 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
 
   Future<void> _loadVideosFromCloudflare() async {
     try {
-      // Show loading indicator
       setState(() {
         isLoading = true;
+        _errorMessage = null;
       });
 
       print('Loading videos from Cloudflare database...');
-      print('Attempting to fetch videos from database using VideoService...');
       
       // Get videos from database using VideoService
       final response = await VideoService.listVideos(
         page: 1,
-        perPage: 50, // Load more videos for better selection
+        perPage: 50,
       );
       
       List<Video> loadedVideos = [];
       
       if (response.videos.isNotEmpty) {
-        print('✅ SUCCESS: Found ${response.videos.length} videos in Cloudflare database');
-        
-        // Log detailed information about the first few videos for debugging
-        for (int i = 0; i < response.videos.length && i < 3; i++) {
-          final video = response.videos[i];
-          print('Video ${i + 1}: ${video.title}');
-          print('  - ID: ${video.id}');
-          print('  - Object Key: ${video.objectKey}');
-          print('  - File Size: ${video.formattedFileSize}');
-          print('  - Content Type: ${video.contentType}');
-          print('  - Views: ${video.viewCount}');
-          print('  - Comments: ${video.commentCount}');
-          print('  - Has Signed URL: ${video.hasValidSignedUrl}');
-          print('  - Original Name: ${video.originalName}');
-        }
-        
-        // Use videos directly from database - they already have all fields
         loadedVideos = response.videos;
-        
-        print('📊 Database Summary:');
-        print('  - Total videos: ${loadedVideos.length}');
-        print('  - Average file size: ${loadedVideos.isNotEmpty ? (loadedVideos.map((v) => v.fileSize).reduce((a, b) => a + b) / loadedVideos.length / 1024 / 1024).toStringAsFixed(1) : 0} MB');
-        print('  - Total views: ${loadedVideos.map((v) => v.viewCount).reduce((a, b) => a + b)}');
-        print('  - Total comments: ${loadedVideos.map((v) => v.commentCount).reduce((a, b) => a + b)}');
-        
       } else {
-        print('⚠️  No videos found in database, checking Cloudflare storage...');
-        
-        // Fallback to Cloudflare storage service
         try {
           final cloudflareVideos = await CloudflareStorageService.fetchVideosFromBucket();
-          print('Found ${cloudflareVideos.length} videos in Cloudflare storage');
-          
-          // Convert Cloudflare videos to Video model format
           loadedVideos = cloudflareVideos.map((cfVideo) => Video(
-            id: cfVideo.key.hashCode.toString(), // Use hash of key as ID
-            title: cfVideo.title,
-            description: 'Video from Cloudflare storage',
-            objectKey: cfVideo.key,
-            createdAt: cfVideo.lastModified,
-            fileSize: cfVideo.size,
-            contentType: 'video/mp4',
-            originalName: cfVideo.key,
-            viewCount: 0,
-            commentCount: 0,
-          )).toList();
-        } catch (cfError) {
-          print('❌ Error loading from Cloudflare storage: $cfError');
-          print('Using configured videos as final fallback');
-          
-          // Final fallback to configured videos
-          final configuredVideos = CloudflareStorageService.getConfiguredVideos();
-          loadedVideos = configuredVideos.map((cfVideo) => Video(
             id: cfVideo.key.hashCode.toString(),
             title: cfVideo.title,
             description: 'Video from Cloudflare storage',
@@ -149,12 +129,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
             viewCount: 0,
             commentCount: 0,
           )).toList();
-          
         } catch (cfError) {
-          print('❌ Error loading from Cloudflare storage: $cfError');
-          print('Using configured videos as final fallback');
-          
-          // Final fallback to configured videos
           final configuredVideos = CloudflareStorageService.getConfiguredVideos();
           loadedVideos = configuredVideos.map((cfVideo) => Video(
             id: cfVideo.key.hashCode.toString(),
@@ -175,27 +150,25 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         allVideos = loadedVideos;
         filteredVideos = List.from(allVideos);
         isLoading = false;
+        if (allVideos.isEmpty) {
+          _errorMessage = "No videos found.";
+        }
       });
       
-      print('Successfully loaded ${loadedVideos.length} videos');
-      
     } catch (e) {
-      // Error loading videos, show empty state
       print('Error loading videos: $e');
       setState(() {
         isLoading = false;
         allVideos = [];
         filteredVideos = [];
+        _errorMessage = "Failed to load videos: $e";
       });
     }
   }
 
-
-
   void _onSearchChanged() {
     final query = searchController.text.toLowerCase();
     setState(() {
-      // Filter videos
       if (query.isEmpty) {
         filteredVideos = List.from(allVideos);
         filteredPodcasts = List.from(allPodcasts);
@@ -211,160 +184,71 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                  podcast.category.toLowerCase().contains(query);
         }).toList();
       }
-      
-      // Filter by category if not 'All' - removed since Video model doesn't have category field
-      // For now, show all videos regardless of category selection
-      if (selectedCategory != 'All') {
-        // Category filtering disabled - real Video model doesn't have category field
-        // filteredVideos = filteredVideos.where((video) => video.category == selectedCategory).toList();
-        // filteredPodcasts = filteredPodcasts.where((podcast) => podcast.category == selectedCategory).toList();
-      }
     });
   }
 
-  List<String> get _categories {
-    // Since real Video model doesn't have category field, return only 'All'
-    // This can be enhanced later when categories are added to the database
-    return ['All'];
-  }
+  void _playVideo(Video video) async {
+    // First check if the video has a valid signed URL
+    if (!video.hasValidSignedUrl) {
+      // Show loading dialog while we refresh the signed URL
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(color: Colors.black),
+              SizedBox(width: 16),
+              Text('Preparing video...'),
+            ],
+          ),
+        ),
+      );
 
-  Map<String, List<Video>> get _videosByCategory {
-    // Since real Video model doesn't have category field, return all videos under 'All' category
-    final Map<String, List<Video>> grouped = {};
-    grouped.putIfAbsent('All', () => []).addAll(filteredVideos);
-    return grouped;
-  }
+      try {
+        // Try to get a fresh signed URL
+        final freshVideo = await VideoSyncService.getVideoWithFreshSignedUrl(video.id);
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+          
+          // Navigate to the video player with fresh signed URL
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CloudflareVideoPlayer(
+                video: freshVideo,
+                title: freshVideo.title,
+                subtitle: freshVideo.description,
+                onVideoCompleted: () {},
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+          
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to prepare video: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+      return;
+    }
 
-  void _showVideoDetails(Video video) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            video.title,
-            style: GoogleFonts.judson(
-              textStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // File information
-                _buildDetailRow('Original Name:', video.originalName),
-                _buildDetailRow('Object Key:', video.objectKey),
-                _buildDetailRow('Content Type:', video.contentType),
-                _buildDetailRow('File Size:', video.formattedFileSize),
-                const SizedBox(height: 8),
-                
-                // Upload information
-                _buildDetailRow('Upload Date:', video.createdAt.toString()),
-                _buildDetailRow('Time Ago:', video.formattedDuration),
-                const SizedBox(height: 8),
-                
-                // Statistics
-                _buildDetailRow('Views:', video.formattedViewCount),
-                _buildDetailRow('Comments:', video.formattedCommentCount),
-                const SizedBox(height: 8),
-                
-                // Description
-                if (video.description.isNotEmpty) ...[
-                  Text(
-                    'Description:',
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    video.description,
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                
-                // Signed URL status
-                _buildDetailRow('Signed URL:', video.hasValidSignedUrl ? 'Valid' : 'Expired/None'),
-                if (video.signedUrlExpiry != null) ...[
-                  _buildDetailRow('URL Expires:', video.signedUrlExpiry.toString()),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Close',
-                style: GoogleFonts.judson(),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CloudflareVideoPlayer(
-                      video: video,
-                      title: video.title,
-                      subtitle: video.description,
-                      onVideoCompleted: () {},
-                    ),
-                  ),
-                );
-              },
-              child: Text(
-                'Play Video',
-                style: GoogleFonts.judson(),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: GoogleFonts.judson(
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.judson(
-                textStyle: const TextStyle(
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CloudflareVideoPlayer(
+          video: video,
+          title: video.title,
+          subtitle: video.description,
+          onVideoCompleted: () {},
+        ),
       ),
     );
   }
@@ -372,7 +256,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFD3E4DE),
+      backgroundColor: const Color(0xFFF5F5F5), // Lighter background for premium feel
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -381,7 +265,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           style: GoogleFonts.judson(
             textStyle: const TextStyle(
               color: Colors.black,
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -421,18 +305,10 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                     ),
                     prefixIcon: const Icon(Icons.search, color: Colors.black),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Colors.grey[100],
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(25),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
-                      borderSide: const BorderSide(color: Colors.black),
+                      borderSide: BorderSide.none,
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
@@ -441,48 +317,13 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   ),
                 ),
               ),
-              // Category Filter Chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: _categories.map((category) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(
-                          category,
-                          style: GoogleFonts.judson(
-                            textStyle: TextStyle(
-                              color: selectedCategory == category ? Colors.white : Colors.black,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        selected: selectedCategory == category,
-                        onSelected: (selected) {
-                          setState(() {
-                            selectedCategory = category;
-                            _onSearchChanged();
-                          });
-                        },
-                        backgroundColor: Colors.white,
-                        selectedColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
               // Tab Bar
               TabBar(
                 controller: _tabController,
                 indicatorColor: Colors.black,
                 labelColor: Colors.black,
                 unselectedLabelColor: Colors.grey[600],
+                labelStyle: GoogleFonts.judson(fontWeight: FontWeight.bold),
                 tabs: const [
                   Tab(text: 'Videos'),
                   Tab(text: 'Podcasts'),
@@ -502,11 +343,9 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       floatingActionButton: Consumer<AuthService>(
         builder: (context, authService, child) {
           final currentUser = authService.currentUser;
-          // Only show upload button for admin users
           if (currentUser == null || !currentUser.isAdmin) {
             return const SizedBox.shrink();
           }
-          
           return FloatingActionButton(
             onPressed: () {
               Navigator.push(
@@ -525,14 +364,12 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   }
 
   Widget _buildVideosTab() {
-    final videosByCategory = _videosByCategory;
-    
     if (isLoading) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(),
+            const CircularProgressIndicator(color: Colors.black),
             const SizedBox(height: 16),
             Text(
               'Loading videos...',
@@ -550,60 +387,393 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     
     if (filteredVideos.isEmpty) {
       return Center(
-        child: Text(
-          'No videos available',
-          style: GoogleFonts.judson(
-            textStyle: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 16,
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _errorMessage ?? 'No videos available',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.judson(
+                  textStyle: TextStyle(
+                    color: _errorMessage != null ? Colors.red : Colors.grey[600],
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loadVideosFromCloudflare,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ],
           ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: videosByCategory.keys.length,
-      itemBuilder: (context, categoryIndex) {
-        final category = videosByCategory.keys.elementAt(categoryIndex);
-        final videos = videosByCategory[category]!;
-        
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Category Title
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                category,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          _buildLatestVideosSection(),
+          const SizedBox(height: 32),
+          _buildMasterClassesSection(),
+          const SizedBox(height: 32),
+          _buildCategoryLayout(),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLatestVideosSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Latest Videos',
+            style: GoogleFonts.judson(
+              textStyle: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: filteredVideos.length > 5 ? 6 : filteredVideos.length,
+            itemBuilder: (context, index) {
+              if (filteredVideos.length > 5 && index == 5) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: ViewMoreCard(
+                    count: filteredVideos.length - 5,
+                    isLarge: true,
+                    onTap: () => _showVideoList('Latest Videos', filteredVideos),
+                  ),
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: PremiumVideoCard(
+                  video: filteredVideos[index],
+                  isLarge: true,
+                  onTap: () => _playVideo(filteredVideos[index]),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMasterClassesSection() {
+    final List<Map<String, dynamic>> masterClasses = [
+      {'title': 'Healing Trauma', 'color': const Color(0xFFBA68C8)},
+      {'title': 'Conscious Relationships', 'color': const Color(0xFFF06292)},
+      {'title': 'Financial Freedom', 'color': const Color(0xFF81C784)},
+      {'title': 'Self Mastery', 'color': const Color(0xFF64B5F6)},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Text(
+                'Master Classes',
                 style: GoogleFonts.judson(
                   textStyle: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'PREMIUM',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: masterClasses.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Container(
+                  width: 240,
+                  decoration: BoxDecoration(
+                    color: masterClasses[index]['color'],
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (masterClasses[index]['color'] as Color).withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: -20,
+                        bottom: -20,
+                        child: Icon(
+                          Icons.school,
+                          size: 100,
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'SERIES',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              masterClasses[index]['title'],
+                              style: GoogleFonts.judson(
+                                textStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Watch Collection',
+                              style: GoogleFonts.judson(
+                                textStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryLayout() {
+    // Filter categories that have at least one video
+    final activeCategories = _categoryLabels.where((category) {
+      return filteredVideos.any((v) => v.category?.toLowerCase() == category.toLowerCase());
+    }).toList();
+
+    if (activeCategories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 0), // Remove horizontal padding for the whole section to allow full-width scrolling
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Browse Categories',
+              style: GoogleFonts.judson(
+                textStyle: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
             ),
-            // Videos Row
-            SizedBox(
-              height: 220,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
+          ),
+          const SizedBox(height: 16),
+          ListView.separated(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: activeCategories.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 32),
+            itemBuilder: (context, index) {
+              final category = activeCategories[index];
+              final color = _categoryColors[category] ?? Colors.grey;
+              
+              // Get all videos for this category
+              final categoryVideos = filteredVideos.where(
+                (v) => v.category?.toLowerCase() == category.toLowerCase()
+              ).toList();
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Category Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      width: 200, // Fixed width for the button/header
+                      child: CategoryButton(
+                        label: category,
+                        color: color,
+                        onTap: () {
+                           // Navigate to full list or just keep as header
+                           _showVideoList(category, categoryVideos);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Horizontal Video List
+                  SizedBox(
+                    height: 200,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      scrollDirection: Axis.horizontal,
+                      itemCount: categoryVideos.length > 5 ? 6 : categoryVideos.length,
+                      itemBuilder: (context, videoIndex) {
+                        if (categoryVideos.length > 5 && videoIndex == 5) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: ViewMoreCard(
+                              count: categoryVideos.length - 5,
+                              isLarge: true,
+                              onTap: () => _showVideoList(category, categoryVideos),
+                            ),
+                          );
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 16),
+                          child: PremiumVideoCard(
+                            video: categoryVideos[videoIndex],
+                            isLarge: true,
+                            onTap: () => _playVideo(categoryVideos[videoIndex]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 32), // Bottom padding
+        ],
+      ),
+    );
+  }
+
+  void _showVideoList(String title, List<Video> videos) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
                 itemCount: videos.length,
-                itemBuilder: (context, videoIndex) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: _buildEnhancedVideoCard(videos[videoIndex]),
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  return PremiumVideoCard(
+                    video: videos[index],
+                    isLarge: true,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _playVideo(videos[index]);
+                    },
                   );
                 },
               ),
             ),
-            const SizedBox(height: 8),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -669,359 +839,6 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildEnhancedVideoCard(Video video) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CloudflareVideoPlayer(
-              video: video,
-              title: video.title,
-              subtitle: video.description,
-              onVideoCompleted: () {
-                // Handle video completion if needed
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
-        width: 180, // Increased width for more information
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Video thumbnail with progress
-          Stack(
-            children: [
-              Container(
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.play_circle_outline,
-                    size: 45,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-              // File size badge
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    video.formattedFileSize,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              // Content type badge
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    video.contentType.split('/').last.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-
-            ],
-          ),
-          // Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    video.title,
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  // Original filename
-                  Text(
-                    'File: ${video.originalName}',
-                    style: GoogleFonts.judson(
-                      textStyle: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  // Description
-                  if (video.description.isNotEmpty) ...[
-                    Text(
-                      video.description,
-                      style: GoogleFonts.judson(
-                        textStyle: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                  ],
-                  // Upload date and view count
-                  Row(
-                    children: [
-                      Icon(Icons.schedule, size: 12, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text(
-                        video.formattedDuration,
-                        style: GoogleFonts.judson(
-                          textStyle: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(Icons.visibility, size: 12, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text(
-                        video.formattedViewCount,
-                        style: GoogleFonts.judson(
-                          textStyle: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  // Object key and comment count
-                  Row(
-                    children: [
-                      Icon(Icons.key, size: 12, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          video.objectKey,
-                          style: GoogleFonts.judson(
-                            textStyle: TextStyle(
-                              fontSize: 9,
-                              color: Colors.grey[500],
-                            ),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (video.commentCount > 0) ...[
-                        const SizedBox(width: 8),
-                        Icon(Icons.comment, size: 12, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text(
-                          video.formattedCommentCount,
-                          style: GoogleFonts.judson(
-                            textStyle: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const Spacer(),
-                  // Action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Play button
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.play_arrow, size: 14, color: Colors.white),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Play',
-                              style: GoogleFonts.judson(
-                                textStyle: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // More info
-                      GestureDetector(
-                        onTap: () => _showVideoDetails(video),
-                        child: Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-    );
-  }
-
-
-
-  Widget _buildPodcastCard(int index) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Podcast thumbnail
-          Container(
-            height: 80,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.podcasts,
-                size: 32,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          // Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Podcast ${index + 1}',
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Discussion',
-                    style: GoogleFonts.judson(
-                      textStyle: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Spacer(),
-                  // Action buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildSmallActionButton(Icons.favorite_border, 'Like'),
-                      _buildSmallActionButton(Icons.bookmark_border, 'Save'),
-                      _buildSmallActionButton(Icons.download, 'Download'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSmallActionButton(IconData icon, String tooltip) {
-    return IconButton(
-      icon: Icon(icon, size: 16, color: Colors.grey[700]),
-      tooltip: tooltip,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      onPressed: () {
-        // Handle action
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$tooltip pressed'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
     );
   }
 }

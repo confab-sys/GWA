@@ -11,6 +11,7 @@ class Video {
   final String originalName;
   final int viewCount;
   final int commentCount;
+  final String? category;
   String? signedUrl;
   DateTime? signedUrlExpiry;
 
@@ -25,22 +26,26 @@ class Video {
     required this.originalName,
     this.viewCount = 0,
     this.commentCount = 0,
+    this.category,
     this.signedUrl,
     this.signedUrlExpiry,
   });
 
   factory Video.fromJson(Map<String, dynamic> json) {
+    final nestedVideo = json['video'] is Map<String, dynamic> ? json['video'] as Map<String, dynamic> : null;
+
     return Video(
-      id: json['id'] ?? json['video']['id'],
-      title: json['title'] ?? json['video']['title'],
-      description: json['description'] ?? json['video']['description'] ?? '',
-      objectKey: json['object_key'] ?? json['video']['objectKey'] ?? json['objectKey'],
-      createdAt: DateTime.parse(json['created_at'] ?? json['video']['createdAt'] ?? json['createdAt']),
-      fileSize: json['file_size'] ?? json['video']['fileSize'] ?? json['fileSize'] ?? 0,
-      contentType: json['content_type'] ?? json['video']['contentType'] ?? json['contentType'] ?? 'video/mp4',
-      originalName: json['original_name'] ?? json['video']['originalName'] ?? json['originalName'] ?? '',
-      viewCount: json['view_count'] ?? json['video']['viewCount'] ?? json['viewCount'] ?? 0,
-      commentCount: json['comment_count'] ?? json['video']['commentCount'] ?? json['commentCount'] ?? 0,
+      id: json['id'] ?? nestedVideo?['id'],
+      title: json['title'] ?? nestedVideo?['title'],
+      description: json['description'] ?? nestedVideo?['description'] ?? '',
+      objectKey: json['object_key'] ?? nestedVideo?['objectKey'] ?? json['objectKey'],
+      createdAt: DateTime.parse(json['created_at'] ?? nestedVideo?['createdAt'] ?? json['createdAt']),
+      fileSize: json['file_size'] ?? nestedVideo?['fileSize'] ?? json['fileSize'] ?? 0,
+      contentType: json['content_type'] ?? nestedVideo?['contentType'] ?? json['contentType'] ?? 'video/mp4',
+      originalName: json['original_name'] ?? nestedVideo?['originalName'] ?? json['originalName'] ?? '',
+      viewCount: json['view_count'] ?? nestedVideo?['viewCount'] ?? json['viewCount'] ?? 0,
+      commentCount: json['comment_count'] ?? nestedVideo?['commentCount'] ?? json['commentCount'] ?? 0,
+      category: json['category'] ?? nestedVideo?['category'],
       signedUrl: json['signed_url'] ?? json['signedUrl'],
       signedUrlExpiry: (json['signed_url_expires_at'] ?? json['signedUrlExpiry']) != null ? DateTime.parse(json['signed_url_expires_at'] ?? json['signedUrlExpiry']) : null,
     );
@@ -58,6 +63,7 @@ class Video {
       'original_name': originalName,
       'view_count': viewCount,
       'comment_count': commentCount,
+      'category': category,
       'signed_url': signedUrl,
       'signed_url_expires_at': signedUrlExpiry?.toIso8601String(),
     };
@@ -138,11 +144,20 @@ class VideoListResponse {
   });
 
   factory VideoListResponse.fromJson(Map<String, dynamic> json) {
+    final videosList = (json['videos'] as List<dynamic>?) ?? [];
+    final videos = <Video>[];
+    
+    for (final videoJson in videosList) {
+      try {
+        videos.add(Video.fromJson(videoJson));
+      } catch (e) {
+        print('Error parsing video: $e');
+        // print('Video JSON: $videoJson'); // Uncomment for debugging
+      }
+    }
+
     return VideoListResponse(
-      videos: (json['videos'] as List<dynamic>?)
-              ?.map((videoJson) => Video.fromJson(videoJson))
-              .toList() ??
-          [],
+      videos: videos,
       total: json['total'] ?? 0,
       page: json['page'] ?? 1,
       perPage: json['perPage'] ?? 10,
