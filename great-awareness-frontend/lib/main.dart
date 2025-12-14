@@ -12,6 +12,7 @@ import 'screens/admin_manage_users_screen.dart';
 import 'screens/wellness_screen.dart';
 import 'screens/videopodcast_screen.dart';
 import 'screens/video_upload_screen.dart';
+import 'screens/book_upload_screen.dart';
 import 'services/auth_service.dart';
 import 'services/theme_provider.dart';
 import 'services/notification_service.dart';
@@ -51,6 +52,7 @@ class MyApp extends StatelessWidget {
               '/wellness': (_) => const WellnessScreen(),
               '/videopodcast': (_) => const VideoPodcastScreen(),
               '/video/upload': (_) => const VideoUploadScreen(),
+              '/book/upload': (_) => const BookUploadScreen(),
             },
           );
         },

@@ -1,0 +1,14 @@
+name = "gwa-books-worker"
+main = "books-worker.js"
+compatibility_date = "2024-12-01"
+
+# R2 Storage Binding for books
+[[r2_buckets]]
+binding = "GWA_BOOKS_BUCKET"
+bucket_name = "books"
+
+# D1 Database Binding for books metadata
+[[d1_databases]]
+binding = "GWA_BOOKS_DB"
+database_name = "gwa-books"
+database_id = "115d4f98-c6cf-4fe8-8362-0040f02fbbad"

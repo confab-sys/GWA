@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'book_reader_screen.dart';
 import 'books_sales_screen.dart';
+import 'book_upload_screen.dart';
 
 
 class Book {
@@ -227,6 +228,19 @@ class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStat
           unselectedLabelColor: Colors.grey[600],
           indicatorColor: Colors.black,
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_box, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BookUploadScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: TabBarView(
         controller: _tabController,
