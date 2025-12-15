@@ -2,55 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../models/book.dart';
 import 'book_reader_screen.dart';
-
-class Book {
-  final String id;
-  final String title;
-  final String imagePath;
-  final String description;
-  final String? epubUrl; // Cloudflare R2 URL for EPUB
-  bool isFavorite;
-  double readingProgress;
-  bool isDownloaded;
-
-  Book({
-    required this.id,
-    required this.title,
-    required this.imagePath,
-    required this.description,
-    this.epubUrl,
-    this.isFavorite = false,
-    this.readingProgress = 0.0,
-    this.isDownloaded = false,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'imagePath': imagePath,
-      'description': description,
-      'epubUrl': epubUrl,
-      'isFavorite': isFavorite,
-      'readingProgress': readingProgress,
-      'isDownloaded': isDownloaded,
-    };
-  }
-
-  factory Book.fromJson(Map<String, dynamic> json) {
-    return Book(
-      id: json['id'],
-      title: json['title'],
-      imagePath: json['imagePath'],
-      description: json['description'],
-      epubUrl: json['epubUrl'],
-      isFavorite: json['isFavorite'] ?? false,
-      readingProgress: json['readingProgress']?.toDouble() ?? 0.0,
-      isDownloaded: json['isDownloaded'] ?? false,
-    );
-  }
-}
 
 class BooksSalesScreen extends StatefulWidget {
   const BooksSalesScreen({super.key});
@@ -75,19 +28,25 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
       Book(
         id: '1',
         title: 'Resonance: Understanding Your Potential',
-        imagePath: 'assets/images/Resonance, understanding the magnetic pull towards your unrealised potential.png',
+        author: 'Unknown',
+        category: 'General',
+        coverImageUrl: 'assets/images/Resonance, understanding the magnetic pull towards your unrealised potential.png',
         description: 'Discover the magnetic pull towards your unrealized potential.',
       ),
       Book(
         id: '2',
         title: 'Master Your Finances',
-        imagePath: 'assets/images/Master your finances, how the primal brain hijacks your financial decisions.png',
+        author: 'Unknown',
+        category: 'Finances',
+        coverImageUrl: 'assets/images/Master your finances, how the primal brain hijacks your financial decisions.png',
         description: 'Learn how your brain influences financial decisions and how to take control.',
       ),
       Book(
         id: '3',
         title: 'The Secret Behind Romantic Love',
-        imagePath: 'assets/images/The secret behind romantic love, understanding the hidden force that influences relationships.png',
+        author: 'Unknown',
+        category: 'Relationships',
+        coverImageUrl: 'assets/images/The secret behind romantic love, understanding the hidden force that influences relationships.png',
         description: 'Understanding the hidden force that influences relationships.',
       ),
     ];
@@ -196,7 +155,7 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
           _showBookDetails(book);
         },
         child: Image.asset(
-             book.imagePath,
+             book.coverImageUrl,
              fit: BoxFit.cover, // Fill entire container to eliminate gaps
              alignment: Alignment.center,
            ),
@@ -254,7 +213,7 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
                     image: DecorationImage(
-                      image: AssetImage(book.imagePath),
+                      image: AssetImage(book.coverImageUrl),
                       fit: BoxFit.cover,
                     ),
                   ),

@@ -5,39 +5,46 @@ export default {
     const method = request.method;
     const path = url.pathname;
 
+    // Common CORS headers
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-User-ID",
+    };
+
     try {
       // CORS Handling
       if (method === "OPTIONS") {
         return new Response(null, {
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization, X-User-ID",
-          },
+          headers: corsHeaders,
         });
       }
 
       // Router
       if (method === "POST" && path === "/upload") {
-        return await handleUpload(request, env);
+        return await handleUpload(request, env, corsHeaders);
       } else if (method === "GET" && path.match(/^\/download\/.+/)) {
         const id = path.split("/")[2];
-        return await handleDownload(id, request, env);
+        return await handleDownload(id, request, env, corsHeaders);
       } else if (method === "GET" && path.match(/^\/stream\/.+/)) {
         const id = path.split("/")[2];
-        return await handleStream(id, request, env);
+        return await handleStream(id, request, env, corsHeaders);
       } else if (method === "POST" && path === "/progress") {
-        return await handleProgress(request, env);
+        return await handleProgress(request, env, corsHeaders);
+      } else if (method === "GET" && path === "/books") {
+        return await handleListBooks(env, corsHeaders);
+      } else if (method === "POST" && path === "/sync") {
+        return await handleSyncBooks(env, corsHeaders);
       } else if (method === "GET" && path.match(/^\/books\/.+/)) {
         const id = path.split("/")[2];
-        return await handleGetBook(id, env);
+        return await handleGetBook(id, env, corsHeaders);
       }
 
-      return new Response("Not Found", { status: 404 });
+      return new Response("Not Found", { status: 404, headers: corsHeaders });
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: 500,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
   },
@@ -45,7 +52,7 @@ export default {
 
 // --- Handlers ---
 
-async function handleUpload(request, env) {
+async function handleUpload(request, env, corsHeaders) {
   const formData = await request.formData();
   
   const file = formData.get("file");
@@ -65,7 +72,7 @@ async function handleUpload(request, env) {
   };
 
   if (!file || !cover) {
-    return new Response("Missing file or cover image", { status: 400 });
+    return new Response("Missing file or cover image", { status: 400, headers: corsHeaders });
   }
 
   // Generate IDs and Keys
@@ -107,55 +114,65 @@ async function handleUpload(request, env) {
     .run();
 
   return new Response(JSON.stringify({ message: "Book uploaded successfully", bookId }), {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 }
 
-async function handleDownload(id, request, env) {
+async function handleDownload(id, request, env, corsHeaders) {
   // 1. Get Book Metadata
   const book = await env.GWA_BOOKS_DB.prepare("SELECT * FROM books WHERE id = ?").bind(id).first();
   
-  if (!book) return new Response("Book not found", { status: 404 });
-  if (!book.download_allowed) return new Response("Download not allowed", { status: 403 });
+  if (!book) return new Response("Book not found", { status: 404, headers: corsHeaders });
+  if (!book.download_allowed) return new Response("Download not allowed", { status: 403, headers: corsHeaders });
 
   // 2. Check Access Level (Simplified)
   const userId = request.headers.get("X-User-ID");
   if (!checkAccess(userId, book.access_level)) {
-    return new Response("Access denied", { status: 403 });
+    return new Response("Access denied", { status: 403, headers: corsHeaders });
   }
 
   // 3. Serve from R2
   const object = await env.GWA_BOOKS_BUCKET.get(book.file_key);
-  if (!object) return new Response("File not found in storage", { status: 404 });
+  if (!object) return new Response("File not found in storage", { status: 404, headers: corsHeaders });
 
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("etag", object.httpEtag);
   headers.set("Content-Disposition", `attachment; filename="${book.title}.${book.file_type.split('/')[1] || 'bin'}"`);
+  
+  // Add CORS headers
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    headers.set(key, value);
+  }
 
   return new Response(object.body, { headers });
 }
 
-async function handleStream(id, request, env) {
+async function handleStream(id, request, env, corsHeaders) {
   const book = await env.GWA_BOOKS_DB.prepare("SELECT * FROM books WHERE id = ?").bind(id).first();
   
-  if (!book) return new Response("Book not found", { status: 404 });
-  if (!book.stream_read_allowed) return new Response("Streaming not allowed", { status: 403 });
+  if (!book) return new Response("Book not found", { status: 404, headers: corsHeaders });
+  if (!book.stream_read_allowed) return new Response("Streaming not allowed", { status: 403, headers: corsHeaders });
 
   const userId = request.headers.get("X-User-ID");
   if (!checkAccess(userId, book.access_level)) {
-    return new Response("Access denied", { status: 403 });
+    return new Response("Access denied", { status: 403, headers: corsHeaders });
   }
 
   const object = await env.GWA_BOOKS_BUCKET.get(book.file_key, {
     range: request.headers.get("range"),
   });
 
-  if (!object) return new Response("File not found in storage", { status: 404 });
+  if (!object) return new Response("File not found in storage", { status: 404, headers: corsHeaders });
 
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("etag", object.httpEtag);
+  
+  // Add CORS headers
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    headers.set(key, value);
+  }
   
   // R2 get() handles range requests automatically if we pass the range header,
   // but we need to return the correct status and Content-Range.
@@ -167,11 +184,11 @@ async function handleStream(id, request, env) {
   });
 }
 
-async function handleProgress(request, env) {
+async function handleProgress(request, env, corsHeaders) {
   const { user_id, book_id, current_page, progress_percent, completed } = await request.json();
 
   if (!user_id || !book_id) {
-    return new Response("Missing user_id or book_id", { status: 400 });
+    return new Response("Missing user_id or book_id", { status: 400, headers: corsHeaders });
   }
 
   const completed_at = completed ? new Date().toISOString() : null;
@@ -195,14 +212,21 @@ async function handleProgress(request, env) {
   }
 
   return new Response(JSON.stringify({ success: true }), {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 }
 
-async function handleGetBook(id, env) {
+async function handleGetBook(id, env, corsHeaders) {
     const book = await env.GWA_BOOKS_DB.prepare("SELECT * FROM books WHERE id = ?").bind(id).first();
-    if (!book) return new Response("Book not found", { status: 404 });
-    return new Response(JSON.stringify(book), { headers: { "Content-Type": "application/json" } });
+    if (!book) return new Response("Book not found", { status: 404, headers: corsHeaders });
+    return new Response(JSON.stringify(book), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+}
+
+async function handleListBooks(env, corsHeaders) {
+    const { results } = await env.GWA_BOOKS_DB.prepare("SELECT * FROM books ORDER BY created_at DESC").all();
+    return new Response(JSON.stringify({ books: results }), {
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
 }
 
 // Helper: Access Control Logic (Placeholder)
@@ -214,4 +238,62 @@ function checkAccess(userId, accessLevel) {
   if (accessLevel === 'free') return true;
   // if (accessLevel === 'premium') return checkPremium(userId);
   return true; // Default to allow for testing
+}
+
+async function handleSyncBooks(env, corsHeaders) {
+  try {
+    const objects = await env.GWA_BOOKS_BUCKET.list();
+    let syncedCount = 0;
+
+    for (const object of objects.objects) {
+      const key = object.key;
+      // Skip if it's a cover image (heuristic: contains 'covers' or is image extension)
+      if (key.includes('covers/') || key.match(/\.(jpg|jpeg|png|webp)$/i)) continue;
+      
+      // Check extensions (pdf, epub, mobi, etc)
+      if (!key.match(/\.(pdf|epub|mobi)$/i)) continue;
+
+      // Check if exists
+      const existing = await env.GWA_BOOKS_DB.prepare("SELECT id FROM books WHERE file_key = ?").bind(key).first();
+      if (existing) continue;
+
+      // Create new book record
+      const bookId = crypto.randomUUID();
+      // Simple title extraction
+      const title = key.split('/').pop().replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      
+      // Try to find a matching cover? For now, leave empty or use a placeholder if needed.
+      // The schema expects cover_image_url to be nullable? 
+      // Checking schema: id, title, ..., cover_image_url
+      // In handleUpload: INSERT INTO books ... cover_image_url ...
+      // If the column allows null, great. If not, we might need a dummy value.
+      // Based on previous reads, I didn't see the schema definition but the insert includes it.
+      // Let's assume it's nullable or we provide an empty string.
+      
+      await env.GWA_BOOKS_DB.prepare(`
+        INSERT INTO books (
+          id, title, author, category, description, cover_image_url, 
+          file_key, file_type, file_size, page_count, language, 
+          estimated_read_time_minutes, access_level, download_allowed, 
+          stream_read_allowed, checksum, status, created_at, updated_at
+        ) VALUES (
+          ?, ?, 'Unknown Author', 'Uncategorized', 'Synced from storage', '', 
+          ?, 'application/octet-stream', ?, 0, 'en', 
+          0, 'free', 1, 
+          1, '', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+      `).bind(bookId, title, key, object.size).run();
+      
+      syncedCount++;
+    }
+    
+    return new Response(JSON.stringify({ message: "Sync complete", synced: syncedCount }), {
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
 }

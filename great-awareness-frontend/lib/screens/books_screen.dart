@@ -2,58 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:ui'; // For BackdropFilter
+import '../models/book.dart';
+import '../services/books_service.dart';
 import 'book_reader_screen.dart';
 import 'books_sales_screen.dart';
 import 'book_upload_screen.dart';
-
-
-class Book {
-  final String id;
-  final String title;
-  final String imagePath;
-  final String description;
-  final String? epubUrl; // Cloudflare R2 URL for EPUB
-  bool isFavorite;
-  double readingProgress;
-  bool isDownloaded;
-
-  Book({
-    required this.id,
-    required this.title,
-    required this.imagePath,
-    required this.description,
-    this.epubUrl,
-    this.isFavorite = false,
-    this.readingProgress = 0.0,
-    this.isDownloaded = false,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'imagePath': imagePath,
-      'description': description,
-      'epubUrl': epubUrl,
-      'isFavorite': isFavorite,
-      'readingProgress': readingProgress,
-      'isDownloaded': isDownloaded,
-    };
-  }
-
-  factory Book.fromJson(Map<String, dynamic> json) {
-    return Book(
-      id: json['id'],
-      title: json['title'],
-      imagePath: json['imagePath'],
-      description: json['description'],
-      epubUrl: json['epubUrl'],
-      isFavorite: json['isFavorite'] ?? false,
-      readingProgress: json['readingProgress']?.toDouble() ?? 0.0,
-      isDownloaded: json['isDownloaded'] ?? false,
-    );
-  }
-}
 
 class BooksScreen extends StatefulWidget {
   const BooksScreen({super.key});
@@ -62,365 +16,421 @@ class BooksScreen extends StatefulWidget {
   State<BooksScreen> createState() => _BooksScreenState();
 }
 
-class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStateMixin {
-  List<Book> books = [];
+class _BooksScreenState extends State<BooksScreen> {
+  List<Book> allBooks = [];
+  List<Book> filteredBooks = [];
   bool isLoading = true;
-  late TabController _tabController;
+  String searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadBooks();
   }
 
   Future<void> _loadBooks() async {
-    // Initialize books from assets
-    final initialBooks = [
-      Book(
-        id: '2',
-        title: 'Master Your Finances',
-        imagePath: 'assets/images/Master your finances, how the primal brain hijacks your financial decisions.png',
-        description: 'Learn how your brain influences financial decisions and how to take control.',
-      ),
-      Book(
-        id: '3',
-        title: 'Resonance: Understanding Your Potential',
-        imagePath: 'assets/images/Resonance, understanding the magnetic pull towards your unrealised potential.png',
-        description: 'Discover the magnetic pull towards your unrealized potential.',
-      ),
-      Book(
-        id: '4',
-        title: 'The Woman: Power of the Feminine',
-        imagePath: 'assets/images/The Woman, power of the feminine.png',
-        description: 'Exploring the power and essence of feminine energy.',
-      ),
-      Book(
-        id: '5',
-        title: 'The Power Within: Emotions Secret',
-        imagePath: 'assets/images/The power within, the secret behind emotions that you didnt know.png',
-        description: 'Uncover the secret behind emotions that you didn\'t know.',
-      ),
-      Book(
-        id: '6',
-        title: 'The Secret Behind Romantic Love',
-        imagePath: 'assets/images/The secret behind romantic love, understanding the hidden force that influences relationships.png',
-        description: 'Understanding the hidden force that influences relationships.',
-      ),
-      Book(
-        id: '7',
-        title: 'Unlocking the Primal Brain',
-        imagePath: 'assets/images/Unlocking the primal brainThe hidden force shaping your thoughts and emotions.png',
-        description: 'Discover the hidden force shaping your thoughts and emotions.',
-        epubUrl: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/Unlocking%20the%20primal%20brain%20The%20hidden%20force%20shaping%20your%20thoughts%20and%20emotions.epub',
-      ),
-      Book(
-        id: '8',
-        title: 'Confidence: Rewiring the Primal Brain',
-        imagePath: 'assets/images/confidence , rewiring the primal brain to lead with power,not fear.png',
-        description: 'Rewire your primal brain to lead with power, not fear.',
-      ),
-      Book(
-        id: '9',
-        title: 'No More Confusion: Finding Your Calling',
-        imagePath: 'assets/images/no more confusion, the real reason why you avent found your calling yet.png',
-        description: 'The real reason why you haven\'t found your calling yet.',
-        epubUrl: 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev/no%20more%20confusion%2C%20the%20real%20reason%20why%20you%20avent%20found%20your%20calling%20yet.epub',
-      ),
-    ];
+    setState(() {
+      isLoading = true;
+    });
 
-    // Load saved data from SharedPreferences
+    try {
+      // Fetch books from service
+      final books = await BooksService.fetchBooks();
+
+      // Load saved progress/favorites from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final savedDataStr = prefs.getString('books_user_data');
+      if (savedDataStr != null) {
+        final savedData = json.decode(savedDataStr) as Map<String, dynamic>;
+        for (var book in books) {
+          if (savedData.containsKey(book.id)) {
+            final bookData = savedData[book.id];
+            book.isFavorite = bookData['isFavorite'] ?? false;
+            book.readingProgress = bookData['readingProgress']?.toDouble() ?? 0.0;
+            book.isDownloaded = bookData['isDownloaded'] ?? false;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          allBooks = books;
+          filteredBooks = books;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading books: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          // You might want to show an error message or empty state here
+          allBooks = [];
+          filteredBooks = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load books: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveBookUserData(Book book) async {
     final prefs = await SharedPreferences.getInstance();
-    final savedBooksData = prefs.getString('books_data');
-    
-    // Clear old data to force fresh load with new R2 URLs
-    await prefs.remove('books_data');
-    print('Cleared old books data - loading fresh books with R2 URLs');
-    
-    // Debug: Show which books have EPUB URLs
-    for (var book in initialBooks) {
-      print('Book ${book.id}: ${book.title} - EPUB URL: ${book.epubUrl ?? "NOT AVAILABLE"}');
+    final savedDataStr = prefs.getString('books_user_data');
+    Map<String, dynamic> savedData = {};
+    if (savedDataStr != null) {
+      savedData = json.decode(savedDataStr) as Map<String, dynamic>;
     }
 
-    setState(() {
-      books = initialBooks;
-      isLoading = false;
-    });
+    savedData[book.id] = {
+      'isFavorite': book.isFavorite,
+      'readingProgress': book.readingProgress,
+      'isDownloaded': book.isDownloaded,
+    };
+
+    await prefs.setString('books_user_data', json.encode(savedData));
   }
 
-  Future<void> _saveBooks() async {
-    final prefs = await SharedPreferences.getInstance();
-    final booksJson = books.map((book) => book.toJson()).toList();
-    await prefs.setString('books_data', json.encode(booksJson));
-  }
-
-  void _toggleFavorite(Book book) {
+  void _onSearchChanged(String query) {
     setState(() {
-      book.isFavorite = !book.isFavorite;
+      searchQuery = query;
+      if (query.isEmpty) {
+        filteredBooks = allBooks;
+      } else {
+        filteredBooks = allBooks.where((book) {
+          return book.title.toLowerCase().contains(query.toLowerCase()) ||
+                 book.author.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+      }
     });
-    _saveBooks();
-  }
-
-  void _updateReadingProgress(Book book, double progress) {
-    setState(() {
-      book.readingProgress = progress.clamp(0.0, 100.0);
-    });
-    _saveBooks();
-  }
-
-  Future<void> _downloadBook(Book book) async {
-    // Simulate download process
-    setState(() {
-      book.isDownloaded = true;
-    });
-    _saveBooks();
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${book.title} downloaded successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFD3E4DE),
+      backgroundColor: const Color(0xFFF5F9F8), // Light, clean background
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text(
-          'Books',
+          'Library',
           style: GoogleFonts.judson(
             textStyle: const TextStyle(
               color: Colors.black,
-              fontSize: 24,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Main Books'),
-            Tab(text: 'On Sale'),
-          ],
-          labelStyle: GoogleFonts.judson(
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          unselectedLabelStyle: GoogleFonts.judson(
-            textStyle: const TextStyle(
-              fontSize: 14,
-            ),
-          ),
-          labelColor: Colors.black,
-          unselectedLabelColor: Colors.grey[600],
-          indicatorColor: Colors.black,
-        ),
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_box, color: Colors.black),
+            icon: const Icon(Icons.sync, color: Colors.black),
+            onPressed: () async {
+              setState(() => isLoading = true);
+              await BooksService.syncBooks();
+              await _loadBooks();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.shopping_bag_outlined, color: Colors.black),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const BookUploadScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const BooksSalesScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_box_outlined, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BookUploadScreen()),
               );
             },
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Main Books Tab
-          isLoading
-              ? const Center(child: CircularProgressIndicator(color: Colors.black))
-              : books.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No books available',
-                        style: GoogleFonts.judson(
-                          textStyle: const TextStyle(color: Colors.black, fontSize: 18),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.black))
+          : RefreshIndicator(
+              onRefresh: _loadBooks,
+              color: Colors.black,
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  // Search Bar
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: _onSearchChanged,
+                          decoration: InputDecoration(
+                            hintText: 'Search for books, authors...',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                          ),
                         ),
                       ),
-                    )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3, // 3 books per row
-                        childAspectRatio: 0.7, // Adjusted for vertical layout
-                        crossAxisSpacing: 16, // Space between books horizontally
-                        mainAxisSpacing: 16, // Space between books vertically
-                      ),
-                      itemCount: books.length,
-                      itemBuilder: (context, index) {
-                        final book = books[index];
-                        return _buildBookCard(book);
-                      },
-                    ),
-          // On Sale Tab
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Special Book Offers',
-                  style: GoogleFonts.judson(
-                    textStyle: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Get these exclusive books at special prices',
-                  style: GoogleFonts.judson(
-                    textStyle: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
+
+                  // Content
+                  if (searchQuery.isNotEmpty)
+                    _buildSearchResults()
+                  else ...[
+                    // Latest Books Section
+                    SliverToBoxAdapter(
+                      child: _buildLatestSection(),
                     ),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const BooksSalesScreen(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'View Books on Sale',
-                    style: GoogleFonts.judson(
-                      textStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+
+                    // Categories Sections
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final categories = BooksService.getCategories();
+                          // Skip 'Latest' as it's handled separately
+                          final category = categories[index + 1]; 
+                          return _buildCategorySection(category);
+                        },
+                        childCount: BooksService.getCategories().length - 1,
                       ),
                     ),
-                  ),
-                ),
-              ],
+                    
+                    const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                  ],
+                ],
+              ),
             ),
-          ),
-        ],
+    );
+  }
+
+  Widget _buildSearchResults() {
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.65,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            return _buildBookCard(filteredBooks[index]);
+          },
+          childCount: filteredBooks.length,
+        ),
       ),
     );
   }
 
-  Widget _buildBookCard(Book book) {
-    return Hero(
-      tag: 'book_${book.id}',
-      child: GestureDetector(
-        onTap: () {
-          // Navigate to book reader if EPUB URL is available
-          if (book.epubUrl != null) {
-            print('Opening book: ${book.title} with URL: ${book.epubUrl}');
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => BookReaderScreen(
-                  bookId: book.id,
-                  bookTitle: book.title,
-                  bookPath: book.imagePath,
-                  isAsset: false,
-                  cloudUrl: book.epubUrl!,
+  Widget _buildLatestSection() {
+    // Sort books by date (newest first)
+    final latestBooks = List<Book>.from(allBooks)
+      ..sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+    
+    // Take top 5
+    final displayBooks = latestBooks.take(5).toList();
+
+    if (displayBooks.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Latest Arrivals',
+                style: GoogleFonts.judson(
+                  textStyle: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
                 ),
               ),
-            ).then((_) {
-              print('Book reader closed for: ${book.title}');
-            }).catchError((error) {
-              print('Error opening book reader: $error');
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error opening book: $error')),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 280,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: displayBooks.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: SizedBox(
+                  width: 160,
+                  child: _buildBookCard(displayBooks[index]),
+                ),
               );
-            });
-          } else {
-            // Show message if no EPUB available
-            print('No EPUB URL for book: ${book.title}');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('EPUB version not available for this book')),
-            );
-          }
-        },
-        child: Stack(
-          children: [
-            // Full cover image
-            Positioned.fill(
-              child: Image.asset(
-                book.imagePath,
-                fit: BoxFit.contain, // Show full cover without cropping
-                alignment: Alignment.center,
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategorySection(String category) {
+    final categoryBooks = allBooks.where((book) => book.category == category).toList();
+
+    if (categoryBooks.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+          child: Text(
+            category,
+            style: GoogleFonts.judson(
+              textStyle: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
-            // Reading progress indicator
-            if (book.readingProgress > 0)
-              Positioned(
-                bottom: 12,
-                left: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Expanded(
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 500),
-                          curve: Curves.easeInOutCubic,
-                          child: LinearProgressIndicator(
-                            value: book.readingProgress / 100,
-                            backgroundColor: Colors.grey[400],
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                            minHeight: 6,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 300),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        child: Text('${book.readingProgress.toInt()}%'),
-                      ),
-                    ],
+          ),
+        ),
+        SizedBox(
+          height: 260,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: categoryBooks.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: SizedBox(
+                  width: 140,
+                  child: _buildBookCard(categoryBooks[index], isSmall: true),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBookCard(Book book, {bool isSmall = false}) {
+    return GestureDetector(
+      onTap: () => _showBookDetails(book),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Hero(
+              tag: 'book_cover_${book.id}',
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  image: DecorationImage(
+                    image: book.coverImageUrl.startsWith('assets') 
+                        ? AssetImage(book.coverImageUrl) as ImageProvider
+                        : NetworkImage(book.coverImageUrl),
+                    fit: BoxFit.cover,
                   ),
                 ),
+                child: book.readingProgress > 0 
+                    ? Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(12),
+                            bottomRight: Radius.circular(12),
+                          ),
+                          child: LinearProgressIndicator(
+                            value: book.readingProgress / 100,
+                            backgroundColor: Colors.white24,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.orangeAccent),
+                            minHeight: 4,
+                          ),
+                        ),
+                      )
+                    : null,
               ),
-          ],
-        ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            book.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.judson(
+              textStyle: TextStyle(
+                fontSize: isSmall ? 14 : 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+                height: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            book.author,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.download_rounded, size: 14, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(
+                '${book.downloadCount}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -430,153 +440,192 @@ class _BooksScreenState extends State<BooksScreen> with SingleTickerProviderStat
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Book Details',
-      transitionDuration: const Duration(milliseconds: 400),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) => const SizedBox(),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return ScaleTransition(
-          scale: Tween<double>(begin: 0.8, end: 1.0).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
+        return Stack(
+          children: [
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: Container(color: Colors.black.withOpacity(0.5)),
             ),
-          ),
-          child: FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+            Center(
+              child: ScaleTransition(
+                scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+                child: Dialog(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  elevation: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 100,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                  image: DecorationImage(
+                                    image: book.coverImageUrl.startsWith('assets') 
+                                        ? AssetImage(book.coverImageUrl) as ImageProvider
+                                        : NetworkImage(book.coverImageUrl),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      book.title,
+                                      style: GoogleFonts.judson(
+                                        textStyle: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'by ${book.author}',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.download_rounded, size: 14, color: Colors.blueGrey),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${book.downloadCount} downloads',
+                                            style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Description',
+                            style: GoogleFonts.judson(
+                              textStyle: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            book.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[800],
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    if (book.epubUrl != null) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => BookReaderScreen(
+                                            bookId: book.id,
+                                            bookTitle: book.title,
+                                            bookPath: book.coverImageUrl,
+                                            isAsset: book.coverImageUrl.startsWith('assets'),
+                                            cloudUrl: book.epubUrl!,
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Preview not available')),
+                                      );
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text('Read Now'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    // Handle download
+                                    setState(() {
+                                      book.isDownloaded = true;
+                                    });
+                                    _saveBookUserData(book);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Downloading ${book.title}...')),
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.black,
+                                    side: const BorderSide(color: Colors.black),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text('Download'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
-      pageBuilder: (context, animation, secondaryAnimation) => Dialog(
-        backgroundColor: Colors.grey[900],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Colors.white24, width: 1),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              Text(
-                book.title,
-                style: GoogleFonts.judson(
-                  textStyle: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: AssetImage(book.imagePath),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                book.description,
-                style: GoogleFonts.judson(
-                  textStyle: TextStyle(
-                    color: Colors.grey[300],
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (book.readingProgress > 0) ...[
-                Text(
-                  'Reading Progress: ${book.readingProgress.toInt()}%',
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  child: Slider(
-                    value: book.readingProgress,
-                    min: 0,
-                    max: 100,
-                    divisions: 100,
-                    activeColor: Colors.blue,
-                    inactiveColor: Colors.grey[700],
-                    onChanged: (value) {
-                      setState(() {
-                        book.readingProgress = value;
-                      });
-                      _saveBooks();
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _toggleFavorite(book),
-                      icon: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: Icon(
-                          book.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          key: ValueKey<bool>(book.isFavorite),
-                        ),
-                      ),
-                      label: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: Text(
-                          book.isFavorite ? 'Remove Favorite' : 'Add to Favorites',
-                          key: ValueKey<bool>(book.isFavorite),
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: book.isFavorite ? Colors.red : Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                  if (!book.isDownloaded)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _downloadBook(book);
-                        },
-                        icon: const Icon(Icons.download),
-                        label: const Text('Download'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close', style: TextStyle(color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      ),
     );
   }
 }
