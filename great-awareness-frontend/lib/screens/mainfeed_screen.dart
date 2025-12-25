@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'post_detail_screen.dart';
 import 'admin_posting_screen.dart';
 import 'notification_screen.dart';
@@ -194,9 +195,10 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
 
   Future<void> _addComment(int postId, String text) async {
     final authService = Provider.of<AuthService>(context, listen: false);
-    final token = authService.currentUser?.token;
+    final user = authService.currentUser;
+    final token = user?.token;
     
-    if (token == null) {
+    if (token == null || user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please login to add comments'), backgroundColor: Colors.red),
       );
@@ -261,7 +263,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     
     try {
       debugPrint('Attempting to create comment for post $postId with text: $text');
-      final newComment = await _apiService.createComment(token, postId, text);
+      final newComment = await _apiService.createComment(token, postId, int.parse(user!.id), text);
       debugPrint('API Response for createComment: $newComment');
       
       if (newComment != null && mounted) {
@@ -675,9 +677,10 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
   void _toggleLike(int index) async {
     final post = _filteredPosts[index];
     final authService = Provider.of<AuthService>(context, listen: false);
-    final token = authService.currentUser?.token;
+    final user = authService.currentUser;
+    final token = user?.token;
     
-    if (token == null) {
+    if (token == null || user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please login to like posts'),
@@ -720,31 +723,45 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     });
 
     try {
-      Content? updatedPost;
+      // Use the toggle endpoint which returns Map<String, dynamic>
+      final result = await _apiService.likeContent(token, post.id, int.parse(user!.id));
       
-      if (post.isLikedByUser) {
-        // Unlike the post
-        updatedPost = await _apiService.unlikeContent(token, post.id);
-      } else {
-        // Like the post
-        updatedPost = await _apiService.likeContent(token, post.id);
-      }
-      
-      if (updatedPost != null && mounted) {
+      if (result != null && mounted) {
         // Update with server response for accuracy
         setState(() {
+          final updatedPost = Content(
+            id: post.id,
+            title: post.title,
+            body: post.body,
+            topic: post.topic,
+            postType: post.postType,
+            imagePath: post.imagePath,
+            isTextOnly: post.isTextOnly,
+            authorName: post.authorName,
+            authorAvatar: post.authorAvatar,
+            likesCount: result['likes_count'],
+            commentsCount: post.commentsCount,
+            isLikedByUser: result['is_liked'],
+            status: post.status,
+            isFeatured: post.isFeatured,
+            createdAt: post.createdAt,
+            updatedAt: post.updatedAt,
+            publishedAt: post.publishedAt,
+            createdBy: post.createdBy,
+          );
+
           final postIndexInPosts = _posts.indexWhere((p) => p.id == post.id);
           if (postIndexInPosts != -1) {
-            _posts[postIndexInPosts] = updatedPost!;
+            _posts[postIndexInPosts] = updatedPost;
           }
-          _filteredPosts[index] = updatedPost!;
+          _filteredPosts[index] = updatedPost;
         });
         
         // Show brief success feedback
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(post.isLikedByUser ? 'Post unliked' : 'Post liked'),
-            backgroundColor: post.isLikedByUser ? Colors.grey : Colors.green,
+            content: Text(result['is_liked'] ? 'Post liked' : 'Post unliked'),
+            backgroundColor: result['is_liked'] ? Colors.green : Colors.grey,
             duration: const Duration(milliseconds: 500),
           ),
         );
@@ -1027,7 +1044,17 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
               tooltip: 'Create New Post',
             ),
           IconButton(
-            icon: Icon(_showSearch ? Icons.close : Icons.search),
+            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationScreen()),
+              );
+            },
+            tooltip: 'Notifications',
+          ),
+          IconButton(
+            icon: Icon(_showSearch ? Icons.close : Icons.search, color: Colors.black),
             onPressed: () {
               setState(() {
                 _showSearch = !_showSearch;

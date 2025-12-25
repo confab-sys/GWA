@@ -696,10 +696,14 @@ class ApiService {
     }
   }
 
-  Future<Content?> getContent(String token, int contentId) async {
+  Future<Content?> getContent(String token, int contentId, {int? userId}) async {
     // Switch to Cloudflare Worker
     // final uri = Uri.parse('$apiBaseUrl/api/content/$contentId');
-    final uri = Uri.parse('$cloudflareWorkerUrl/api/contents/$contentId');
+    String url = '$cloudflareWorkerUrl/api/contents/$contentId';
+    if (userId != null) {
+      url += '?user_id=$userId';
+    }
+    final uri = Uri.parse(url);
     debugPrint('Fetching content $contentId from Cloudflare API');
     
     try {
@@ -793,109 +797,11 @@ class ApiService {
     }
   }
 
-  Future<Content?> likeContent(String token, int contentId) async {
-    debugPrint('=== LIKING CONTENT ===');
-    debugPrint('Content ID: $contentId');
+  Future<Map<String, dynamic>?> likeContent(String token, int contentId, int userId) async {
+    debugPrint('=== LIKING CONTENT (TOGGLE) ===');
+    debugPrint('Content ID: $contentId, User ID: $userId');
     
-    // Find working backend URL first
-    final workingUrl = await getWorkingBackendUrl();
-    debugPrint('Using working backend URL: $workingUrl');
-    
-    final originalUri = Uri.parse('$workingUrl/api/content/$contentId/like');
-    final corsSafeUrl = getCorsSafeUrl(originalUri.toString());
-    debugPrint('Like content URI: $corsSafeUrl');
-    
-    try {
-      final res = await _postWithRetry(
-        corsSafeUrl,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
-      
-      debugPrint('likeContent response status: ${res.statusCode}');
-      
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        debugPrint('Content liked successfully!');
-        return Content.fromJson(data as Map<String, dynamic>);
-      } else {
-        debugPrint('Like content failed with status ${res.statusCode}');
-        debugPrint('Error response: ${res.body}');
-        return null;
-      }
-    } catch (e) {
-      debugPrint('Exception in likeContent: $e');
-      
-      // Check if this is a CORS error
-      if (e.toString().contains('CORS') || e.toString().contains('Access-Control-Allow-Origin')) {
-        debugPrint('CORS error detected. This is a server-side configuration issue.');
-        debugPrint('The backend server needs to be configured to allow requests from your origin.');
-        debugPrint('For development, you can:');
-        debugPrint('1. Use a CORS proxy extension in your browser');
-        debugPrint('2. Configure the backend to allow CORS from http://localhost:8081');
-        debugPrint('3. Use a local development server that handles CORS properly');
-      }
-      
-      return null;
-    }
-  }
-
-  Future<Content?> unlikeContent(String token, int contentId) async {
-    debugPrint('=== UNLIKING CONTENT ===');
-    debugPrint('Content ID: $contentId');
-    
-    // Find working backend URL first
-    final workingUrl = await getWorkingBackendUrl();
-    debugPrint('Using working backend URL: $workingUrl');
-    
-    final originalUri = Uri.parse('$workingUrl/api/content/$contentId/unlike');
-    final corsSafeUrl = getCorsSafeUrl(originalUri.toString());
-    debugPrint('Unlike content URI: $corsSafeUrl');
-    
-    try {
-      final res = await _postWithRetry(
-        corsSafeUrl,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
-      
-      debugPrint('unlikeContent response status: ${res.statusCode}');
-      
-      if (res.statusCode == 200) {
-        final data = json.decode(res.body);
-        debugPrint('Content unliked successfully!');
-        return Content.fromJson(data as Map<String, dynamic>);
-      } else {
-        debugPrint('Unlike content failed with status ${res.statusCode}');
-        debugPrint('Error response: ${res.body}');
-        return null;
-      }
-    } catch (e) {
-      debugPrint('Exception in unlikeContent: $e');
-      
-      // Check if this is a CORS error
-      if (e.toString().contains('CORS') || e.toString().contains('Access-Control-Allow-Origin')) {
-        debugPrint('CORS error detected. This is a server-side configuration issue.');
-        debugPrint('The backend server needs to be configured to allow requests from your origin.');
-        debugPrint('For development, you can:');
-        debugPrint('1. Use a CORS proxy extension in your browser');
-        debugPrint('2. Configure the backend to allow CORS from http://localhost:8081');
-        debugPrint('3. Use a local development server that handles CORS properly');
-      }
-      
-      return null;
-    }
-  }
-
-  Future<Map<String, dynamic>?> createComment(String token, int contentId, String text) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/comments');
-    debugPrint('Creating comment for content $contentId with text: $text');
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/contents/$contentId/like');
     
     try {
       final res = await _client.post(
@@ -904,13 +810,46 @@ class ApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({'text': text, 'content_id': contentId}),
+        body: json.encode({'user_id': userId}),
+      );
+      
+      debugPrint('likeContent response status: ${res.statusCode}');
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return data as Map<String, dynamic>;
+      } else {
+        debugPrint('Like content failed. Status: ${res.statusCode}, Body: ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Exception in likeContent: $e');
+      return null;
+    }
+  }
+
+  // Deprecated: Use likeContent for toggle
+  Future<Content?> unlikeContent(String token, int contentId) async {
+    return null; 
+  }
+
+  Future<Map<String, dynamic>?> createComment(String token, int contentId, int userId, String text) async {
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/contents/$contentId/comments');
+    debugPrint('Creating comment for content $contentId');
+    
+    try {
+      final res = await _client.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'text': text, 'user_id': userId}),
       );
       
       debugPrint('Create comment response status: ${res.statusCode}');
-      debugPrint('Create comment response body: ${res.body}');
       
-      if (res.statusCode == 201) {
+      if (res.statusCode == 200) {
         final data = json.decode(res.body);
         return data as Map<String, dynamic>;
       } else {
@@ -970,8 +909,8 @@ class ApiService {
         'time': question['created_at'], // API uses 'created_at', app expects 'time'
         'likes': question['likes_count'] ?? 0, // API uses 'likes_count', app expects 'likes'
         'comments': question['comments_count'] ?? 0, // API uses 'comments_count', app expects 'comments'
-        'isLiked': false, // Default value, could be enhanced with user-specific data
-        'isSaved': false, // Default value, could be enhanced with user-specific data
+        'isLiked': question['is_liked'] ?? false, // Map is_liked from API
+        'isSaved': question['is_saved'] ?? false, // Map is_saved from API
         'hasImage': question['has_image'] ?? false, // API uses 'has_image', app expects 'hasImage'
       }));
     }

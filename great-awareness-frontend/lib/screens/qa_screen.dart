@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 
@@ -22,6 +23,7 @@ class _QAScreenState extends State<QAScreen> {
   final List<String> _categoryList = ['All', 'Addiction', 'Trauma', 'Relationships', 'Anxiety', 'Depression'];
 
   void _showNewQuestionDialog() {
+    final screenContext = context; // Capture screen context
     final TextEditingController titleController = TextEditingController();
     final TextEditingController contentController = TextEditingController();
     final TextEditingController categoryController = TextEditingController();
@@ -31,7 +33,7 @@ class _QAScreenState extends State<QAScreen> {
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
@@ -207,7 +209,7 @@ class _QAScreenState extends State<QAScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: Text(
                     'Cancel',
                     style: GoogleFonts.judson(color: Colors.grey[600]),
@@ -217,13 +219,10 @@ class _QAScreenState extends State<QAScreen> {
                   onPressed: isSubmitting
                       ? null
                       : () async {
-                          // Store context at the beginning of async function
-                          final currentContext = context;
-                          
                           if (titleController.text.trim().isNotEmpty && contentController.text.trim().isNotEmpty) {
                             // Check minimum length for title
                             if (titleController.text.trim().length < 10) {
-                              ScaffoldMessenger.of(currentContext).showSnackBar(
+                              ScaffoldMessenger.of(screenContext).showSnackBar(
                                 const SnackBar(
                                   content: Text('Title must be at least 10 characters long'),
                                   backgroundColor: Colors.orange,
@@ -237,7 +236,7 @@ class _QAScreenState extends State<QAScreen> {
                             });
                             
                             try {
-                              final authService = Provider.of<AuthService>(context, listen: false);
+                              final authService = Provider.of<AuthService>(screenContext, listen: false);
                               final user = authService.currentUser;
                               final token = user?.token;
                               
@@ -261,37 +260,45 @@ class _QAScreenState extends State<QAScreen> {
                                 );
                                 
                                 // Close the dialog first
-                                Navigator.of(currentContext, rootNavigator: true).pop();
+                                if (dialogContext.mounted) {
+                                  Navigator.of(dialogContext, rootNavigator: true).pop();
+                                }
                                 
                                 // Then reload questions and show success message
                                 await _loadQuestions();
                                 
                                 if (mounted) {
-                                  ScaffoldMessenger.of(currentContext).showSnackBar(
+                                  ScaffoldMessenger.of(screenContext).showSnackBar(
                                     const SnackBar(content: Text('Question posted successfully!')),
                                   );
                                 }
                               } else {
-                                ScaffoldMessenger.of(currentContext).showSnackBar(
-                                  const SnackBar(content: Text('Please log in to post questions')),
-                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(screenContext).showSnackBar(
+                                    const SnackBar(content: Text('Please log in to post questions')),
+                                  );
+                                }
                               }
                             } catch (e) {
                               debugPrint('Error posting question: $e');
-                              ScaffoldMessenger.of(currentContext).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to post question: $e'),
-                                  backgroundColor: Colors.red,
-                                  duration: const Duration(seconds: 5),
-                                ),
-                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(screenContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to post question: $e'),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 5),
+                                  ),
+                                );
+                              }
                             } finally {
-                              setState(() {
-                                isSubmitting = false;
-                              });
+                              if (dialogContext.mounted) {
+                                setState(() {
+                                  isSubmitting = false;
+                                });
+                              }
                             }
                           } else {
-                            ScaffoldMessenger.of(currentContext).showSnackBar(
+                            ScaffoldMessenger.of(screenContext).showSnackBar(
                               const SnackBar(content: Text('Please enter both title and question content')),
                             );
                           }
@@ -651,22 +658,58 @@ class _QAScreenState extends State<QAScreen> {
       return;
     }
 
+    // Find the post and current state
+    final postIndex = _questions.indexWhere((p) => p['id'] == postId);
+    if (postIndex == -1) return;
+    
+    final post = _questions[postIndex];
+    final isLiked = post['isLiked'] == true;
+
+    // Optimistic update
+    setState(() {
+      post['isLiked'] = !isLiked;
+      post['likes'] = isLiked ? (post['likes'] - 1) : (post['likes'] + 1);
+    });
+
     try {
-      final result = await _apiService.likeQuestion(token, postId);
-      if (result != null) {
+      Map<String, dynamic>? result;
+      if (isLiked) {
+        result = await _apiService.unlikeQuestion(token, postId);
+      } else {
+        result = await _apiService.likeQuestion(token, postId);
+      }
+      
+      if (result != null && mounted) {
         setState(() {
-          final post = _questions.firstWhere((p) => p['id'] == postId);
-          post['isLiked'] = result['is_liked'] ?? !post['isLiked'];
-          post['likes'] = result['likes_count'] ?? post['likes'];
+          // Update with server values to ensure sync
+          post['isLiked'] = result?['is_liked'] ?? !isLiked;
+          post['likes'] = result?['likes_count'] ?? post['likes'];
         });
+      } else {
+        // Revert optimistic update on failure (null result)
+        _revertLikeUpdate(post, isLiked);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error liking question: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      // Revert optimistic update on error
+      _revertLikeUpdate(post, isLiked);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error liking question: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _revertLikeUpdate(Map<String, dynamic> post, bool originalLikeState) {
+    if (mounted) {
+      setState(() {
+        post['isLiked'] = originalLikeState;
+        post['likes'] = originalLikeState ? (post['likes'] + 1) : (post['likes'] - 1);
+      });
     }
   }
 
@@ -678,15 +721,13 @@ class _QAScreenState extends State<QAScreen> {
   }
 
   void _sharePost(Map<String, dynamic> post) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Sharing: ${post["question"]}'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    final shareLink = 'https://greatawareness.app/question/${post["id"]}';
+    final shareText = '${post["title"]}\n\n${post["question"]}\n\nRead more: $shareLink\n\nShared from Great Awareness - Psychology Community';
+    Share.share(shareText, subject: post["title"]);
   }
 
   void _showComments(Map<String, dynamic> post) async {
+    final screenContext = context; // Capture screen context
     final TextEditingController commentController = TextEditingController();
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = authService.currentUser?.token;
@@ -719,11 +760,11 @@ class _QAScreenState extends State<QAScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (BuildContext context) {
+      builder: (BuildContext modalContext) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (sheetContext, setState) {
             return Container(
-              height: MediaQuery.of(context).size.height * 0.8,
+              height: MediaQuery.of(modalContext).size.height * 0.8,
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
@@ -742,7 +783,7 @@ class _QAScreenState extends State<QAScreen> {
                       const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(modalContext),
                       ),
                     ],
                   ),
@@ -872,26 +913,30 @@ class _QAScreenState extends State<QAScreen> {
                                   }
                                 }
                               } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error posting comment: ${e.toString()}'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              } finally {
                                 if (mounted) {
+                                  ScaffoldMessenger.of(screenContext).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error posting comment: ${e.toString()}'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                if (sheetContext.mounted) {
                                   setState(() {
                                     isSubmitting = false;
                                   });
                                 }
                               }
                             } else if (token == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please login to comment'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(screenContext).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please login to comment'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
                             }
                           },
                         ),

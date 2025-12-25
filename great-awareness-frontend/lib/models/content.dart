@@ -68,7 +68,7 @@ class Content {
       authorAvatar: json['author_avatar'],
       likesCount: json['likes_count'] ?? 0,
       commentsCount: json['comments_count'] ?? 0,
-      isLikedByUser: toBool(json['is_liked_by_user'], false),
+      isLikedByUser: toBool(json['is_liked_by_user'] ?? json['is_liked'], false),
       status: json['status'] ?? 'published',
       isFeatured: toBool(json['is_featured'], false),
       createdAt: toDateTime(json['created_at']),

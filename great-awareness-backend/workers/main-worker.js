@@ -44,6 +44,22 @@ export default {
       }
 
       // --- Contents Endpoints ---
+      // Initialize DB (Helper)
+      if (url.pathname === "/api/db/init-likes" && method === "POST") {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS content_likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (content_id) REFERENCES contents(id),
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            UNIQUE(content_id, user_id)
+          )
+        `).run();
+        return new Response("Likes table created", { headers: corsHeaders });
+      }
+
       if (url.pathname === "/api/contents" && method === "GET") {
         const { results } = await env.DB.prepare("SELECT * FROM contents ORDER BY created_at DESC").all();
         return Response.json(results, { headers: corsHeaders });
@@ -53,9 +69,74 @@ export default {
       const contentIdMatch = url.pathname.match(/^\/api\/contents\/(\d+)$/);
       if (contentIdMatch && method === "GET") {
         const id = contentIdMatch[1];
-        const result = await env.DB.prepare("SELECT * FROM contents WHERE id = ?").bind(id).first();
+        const userId = url.searchParams.get("user_id");
+        
+        let query = "SELECT * FROM contents WHERE id = ?";
+        let params = [id];
+        
+        // If user_id is provided, check like status
+        if (userId) {
+           query = `
+             SELECT c.*, 
+               CASE WHEN cl.id IS NOT NULL THEN 1 ELSE 0 END as is_liked 
+             FROM contents c 
+             LEFT JOIN content_likes cl ON c.id = cl.content_id AND cl.user_id = ? 
+             WHERE c.id = ?
+           `;
+           params = [userId, id];
+        }
+
+        const result = await env.DB.prepare(query).bind(...params).first();
         if (!result) return new Response("Not Found", { status: 404, headers: corsHeaders });
+        
+        // Ensure is_liked is boolean
+        if (result.is_liked !== undefined) {
+          result.is_liked = result.is_liked === 1;
+        }
+        
         return Response.json(result, { headers: corsHeaders });
+      }
+
+      // Like/Unlike Content
+      const likeMatch = url.pathname.match(/^\/api\/contents\/(\d+)\/like$/);
+      if (likeMatch && method === "POST") {
+        const id = likeMatch[1];
+        const { user_id } = await request.json();
+        
+        if (!user_id) return new Response("Missing user_id", { status: 400, headers: corsHeaders });
+
+        // Check if liked
+        const existing = await env.DB.prepare(
+          "SELECT id FROM content_likes WHERE content_id = ? AND user_id = ?"
+        ).bind(id, user_id).first();
+
+        let is_liked = false;
+        if (existing) {
+          // Unlike
+          await env.DB.prepare(
+            "DELETE FROM content_likes WHERE id = ?"
+          ).bind(existing.id).run();
+          
+          await env.DB.prepare(
+            "UPDATE contents SET likes_count = MAX(0, likes_count - 1) WHERE id = ?"
+          ).bind(id).run();
+          is_liked = false;
+        } else {
+          // Like
+          await env.DB.prepare(
+            "INSERT INTO content_likes (content_id, user_id) VALUES (?, ?)"
+          ).bind(id, user_id).run();
+          
+          await env.DB.prepare(
+            "UPDATE contents SET likes_count = likes_count + 1 WHERE id = ?"
+          ).bind(id).run();
+          is_liked = true;
+        }
+        
+        // Get updated count
+        const { likes_count } = await env.DB.prepare("SELECT likes_count FROM contents WHERE id = ?").bind(id).first();
+        
+        return Response.json({ success: true, likes_count, is_liked }, { headers: corsHeaders });
       }
 
       // Get Content Comments
@@ -83,6 +164,48 @@ export default {
         }));
         
         return Response.json({ items: formatted }, { headers: corsHeaders });
+      }
+
+      // Add Comment
+      if (commentsMatch && method === "POST") {
+        const id = commentsMatch[1];
+        const { user_id, text } = await request.json();
+        
+        if (!user_id || !text) return new Response("Missing fields", { status: 400, headers: corsHeaders });
+
+        const { success } = await env.DB.prepare(
+          "INSERT INTO comments (content_id, user_id, text) VALUES (?, ?, ?)"
+        ).bind(id, user_id, text).run();
+
+        if (success) {
+           await env.DB.prepare(
+            "UPDATE contents SET comments_count = comments_count + 1 WHERE id = ?"
+          ).bind(id).run();
+          
+          // Return the new comment (enriched with user info)
+          const newComment = await env.DB.prepare(`
+            SELECT c.*, u.username, u.profile_image 
+            FROM comments c 
+            LEFT JOIN users u ON c.user_id = u.id 
+            WHERE c.content_id = ? AND c.user_id = ? 
+            ORDER BY c.created_at DESC LIMIT 1
+          `).bind(id, user_id).first();
+          
+           // Format
+          const formatted = {
+            id: newComment.id,
+            text: newComment.text,
+            user: {
+              username: newComment.username || 'Anonymous',
+              profile_image: newComment.profile_image
+            },
+            created_at: newComment.created_at,
+            is_anonymous: false
+          };
+          
+          return Response.json({ success: true, comment: formatted }, { headers: corsHeaders });
+        }
+        return new Response("Failed to add comment", { status: 500, headers: corsHeaders });
       }
 
       if (url.pathname === "/api/contents" && method === "POST") {
