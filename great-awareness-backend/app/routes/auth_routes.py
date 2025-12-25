@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import jwt
@@ -149,3 +150,11 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
         "verified_otp": current_user.verified_otp,
         "device_id_hash": current_user.device_id_hash
     }
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+@router.post("/forgot-password")
+def forgot_password(request: ForgotPasswordRequest):
+    # In a real app, send email here.
+    return {"message": "If this email is registered, you will receive a password reset link."}

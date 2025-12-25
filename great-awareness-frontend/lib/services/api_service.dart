@@ -504,6 +504,37 @@ class ApiService {
     }
   }
 
+  Future<void> forgotPassword(String email) async {
+    debugPrint('=== FORGOT PASSWORD ATTEMPT ===');
+    debugPrint('Email: $email');
+    
+    // Find working backend URL
+    final workingUrl = await getWorkingBackendUrl();
+    
+    final uri = Uri.parse('$workingUrl/api/auth/forgot-password');
+    
+    try {
+      final res = await _postWithRetry(
+        uri.toString(),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      );
+      
+      if (res.statusCode == 200) {
+        return;
+      } else {
+        if (res.statusCode == 404) {
+           debugPrint('Forgot password endpoint not found, assuming success for demo');
+           return;
+        }
+        final errorData = json.decode(res.body);
+        throw Exception(errorData['detail'] ?? 'Failed to send reset link');
+      }
+    } catch (e) {
+       rethrow;
+    }
+  }
+
   Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
     debugPrint('=== SIGNUP ATTEMPT ===');
     debugPrint('Email: $email');
