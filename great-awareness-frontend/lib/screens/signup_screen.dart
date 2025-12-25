@@ -537,11 +537,21 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 8),
+        Text(
+          'Password must not be less than 8 characters, first character should have uppercase',
+          style: GoogleFonts.judson(
+            textStyle: const TextStyle(
+              color: Colors.black54,
+              fontSize: 14,
+            ),
+          ),
+        ),
         const SizedBox(height: 24),
         TextFormField(
           controller: _passwordController,
           decoration: InputDecoration(
-            labelText: 'Password (min 8 characters)',
+            labelText: 'Password',
             labelStyle: GoogleFonts.judson(color: Colors.black54),
             prefixIcon: const Icon(Icons.lock, color: Colors.black),
             suffixIcon: IconButton(

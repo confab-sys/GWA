@@ -40,6 +40,22 @@ class Content {
   });
   
   factory Content.fromJson(Map<String, dynamic> json) {
+    bool toBool(dynamic val, bool def) {
+      if (val == null) return def;
+      if (val is bool) return val;
+      if (val is int) return val == 1;
+      if (val is String) return val == '1' || val.toLowerCase() == 'true';
+      return def;
+    }
+
+    DateTime toDateTime(dynamic val) {
+      if (val == null) return DateTime.now();
+      if (val is! String) return DateTime.now();
+      // Handle SQL timestamp "YYYY-MM-DD HH:MM:SS" by replacing space with T
+      String iso = val.replaceAll(' ', 'T');
+      return DateTime.tryParse(iso) ?? DateTime.now();
+    }
+
     return Content(
       id: json['id'] ?? 0,
       title: json['title'] ?? '',
@@ -47,22 +63,18 @@ class Content {
       topic: json['topic'] ?? '',
       postType: json['post_type'] ?? 'text',
       imagePath: json['image_path'],
-      isTextOnly: json['is_text_only'] ?? true,
+      isTextOnly: toBool(json['is_text_only'], true),
       authorName: json['author_name'] ?? 'Admin',
       authorAvatar: json['author_avatar'],
       likesCount: json['likes_count'] ?? 0,
       commentsCount: json['comments_count'] ?? 0,
-      isLikedByUser: json['is_liked_by_user'] ?? false,
+      isLikedByUser: toBool(json['is_liked_by_user'], false),
       status: json['status'] ?? 'published',
-      isFeatured: json['is_featured'] ?? false,
-      createdAt: json['created_at'] != null 
-          ? DateTime.tryParse(json['created_at']) ?? DateTime.now()
-          : DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.tryParse(json['updated_at']) ?? DateTime.now()
-          : DateTime.now(),
+      isFeatured: toBool(json['is_featured'], false),
+      createdAt: toDateTime(json['created_at']),
+      updatedAt: toDateTime(json['updated_at']),
       publishedAt: json['published_at'] != null 
-          ? DateTime.tryParse(json['published_at'])
+          ? toDateTime(json['published_at'])
           : null,
       createdBy: json['created_by'],
     );

@@ -1009,7 +1009,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                 style: GoogleFonts.judson(),
               )
             : Text(
-                'Psychology Feed',
+                'Main Feed',
                 style: GoogleFonts.judson(
                   textStyle: const TextStyle(
                     color: Colors.black,

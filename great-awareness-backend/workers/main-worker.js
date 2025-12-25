@@ -49,6 +49,42 @@ export default {
         return Response.json(results, { headers: corsHeaders });
       }
       
+      // Get Single Content
+      const contentIdMatch = url.pathname.match(/^\/api\/contents\/(\d+)$/);
+      if (contentIdMatch && method === "GET") {
+        const id = contentIdMatch[1];
+        const result = await env.DB.prepare("SELECT * FROM contents WHERE id = ?").bind(id).first();
+        if (!result) return new Response("Not Found", { status: 404, headers: corsHeaders });
+        return Response.json(result, { headers: corsHeaders });
+      }
+
+      // Get Content Comments
+      const commentsMatch = url.pathname.match(/^\/api\/contents\/(\d+)\/comments$/);
+      if (commentsMatch && method === "GET") {
+        const id = commentsMatch[1];
+        const { results } = await env.DB.prepare(`
+          SELECT c.*, u.username, u.profile_image 
+          FROM comments c 
+          LEFT JOIN users u ON c.user_id = u.id 
+          WHERE c.content_id = ? 
+          ORDER BY c.created_at DESC
+        `).bind(id).all();
+        
+        // Format to match frontend expectation (items array)
+        const formatted = results.map(r => ({
+          id: r.id,
+          text: r.text,
+          user: {
+            username: r.username || 'Anonymous',
+            profile_image: r.profile_image
+          },
+          created_at: r.created_at,
+          is_anonymous: false
+        }));
+        
+        return Response.json({ items: formatted }, { headers: corsHeaders });
+      }
+
       if (url.pathname === "/api/contents" && method === "POST") {
         const data = await request.json();
         // Basic insert example

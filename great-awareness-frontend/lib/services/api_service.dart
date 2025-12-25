@@ -605,15 +605,11 @@ class ApiService {
   }
 
   Future<List<Content>> fetchFeed(String token, {int skip = 0}) async {
-    debugPrint('=== FETCHING FEED ===');
-    debugPrint('Skip: $skip');
-    
-    // Find working backend URL first
-    final workingUrl = await getWorkingBackendUrl();
-    debugPrint('Using working backend URL: $workingUrl');
-    
-    final uri = Uri.parse('$workingUrl/api/content?skip=$skip');
-    debugPrint('Feed fetch URI: $uri');
+    debugPrint('=== FETCHING FEED (Cloudflare) ===');
+    // Switch to Cloudflare Worker for content
+    // final workingUrl = await getWorkingBackendUrl();
+    // final uri = Uri.parse('$workingUrl/api/content?skip=$skip');
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/contents?skip=$skip');
     
     try {
       final res = await _getWithRetry(
@@ -701,8 +697,10 @@ class ApiService {
   }
 
   Future<Content?> getContent(String token, int contentId) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId');
-    debugPrint('Fetching content $contentId from API');
+    // Switch to Cloudflare Worker
+    // final uri = Uri.parse('$apiBaseUrl/api/content/$contentId');
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/contents/$contentId');
+    debugPrint('Fetching content $contentId from Cloudflare API');
     
     try {
       final res = await _client.get(
@@ -925,7 +923,10 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>?> getComments(String token, int contentId, {int skip = 0}) async {
-    final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/comments?skip=$skip');
+    // Switch to Cloudflare Worker
+    // final uri = Uri.parse('$apiBaseUrl/api/content/$contentId/comments?skip=$skip');
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/contents/$contentId/comments?skip=$skip');
+    
     final res = await _client.get(
       uri,
       headers: {'Authorization': 'Bearer $token'},
