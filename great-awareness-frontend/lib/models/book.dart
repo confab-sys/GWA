@@ -40,12 +40,13 @@ class Book {
   });
 
   static const String _publicR2Url = 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev';
+  static const String _workerUrl = 'https://gwa-books-worker.aashardcustomz.workers.dev';
 
   factory Book.fromJson(Map<String, dynamic> json) {
     String coverUrl = json['cover_image_url'] ?? json['imagePath'] ?? '';
-    // If it's a key (starts with books/), prepend the public URL
+    // If it's a key (starts with books/), use the worker endpoint
     if (coverUrl.startsWith('books/')) {
-      coverUrl = '$_publicR2Url/$coverUrl';
+      coverUrl = '$_workerUrl/books/${json['id']}/cover';
     }
 
     return Book(

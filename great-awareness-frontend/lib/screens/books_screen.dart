@@ -6,6 +6,7 @@ import 'dart:ui'; // For BackdropFilter
 import '../models/book.dart';
 import '../services/books_service.dart';
 import 'book_reader_screen.dart';
+import 'pdf_reader_screen.dart';
 import 'books_sales_screen.dart';
 import 'book_upload_screen.dart';
 
@@ -560,7 +561,7 @@ class _BooksScreenState extends State<BooksScreen> {
                                 child: ElevatedButton(
                                   onPressed: () {
                                     Navigator.pop(context);
-                                    if (book.epubUrl != null) {
+                                    if (book.epubUrl != null && book.epubUrl!.isNotEmpty) {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -574,8 +575,14 @@ class _BooksScreenState extends State<BooksScreen> {
                                         ),
                                       );
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Preview not available')),
+                                      // Navigate to PDF Reader
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => PdfReaderScreen(
+                                            book: book,
+                                          ),
+                                        ),
                                       );
                                     }
                                   },

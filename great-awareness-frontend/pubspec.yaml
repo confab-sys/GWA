@@ -31,6 +31,7 @@ dependencies:
   share_plus: ^7.2.1
   xml: ^6.3.0
   font_awesome_flutter: ^10.7.0
+  pdfx: ^2.9.2
 
 dev_dependencies:
   flutter_test:

@@ -35,6 +35,9 @@ export default {
         return await handleListBooks(env, corsHeaders);
       } else if (method === "POST" && path === "/sync") {
         return await handleSyncBooks(env, corsHeaders);
+      } else if (method === "GET" && path.match(/^\/books\/.+\/cover$/)) {
+        const id = path.split("/")[2];
+        return await handleGetCover(id, request, env, corsHeaders);
       } else if (method === "GET" && path.match(/^\/books\/.+/)) {
         const id = path.split("/")[2];
         return await handleGetBook(id, env, corsHeaders);
@@ -80,7 +83,7 @@ async function handleUpload(request, env, corsHeaders) {
   const fileExtension = file.name.split('.').pop();
   const coverExtension = cover.name.split('.').pop();
   const fileKey = `books/files/${bookId}.${fileExtension}`;
-  const coverKey = `books/covers/${bookId}.${coverExtension}`;
+  const coverKey = `books/books/covers/${bookId}.${coverExtension}`;
 
   // Calculate Checksum
   const fileBuffer = await file.arrayBuffer();
@@ -296,4 +299,40 @@ async function handleSyncBooks(env, corsHeaders) {
       headers: { "Content-Type": "application/json", ...corsHeaders }
     });
   }
+}
+
+async function handleGetCover(id, request, env, corsHeaders) {
+  const book = await env.GWA_BOOKS_DB.prepare("SELECT cover_image_url FROM books WHERE id = ?").bind(id).first();
+  
+  if (!book || !book.cover_image_url) {
+    return new Response("Cover not found", { status: 404, headers: corsHeaders });
+  }
+
+  let key = book.cover_image_url;
+  let object = await env.GWA_BOOKS_BUCKET.get(key);
+
+  if (!object) {
+    // Fallback: Check nested path if original missing
+    if (key.startsWith('books/covers/')) {
+       // Try books/books/covers/
+       object = await env.GWA_BOOKS_BUCKET.get(key.replace('books/covers/', 'books/books/covers/'));
+    } else if (key.startsWith('books/books/covers/')) {
+       // Try books/covers/ (in case DB has nested but file is flat)
+       object = await env.GWA_BOOKS_BUCKET.get(key.replace('books/books/covers/', 'books/covers/'));
+    }
+  }
+
+  if (!object) {
+    return new Response("Cover file not found", { status: 404, headers: corsHeaders });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("etag", object.httpEtag);
+  
+  for (const [k, v] of Object.entries(corsHeaders)) {
+    headers.set(k, v);
+  }
+
+  return new Response(object.body, { headers });
 }
