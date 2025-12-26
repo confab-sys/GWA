@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:http/http.dart' as http;
@@ -5,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import '../models/book.dart';
 
 class PdfReaderScreen extends StatefulWidget {
@@ -42,38 +44,49 @@ class _PdfReaderScreenState extends State<PdfReaderScreen> {
 
   Future<void> _initializeReader() async {
     try {
-      final file = await _downloadOrGetCachedFile();
-      if (file != null) {
-        
-        // Load initial page from SharedPreferences or Book object
-        int initialPage = 1;
-        final prefs = await SharedPreferences.getInstance();
-        final savedPage = prefs.getInt('book_page_${widget.book.id}');
-        if (savedPage != null && savedPage > 0) {
-          initialPage = savedPage;
-        }
+      PdfDocument? document;
+      int initialPage = 1;
 
-        // Open document first to get page count and ensure valid file
-        final document = await PdfDocument.openFile(file.path);
-        
+      // Load initial page from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final savedPage = prefs.getInt('book_page_${widget.book.id}');
+      if (savedPage != null && savedPage > 0) {
+        initialPage = savedPage;
+      }
+
+      if (kIsWeb) {
+        // Web: Fetch bytes directly
+        final bytes = await _downloadPdfBytes();
+        if (bytes != null) {
+          document = await PdfDocument.openData(bytes);
+        }
+      } else {
+        // Native: Use file caching
+        final file = await _downloadOrGetCachedFile();
+        if (file != null) {
+          document = await PdfDocument.openFile(file.path);
+        }
+      }
+
+      if (document != null) {
         if (mounted) {
-            setState(() {
-                _totalPages = document.pagesCount;
-            });
+          setState(() {
+            _totalPages = document!.pagesCount;
+          });
         }
 
-        if (Platform.isWindows) {
-            _pdfController = PdfController(
-              document: Future.value(document),
-              initialPage: initialPage,
-            );
+        if (kIsWeb || Platform.isWindows) {
+          _pdfController = PdfController(
+            document: Future.value(document),
+            initialPage: initialPage,
+          );
         } else {
-            _pdfControllerPinch = PdfControllerPinch(
-              document: Future.value(document),
-              initialPage: initialPage,
-            );
+          _pdfControllerPinch = PdfControllerPinch(
+            document: Future.value(document),
+            initialPage: initialPage,
+          );
         }
-        
+
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -89,6 +102,32 @@ class _PdfReaderScreenState extends State<PdfReaderScreen> {
           _errorMessage = 'Failed to load PDF: $e';
         });
       }
+    }
+  }
+
+  Future<Uint8List?> _downloadPdfBytes() async {
+    try {
+      debugPrint('Downloading PDF bytes for Web...');
+      final downloadUrl = '$_workerUrl/download/${widget.book.id}';
+      
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? 'guest';
+
+      final response = await http.get(
+        Uri.parse(downloadUrl),
+        headers: {
+          'X-User-ID': userId,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Download failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error downloading PDF bytes: $e');
+      rethrow;
     }
   }
 
@@ -249,8 +288,8 @@ class _PdfReaderScreenState extends State<PdfReaderScreen> {
       );
     }
 
-    // Windows View
-    if (Platform.isWindows) {
+    // Web & Windows View (Non-Pinch)
+    if (kIsWeb || (Platform.isWindows)) {
         if (_pdfController == null) {
             return const Center(child: Text('Error: Controller not initialized', style: TextStyle(color: Colors.white)));
         }
@@ -262,7 +301,7 @@ class _PdfReaderScreenState extends State<PdfReaderScreen> {
                 onPageChanged: _onPageChanged,
               ),
             ),
-            _buildWindowsControls(),
+            _buildWindowsControls(), // Reuse Windows controls for Web for now
           ],
         );
     }
