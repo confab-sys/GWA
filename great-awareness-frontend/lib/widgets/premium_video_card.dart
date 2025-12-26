@@ -66,7 +66,7 @@ class PremiumVideoCard extends StatelessWidget {
 
               // Content
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16), // Increased padding
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -77,7 +77,7 @@ class PremiumVideoCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
+                          color: Colors.black.withValues(alpha: 0.3), // More transparent
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -128,29 +128,6 @@ class PremiumVideoCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 4),
-                    
-                    // File Name & Duration
-                    Row(
-                      children: [
-                        Icon(Icons.insert_drive_file, size: 10, color: Colors.white.withValues(alpha: 0.6)),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            video.originalName,
-                            style: GoogleFonts.judson(
-                              textStyle: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 10,
-                              ),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
                       ],
                     ),
                   ],

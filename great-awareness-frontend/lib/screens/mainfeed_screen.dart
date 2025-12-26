@@ -1006,53 +1006,163 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFD3E4DE),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: _showSearch
-            ? TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search psychology topics...',
-                  border: InputBorder.none,
-                  hintStyle: GoogleFonts.judson(
-                    textStyle: const TextStyle(color: Colors.grey),
-                  ),
-                ),
-                style: GoogleFonts.judson(),
-              )
-            : Text(
-                'Main Feed',
-                style: GoogleFonts.judson(
-                  textStyle: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+  Widget _buildMinimalistPostCard(Content post, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24, left: 20, right: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openPostDetail(post, index),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image (Edge-to-Edge)
+            if (post.imagePath != null && post.imagePath!.isNotEmpty)
+              Container(
+                height: 220,
+                width: double.infinity,
+                color: Colors.grey[100],
+                child: Image.network(
+                  post.imagePath!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.grey[200],
+                    child: Icon(Icons.broken_image, color: Colors.grey[400]),
                   ),
                 ),
               ),
-        actions: [
-          // Admin posting button (visible only to admins)
-          if (_authService.isAdmin)
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: Colors.black),
-              onPressed: () => _navigateToAdminPosting(),
-              tooltip: 'Create New Post',
+
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    post.title,
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  
+                  // Excerpt
+                  if (post.body.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      post.body,
+                      style: GoogleFonts.judson(
+                        textStyle: const TextStyle(
+                          fontSize: 15,
+                          height: 1.6,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  // Metadata (Combined Line)
+                  Row(
+                    children: [
+                      Text(
+                        '${post.authorName} • ${_formatTimestamp(post.createdAt)} • ${post.topic}',
+                        style: GoogleFonts.judson(
+                          textStyle: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Minimalist Actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          _buildIconAction(
+                            icon: post.isLikedByUser ? Icons.favorite : Icons.favorite_border,
+                            color: post.isLikedByUser ? Colors.red : Colors.grey[400]!,
+                            onTap: () => _toggleLike(index),
+                          ),
+                          const SizedBox(width: 24),
+                          _buildIconAction(
+                            icon: Icons.chat_bubble_outline,
+                            color: Colors.grey[400]!,
+                            onTap: () => _showComments(index),
+                          ),
+                          const SizedBox(width: 24),
+                          _buildIconAction(
+                            icon: Icons.share_outlined,
+                            color: Colors.grey[400]!,
+                            onTap: () => _sharePost(index),
+                          ),
+                        ],
+                      ),
+                      _buildIconAction(
+                        icon: Icons.bookmark_border,
+                        color: Colors.grey[400]!,
+                        onTap: () => _toggleSave(index),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const NotificationScreen()),
-              );
-            },
-            tooltip: 'Notifications',
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconAction({required IconData icon, required Color color, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: Icon(
+          icon,
+          color: color,
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA),
+      floatingActionButton: _authService.isAdmin
+          ? FloatingActionButton(
+              onPressed: () => _navigateToAdminPosting(),
+              backgroundColor: const Color(0xFF4A90A4),
+              child: const Icon(Icons.add),
+            )
+          : null,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        actions: [
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search, color: Colors.black),
             onPressed: () {
@@ -1065,35 +1175,82 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
               });
             },
           ),
+          const SizedBox(width: 8),
         ],
+        bottom: _showSearch
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(60),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search psychology topics...',
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+                    ),
+                    style: GoogleFonts.judson(),
+                  ),
+                ),
+              )
+            : null,
       ),
       body: Column(
         children: [
-          // Topic Filter Chips
+          // Minimalist Category Chips
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            height: 56,
+            padding: const EdgeInsets.symmetric(vertical: 10),
             color: Colors.white,
-            child: SingleChildScrollView(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _psychologyTopics.map((topic) => 
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(
-                        topic,
-                        style: GoogleFonts.judson(),
-                      ),
-                      selected: false,
-                      onSelected: (selected) {
+              itemCount: _psychologyTopics.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final topic = _psychologyTopics[index];
+                final isSelected = _searchController.text == topic;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        _searchController.clear();
+                        _filterPosts();
+                      } else {
                         _searchController.text = topic;
                         _filterPosts();
-                      },
-                      backgroundColor: const Color(0xFFD3E4DE).withValues(alpha: 0.3),
+                      }
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                          ? const Color(0xFF4A90A4).withValues(alpha: 0.1) 
+                          : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  )
-                ).toList(),
-              ),
+                    child: Center(
+                      child: Text(
+                        topic,
+                        style: GoogleFonts.judson(
+                          textStyle: TextStyle(
+                            color: isSelected ? const Color(0xFF4A90A4) : Colors.grey[600],
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           
@@ -1117,6 +1274,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                     )
                   : ListView.builder(
                       controller: _scrollController,
+                      padding: const EdgeInsets.only(top: 12),
                       itemCount: _filteredPosts.length + (_isLoading ? 1 : 0),
                       itemBuilder: (context, index) {
                       if (index >= _filteredPosts.length) {
@@ -1129,361 +1287,14 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                       }
                       
                       final post = _filteredPosts[index];
-                      return InkWell(
-                        onTap: () => _openPostDetail(post, index),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Post Header with modern design
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: const Color(0xFFD3E4DE),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: ImageHelper.buildAvatar(
-                                      imagePath: post.authorAvatar,
-                                      fallbackAsset: 'assets/images/main logo man.png',
-                                      radius: 22,
-                                      backgroundColor: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          post.authorName,
-                                          style: GoogleFonts.judson(
-                                            textStyle: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              _formatTimestamp(post.createdAt),
-                                              style: GoogleFonts.judson(
-                                                textStyle: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFD3E4DE).withValues(alpha: 0.3),
-                                                borderRadius: BorderRadius.circular(10),
-                                              ),
-                                              child: Text(
-                                                post.topic,
-                                                style: GoogleFonts.judson(
-                                                  textStyle: const TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.black87,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.more_vert, color: Colors.grey),
-                                    onPressed: () {
-                                      // Add more options menu
-                                      showModalBottomSheet(
-                                        context: context,
-                                        builder: (context) => Container(
-                                          padding: const EdgeInsets.all(16),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              ListTile(
-                                                leading: const Icon(Icons.report),
-                                                title: Text('Report post', style: GoogleFonts.judson()),
-                                                onTap: () {
-                                                  Navigator.pop(context);
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(content: Text('Post reported')),
-                                                  );
-                                                },
-                                              ),
-                                              ListTile(
-                                                leading: const Icon(Icons.block),
-                                                title: Text('Block author', style: GoogleFonts.judson()),
-                                                onTap: () {
-                                                  Navigator.pop(context);
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(content: Text('Author blocked')),
-                                                  );
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            // Post Image (if available)
-                            // Show image if there's an image path, regardless of isTextOnly flag
-                            if (post.imagePath != null && post.imagePath!.isNotEmpty) ...[
-                              Container(
-                                height: 200,
-                                width: double.infinity,
-                                margin: const EdgeInsets.symmetric(horizontal: 16),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  color: Colors.grey[200],
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(
-                                    post.imagePath!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      // Show placeholder when image fails to load
-                                      return Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(12),
-                                          color: Colors.grey[300],
-                                        ),
-                                        child: Center(
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.broken_image,
-                                                size: 40,
-                                                color: Colors.grey[600],
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Image unavailable',
-                                                style: GoogleFonts.judson(
-                                                  textStyle: TextStyle(
-                                                    color: Colors.grey[600],
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Center(
-                                        child: CircularProgressIndicator(
-                                          value: loadingProgress.expectedTotalBytes != null
-                                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                              : null,
-                                          strokeWidth: 2,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                            
-                            // Post Content
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Post Title
-                                  Text(
-                                    post.title,
-                                    style: GoogleFonts.judson(
-                                      textStyle: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  if (post.body.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      post.body,
-                                      style: GoogleFonts.judson(
-                                        textStyle: const TextStyle(
-                                          fontSize: 14,
-                                          height: 1.6,
-                                          color: Colors.black54,
-                                        ),
-                                      ),
-                                      maxLines: post.isTextOnly ? 4 : 3,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 16),
-                            
-                            // Modern Action Buttons
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  top: BorderSide(
-                                    color: Colors.grey.withValues(alpha: 0.1),
-                                    width: 1,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  // Like Button
-                                  InkWell(
-                                    onTap: () => _toggleLike(index),
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            post.isLikedByUser ? Icons.favorite : Icons.favorite_border,
-                                            color: post.isLikedByUser ? Colors.red : Colors.grey,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '${post.likesCount}',
-                                            style: GoogleFonts.judson(
-                                              textStyle: const TextStyle(
-                                                color: Colors.grey,
-                                                fontWeight: FontWeight.normal,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  // Comment Button
-                                  InkWell(
-                                    onTap: () => _showComments(index),
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.chat_bubble_outline,
-                                            color: Colors.grey,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '${post.commentsCount}',
-                                            style: GoogleFonts.judson(
-                                              textStyle: const TextStyle(
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  // Share Button
-                                  InkWell(
-                                    onTap: () => _sharePost(index),
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.share_outlined,
-                                            color: Colors.grey,
-                                            size: 20,
-                                          ),
-                                          SizedBox(width: 6),
-                                          Text(
-                                            'Share',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  // Save Button
-                                  InkWell(
-                                    onTap: () => _toggleSave(index),
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      child: const Icon(
-                                        Icons.bookmark_border,
-                                        color: Colors.grey,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                        ),
-                      ),
-                      );
+                      return _buildMinimalistPostCard(post, index);
                     },
                   ),
-            ), // Close RefreshIndicator
+            ),
           ),
         ],
       ),
     );
   }
+
 }

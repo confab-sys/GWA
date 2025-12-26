@@ -265,55 +265,38 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           style: GoogleFonts.judson(
             textStyle: const TextStyle(
               color: Colors.black,
-              fontSize: 24,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.upload, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const VideoUploadScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black),
-            onPressed: () {
-              _loadVideosFromCloudflare();
-            },
-          ),
-        ],
+        actions: const [], // Removed upload/refresh icons
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
+          preferredSize: const Size.fromHeight(130), // Increased height for breathing room
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Search Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20), // More vertical breathing room
                 child: TextField(
                   controller: searchController,
                   decoration: InputDecoration(
                     hintText: 'Search videos...',
                     hintStyle: GoogleFonts.judson(
-                      textStyle: TextStyle(color: Colors.grey[600]),
+                      textStyle: TextStyle(color: Colors.grey[500]),
                     ),
-                    prefixIcon: const Icon(Icons.search, color: Colors.black),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: const Color(0xFFFAFAFA), // Soft off-white
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(16), // Softer radius
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   ),
                   style: GoogleFonts.judson(
-                    textStyle: const TextStyle(color: Colors.black, fontSize: 14),
+                    textStyle: const TextStyle(color: Colors.black, fontSize: 16),
                   ),
                 ),
               ),
@@ -321,9 +304,14 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
               TabBar(
                 controller: _tabController,
                 indicatorColor: Colors.black,
+                indicatorWeight: 3, // Thicker indicator
                 labelColor: Colors.black,
-                unselectedLabelColor: Colors.grey[600],
-                labelStyle: GoogleFonts.judson(fontWeight: FontWeight.bold),
+                unselectedLabelColor: Colors.grey[500],
+                labelStyle: GoogleFonts.judson(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                indicatorSize: TabBarIndicatorSize.label,
                 tabs: const [
                   Tab(text: 'Videos'),
                   Tab(text: 'Podcasts'),
@@ -346,17 +334,20 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
           if (currentUser == null || !currentUser.isAdmin) {
             return const SizedBox.shrink();
           }
-          return FloatingActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const VideoUploadScreen(),
-                ),
-              );
-            },
-            backgroundColor: Colors.black,
-            child: const Icon(Icons.upload, color: Colors.white),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 80), // Avoid crashing into bottom nav
+            child: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const VideoUploadScreen(),
+                  ),
+                );
+              },
+              backgroundColor: Colors.black,
+              child: const Icon(Icons.upload, color: Colors.white),
+            ),
           );
         },
       ),
@@ -422,13 +413,13 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _buildLatestVideosSection(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 48), // Increased gap
           _buildMasterClassesSection(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 48),
           _buildCategoryLayout(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 100), // Extra space for FAB
         ],
       ),
     );
@@ -439,23 +430,23 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
             'Latest Videos',
             style: GoogleFonts.judson(
               textStyle: const TextStyle(
                 fontSize: 22,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600, // Consistent weight
                 color: Colors.black,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         SizedBox(
-          height: 200,
+          height: 220, // Slightly taller for better proportions
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             scrollDirection: Axis.horizontal,
             itemCount: filteredVideos.length > 5 ? 6 : filteredVideos.length,
             itemBuilder: (context, index) {
@@ -496,83 +487,91 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Text(
-                'Master Classes',
-                style: GoogleFonts.judson(
-                  textStyle: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Master Classes',
+            style: GoogleFonts.judson(
+              textStyle: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600, // Consistent weight
+                color: Colors.black,
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'PREMIUM',
-                  style: GoogleFonts.judson(
-                    textStyle: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         SizedBox(
-          height: 140,
+          height: 160, // Taller cards
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             scrollDirection: Axis.horizontal,
             itemCount: masterClasses.length,
             itemBuilder: (context, index) {
               return Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Container(
-                  width: 240,
+                  width: 260,
                   decoration: BoxDecoration(
                     color: masterClasses[index]['color'],
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: (masterClasses[index]['color'] as Color).withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                        color: (masterClasses[index]['color'] as Color).withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
                   child: Stack(
                     children: [
                       Positioned(
-                        right: -20,
-                        bottom: -20,
+                        right: -30,
+                        bottom: -30,
                         child: Icon(
                           Icons.school,
-                          size: 100,
-                          color: Colors.white.withValues(alpha: 0.2),
+                          size: 120,
+                          color: Colors.white.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      // Premium Badge on Card
+                      Positioned(
+                        top: 16,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, color: Colors.amber, size: 10),
+                              const SizedBox(width: 4),
+                              Text(
+                                'PREMIUM',
+                                style: GoogleFonts.judson(
+                                  textStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(24), // Increased padding
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.3),
+                                color: Colors.white.withValues(alpha: 0.25),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text(
@@ -581,6 +580,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                                   color: Colors.white,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
                                 ),
                               ),
                             ),
@@ -590,18 +590,19 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                               style: GoogleFonts.judson(
                                 textStyle: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 20,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.bold,
+                                  height: 1.1,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 8),
                             Text(
                               'Watch Collection',
                               style: GoogleFonts.judson(
                                 textStyle: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.9),
-                                  fontSize: 12,
+                                  fontSize: 13,
                                 ),
                               ),
                             ),

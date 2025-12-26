@@ -133,14 +133,7 @@ class _BooksScreenState extends State<BooksScreen> {
         ),
         centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.sync, color: Colors.black),
-            onPressed: () async {
-              setState(() => isLoading = true);
-              await BooksService.syncBooks();
-              await _loadBooks();
-            },
-          ),
+
           IconButton(
             icon: const Icon(Icons.shopping_bag_outlined, color: Colors.black),
             onPressed: () {
