@@ -82,8 +82,38 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
         }
 
         // For device images, we might need to upload them first
-        // For now, we'll pass the path as is - the backend should handle it
         String? finalImagePath = _selectedPostType == 'image' ? _selectedImagePath : null;
+        
+        // If it's a device image (from gallery/camera), upload it to Cloudflare R2
+        if (_selectedPostType == 'image' && _isDeviceImage) {
+          debugPrint('Uploading image to Cloudflare R2...');
+          
+          ImageUploadResponse? uploadResponse;
+          
+          if (kIsWeb && _selectedImageBytes != null) {
+            // Web upload
+            uploadResponse = await ImageUploadService.uploadImageBytes(
+              imageBytes: _selectedImageBytes!,
+              fileName: 'post_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+              title: _titleController.text,
+              description: 'Post image',
+            );
+          } else if (!kIsWeb && _selectedImagePath != null) {
+            // Mobile/Desktop upload
+            uploadResponse = await ImageUploadService.uploadImage(
+              imageFile: File(_selectedImagePath!),
+              title: _titleController.text,
+              description: 'Post image',
+            );
+          }
+          
+          if (uploadResponse != null && uploadResponse.success && uploadResponse.imageUrl != null) {
+            debugPrint('Image uploaded successfully: ${uploadResponse.imageUrl}');
+            finalImagePath = uploadResponse.imageUrl;
+          } else {
+            throw Exception('Failed to upload image: ${uploadResponse?.error ?? "Unknown error"}');
+          }
+        }
 
         // Create content using API service
         final apiService = ApiService();

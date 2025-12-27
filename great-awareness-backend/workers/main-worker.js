@@ -210,10 +210,19 @@ export default {
 
       if (url.pathname === "/api/contents" && method === "POST") {
         const data = await request.json();
-        // Basic insert example
+        // Insert content with all fields
         const { success } = await env.DB.prepare(
-          `INSERT INTO contents (title, body, topic, post_type, author_name) VALUES (?, ?, ?, ?, ?)`
-        ).bind(data.title, data.body, data.topic, data.post_type || 'text', data.author_name || 'Admin').run();
+          `INSERT INTO contents (title, body, topic, post_type, author_name, image_path, is_text_only, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          data.title, 
+          data.body, 
+          data.topic, 
+          data.post_type || 'text', 
+          data.author_name || 'Admin',
+          data.image_path || null,
+          data.is_text_only ? 1 : 0,
+          data.status || 'published'
+        ).run();
         return Response.json({ success }, { headers: corsHeaders });
       }
 

@@ -9,6 +9,7 @@ class Podcast {
   final String thumbnailUrl;
   final String audioUrl;
   final DateTime createdAt;
+  final int playCount;
   bool isFavorite;
   bool isSaved;
 
@@ -23,6 +24,7 @@ class Podcast {
     this.thumbnailUrl = '',
     this.audioUrl = '',
     required this.createdAt,
+    this.playCount = 0,
     this.isFavorite = false,
     this.isSaved = false,
   });
@@ -38,11 +40,15 @@ class Podcast {
       // Default to 0.0 since we don't have progress tracking in DB yet
       listenProgress: 0.0, 
       thumbnailUrl: json['thumbnail_url'] ?? json['video_thumbnail_url'] ?? '',
-      // Prefer signed_url, fallback to object_key if needed (though object_key isn't a URL)
-      audioUrl: json['signed_url'] ?? '',
+      // Prefer signed_url, fallback to constructing URL from object_key
+      audioUrl: json['signed_url'] ?? 
+          (json['object_key'] != null 
+              ? 'https://gwa-podcast-worker.aashardcustomz.workers.dev/api/podcasts/signed/${json['object_key']}' 
+              : ''),
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at']) 
           : DateTime.now(),
+      playCount: json['view_count'] ?? 0,
       // Default local states
       isFavorite: false,
       isSaved: false,
@@ -61,6 +67,7 @@ class Podcast {
       'thumbnailUrl': thumbnailUrl,
       'audioUrl': audioUrl,
       'createdAt': createdAt.toIso8601String(),
+      'playCount': playCount,
       'isFavorite': isFavorite,
       'isSaved': isSaved,
     };

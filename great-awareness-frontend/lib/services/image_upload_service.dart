@@ -7,8 +7,7 @@ import 'package:mime/mime.dart';
 import 'package:flutter/foundation.dart';
 
 class ImageUploadService {
-  static const String baseUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev'; // Same Cloudflare worker
-  static const Duration requestTimeout = Duration(seconds: 30);
+  static const String baseUrl = 'https://gwa-main-worker.aashardcustomz.workers.dev'; // Main Cloudflare worker
 
   /// Upload image file to Cloudflare R2 storage
   static Future<ImageUploadResponse> uploadImage({
@@ -21,22 +20,22 @@ class ImageUploadService {
       final mimeType = lookupMimeType(imageFile.path) ?? 'image/jpeg';
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('$baseUrl/api/images/upload'),
+        Uri.parse('$baseUrl/api/contents/upload-image'),
       );
 
-      // Add image file
+      // Add image file (field name 'file' as expected by worker)
       final fileStream = http.ByteStream(imageFile.openRead());
       final fileLength = await imageFile.length();
       
       request.files.add(http.MultipartFile(
-        'image',
+        'file',
         fileStream,
         fileLength,
         filename: imageFile.path.split('/').last,
         contentType: MediaType.parse(mimeType),
       ));
 
-      // Add form fields
+      // Add form fields (optional, worker might not use them but good to keep)
       request.fields['title'] = title;
       request.fields['description'] = description;
 
@@ -44,9 +43,20 @@ class ImageUploadService {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonResponse = json.decode(response.body);
-        return ImageUploadResponse.fromJson(jsonResponse);
+        
+        // Handle relative URL from worker
+        String? imageUrl = jsonResponse['url'];
+        if (imageUrl != null && !imageUrl.startsWith('http')) {
+          imageUrl = '$baseUrl$imageUrl';
+        }
+
+        return ImageUploadResponse(
+          success: true,
+          imageUrl: imageUrl,
+          message: jsonResponse['message'],
+        );
       } else {
         final errorResponse = json.decode(response.body);
         return ImageUploadResponse(
@@ -75,12 +85,12 @@ class ImageUploadService {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('$baseUrl/api/images/upload'),
+        Uri.parse('$baseUrl/api/contents/upload-image'),
       );
 
-      // Add image file from bytes
+      // Add image file from bytes (field name 'file')
       request.files.add(http.MultipartFile.fromBytes(
-        'image',
+        'file',
         imageBytes,
         filename: fileName,
         contentType: MediaType.parse(mimeType),
@@ -94,9 +104,20 @@ class ImageUploadService {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonResponse = json.decode(response.body);
-        return ImageUploadResponse.fromJson(jsonResponse);
+        
+        // Handle relative URL from worker
+        String? imageUrl = jsonResponse['url'];
+        if (imageUrl != null && !imageUrl.startsWith('http')) {
+          imageUrl = '$baseUrl$imageUrl';
+        }
+
+        return ImageUploadResponse(
+          success: true,
+          imageUrl: imageUrl,
+          message: jsonResponse['message'],
+        );
       } else {
         final errorResponse = json.decode(response.body);
         return ImageUploadResponse(
