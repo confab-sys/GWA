@@ -5,11 +5,36 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import '../models/video.dart';
+import '../models/master_class.dart';
 import '../utils/config.dart';
 
 class VideoService {
   static const String baseUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev'; // Your deployed worker domain
   static const Duration requestTimeout = Duration(seconds: 30);
+
+  // List all master classes
+  static Future<List<MasterClass>> getMasterClasses() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/master-classes'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(requestTimeout);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        if (jsonResponse['success'] == true && jsonResponse['master_classes'] != null) {
+          final List<dynamic> data = jsonResponse['master_classes'];
+          return data.map((json) => MasterClass.fromJson(json)).toList();
+        }
+        return [];
+      } else {
+        throw Exception('Failed to load master classes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error loading master classes: $e');
+      return [];
+    }
+  }
 
   // Upload video file (mobile/desktop)
   static Future<VideoUploadResponse> uploadVideo({

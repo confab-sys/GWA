@@ -45,6 +45,8 @@ export default {
         const pathParts = pathname.split('/');
         const videoId = pathParts[3]; // /api/videos/{id}
         return await handleGetVideo(request, env, CORS_HEADERS, videoId);
+      } else if (pathname === '/api/master-classes' && method === 'GET') {
+        return await handleListMasterClasses(request, env, CORS_HEADERS);
       } else if (pathname === '/' && method === 'GET') {
         return await handleHealthCheck(request, env, CORS_HEADERS);
       } else {
@@ -291,6 +293,46 @@ async function handleSyncVideos(request, env, corsHeaders) {
     console.error('Sync error:', error);
     return new Response(
       JSON.stringify({ error: 'Failed to sync videos', message: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+/**
+ * List all master classes
+ */
+async function handleListMasterClasses(request, env, corsHeaders) {
+  try {
+    const masterClasses = await env.GWA_VIDEOS_DB.prepare(
+      'SELECT * FROM master_classes ORDER BY created_at ASC'
+    ).all();
+    
+    // Generate signed URLs for images
+    const classesWithUrls = await Promise.all(
+      (masterClasses.results || []).map(async (item) => {
+        const signedUrl = await generateSignedUrl(
+          env.GWA_VIDEOS_BUCKET, 
+          item.object_key, 
+          365 * 24 * 3600 // 1 year
+        );
+        return {
+          ...item,
+          image_url: signedUrl
+        };
+      })
+    );
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        master_classes: classesWithUrls
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('List master classes error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Failed to list master classes', message: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

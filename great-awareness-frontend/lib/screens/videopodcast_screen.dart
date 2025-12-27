@@ -5,6 +5,7 @@ import 'podcasts_screen.dart';
 import 'video_upload_screen.dart';
 import '../models/video.dart';
 import '../models/podcast.dart';
+import '../models/master_class.dart';
 
 import '../services/video_service.dart';
 import '../services/cloudflare_storage_service.dart';
@@ -28,9 +29,11 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   List<Video> filteredVideos = [];
   List<Podcast> allPodcasts = [];
   List<Podcast> filteredPodcasts = [];
+  List<MasterClass> masterClasses = [];
   TextEditingController searchController = TextEditingController();
   String selectedCategory = 'All';
   bool isLoading = false;
+  bool isLoadingMasterClasses = false;
   String? _errorMessage;
 
   final List<String> _categoryLabels = [
@@ -62,7 +65,26 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadVideosFromCloudflare();
+    _loadMasterClasses();
     searchController.addListener(_onSearchChanged);
+  }
+
+  Future<void> _loadMasterClasses() async {
+    setState(() {
+      isLoadingMasterClasses = true;
+    });
+    try {
+      final classes = await VideoService.getMasterClasses();
+      setState(() {
+        masterClasses = classes;
+        isLoadingMasterClasses = false;
+      });
+    } catch (e) {
+      print('Error loading master classes: $e');
+      setState(() {
+        isLoadingMasterClasses = false;
+      });
+    }
   }
 
   @override
@@ -453,12 +475,16 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   }
 
   Widget _buildMasterClassesSection() {
-    final List<Map<String, dynamic>> masterClasses = [
-      {'title': 'Healing Trauma', 'color': const Color(0xFFBA68C8)},
-      {'title': 'Conscious Relationships', 'color': const Color(0xFFF06292)},
-      {'title': 'Financial Freedom', 'color': const Color(0xFF81C784)},
-      {'title': 'Self Mastery', 'color': const Color(0xFF64B5F6)},
-    ];
+    if (isLoadingMasterClasses) {
+      return const Padding(
+        padding: EdgeInsets.all(20.0),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (masterClasses.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -484,16 +510,20 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
             scrollDirection: Axis.horizontal,
             itemCount: masterClasses.length,
             itemBuilder: (context, index) {
+              final masterClass = masterClasses[index];
               return Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Container(
                   width: 260,
                   decoration: BoxDecoration(
-                    color: masterClasses[index]['color'],
                     borderRadius: BorderRadius.circular(20),
+                    image: DecorationImage(
+                      image: NetworkImage(masterClass.imageUrl),
+                      fit: BoxFit.cover,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: (masterClasses[index]['color'] as Color).withValues(alpha: 0.3),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -501,13 +531,18 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                   ),
                   child: Stack(
                     children: [
-                      Positioned(
-                        right: -30,
-                        bottom: -30,
-                        child: Icon(
-                          Icons.school,
-                          size: 120,
-                          color: Colors.white.withValues(alpha: 0.15),
+                      // Gradient Overlay for readability
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.1),
+                              Colors.black.withValues(alpha: 0.7),
+                            ],
+                          ),
                         ),
                       ),
                       // Premium Badge on Card
@@ -517,7 +552,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.2),
+                            color: Colors.black.withValues(alpha: 0.6),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -563,13 +598,20 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
                             ),
                             const Spacer(),
                             Text(
-                              masterClasses[index]['title'],
+                              masterClass.title,
                               style: GoogleFonts.judson(
                                 textStyle: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                   height: 1.1,
+                                  shadows: [
+                                    Shadow(
+                                      offset: Offset(0, 1),
+                                      blurRadius: 3.0,
+                                      color: Color.fromARGB(255, 0, 0, 0),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
