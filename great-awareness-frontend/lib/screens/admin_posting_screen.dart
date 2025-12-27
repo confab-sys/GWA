@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/image_upload_service.dart';
 
 class AdminPostingScreen extends StatefulWidget {
   const AdminPostingScreen({super.key});

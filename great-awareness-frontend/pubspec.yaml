@@ -32,6 +32,7 @@ dependencies:
   xml: ^6.3.0
   font_awesome_flutter: ^10.7.0
   pdfx: ^2.9.2
+  lottie: ^3.3.0
 
 dev_dependencies:
   flutter_test:
@@ -43,4 +44,5 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/animations/
     - assets/favicon.png

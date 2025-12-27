@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lottie/lottie.dart';
+import 'wellness_dashboard.dart';
 import '../services/auth_service.dart';
-import '../services/theme_provider.dart';
 import '../models/user.dart';
 
 class WellnessScreen extends StatefulWidget {
@@ -12,13 +14,31 @@ class WellnessScreen extends StatefulWidget {
   State<WellnessScreen> createState() => _WellnessScreenState();
 }
 
+class WellnessIntroSlide {
+  final String title;
+  final String subtitle;
+  final String lottieAsset;
+
+  WellnessIntroSlide({
+    required this.title,
+    required this.subtitle,
+    required this.lottieAsset,
+  });
+}
+
 class _WellnessScreenState extends State<WellnessScreen> {
   DateTime? _habitStartTime;
   int _userDayStatus = 0;
   bool _isTrackingActive = false;
+  bool _showIntro = true; // New state to toggle intro sequence
   String? _selectedAddictionType;
   String _customAddictionType = '';
   final TextEditingController _customAddictionController = TextEditingController();
+  
+  // Carousel controllers
+  final PageController _pageController = PageController();
+  int _currentSlide = 0;
+
   final List<String> _predefinedAddictions = [
     'Masturbation',
     'Alcoholism',
@@ -27,6 +47,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
     'Social Media',
     'Other (Custom)'
   ];
+  
   final List<Map<String, dynamic>> _wellnessUsers = [
     {
       'username': 'John_Doe',
@@ -48,6 +69,24 @@ class _WellnessScreenState extends State<WellnessScreen> {
     },
   ];
 
+  final List<WellnessIntroSlide> _slides = [
+    WellnessIntroSlide(
+      title: "Great Awareness Tracking App",
+      subtitle: "Monitor your thoughts, moods, and habits effortlessly.",
+      lottieAsset: "assets/animations/meditation.json",
+    ),
+    WellnessIntroSlide(
+      title: "Track Your Recovery Journey",
+      subtitle: "See your daily improvements and celebrate small wins.",
+      lottieAsset: "assets/animations/recovery_path.json",
+    ),
+    WellnessIntroSlide(
+      title: "Stay Motivated Every Day",
+      subtitle: "Receive reminders, insights, and gentle nudges to keep moving forward.",
+      lottieAsset: "assets/animations/celebration.json",
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +96,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
   @override
   void dispose() {
     _customAddictionController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -65,13 +105,24 @@ class _WellnessScreenState extends State<WellnessScreen> {
     final currentUser = authService.currentUser;
     
     if (currentUser != null) {
-      // In a real app, this would come from your backend API
-      // For now, we'll simulate some data
+      // Simulate data loading
       setState(() {
-        _userDayStatus = 15; // This would come from your database
+        _userDayStatus = 15;
         _habitStartTime = DateTime.now().subtract(const Duration(days: 15));
-        _isTrackingActive = true;
-        _selectedAddictionType = 'Masturbation'; // This would come from your database
+        
+        // For demonstration, we'll assume tracking is NOT active initially
+        // so the user can see the intro sequence.
+        // In a real app, check DB: if user has active habit -> _isTrackingActive = true;
+        _isTrackingActive = false; // Changed to false to show intro by default
+        
+        // If tracking was active, we would skip intro
+        if (_isTrackingActive) {
+          _showIntro = false;
+        } else {
+          _showIntro = true;
+        }
+
+        _selectedAddictionType = 'Masturbation'; 
       });
     }
   }
@@ -80,7 +131,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
     if (_selectedAddictionType == null || _selectedAddictionType!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please select an addiction type first'),
+          content: const Text('Please select an addiction type first'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -91,6 +142,13 @@ class _WellnessScreenState extends State<WellnessScreen> {
       _habitStartTime = DateTime.now();
       _isTrackingActive = true;
       _userDayStatus = 0;
+      _showIntro = false; // Ensure intro is hidden
+    });
+  }
+
+  void _finishIntro() {
+    setState(() {
+      _showIntro = false;
     });
   }
 
@@ -121,13 +179,11 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
-    final currentUser = authService.currentUser;
     final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
+      appBar: _showIntro ? null : AppBar(
         backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         title: Text(
@@ -144,626 +200,198 @@ class _WellnessScreenState extends State<WellnessScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // User Profile Section
-              _buildUserProfileCard(currentUser, theme),
-              const SizedBox(height: 30),
-              
-              // Addiction Type Selection
-              _buildAddictionTypeSection(theme),
-              const SizedBox(height: 30),
-              
-              // Habit Timer Section
-              _buildHabitTimerSection(theme),
-              const SizedBox(height: 30),
-              
-              // Milestone Badges Section
-              _buildMilestoneBadgesSection(theme),
-              const SizedBox(height: 30),
-              
-              // Day Status Update Section
-              _buildDayStatusSection(theme),
-              const SizedBox(height: 30),
-              
-              // Community Section
-              _buildCommunitySection(theme),
-            ],
-          ),
-        ),
-      ),
+      body: _showIntro 
+          ? _buildIntroSequence(theme) 
+          : _buildTrackingDashboard(theme),
     );
   }
 
-  Widget _buildAddictionTypeSection(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
+  Widget _buildIntroSequence(ThemeData theme) {
+    return SafeArea(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              FaIcon(FontAwesomeIcons.bullseye, color: theme.primaryColor, size: 30),
-              const SizedBox(width: 15),
-              Text(
-                'Choose Your Challenge',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+          // Header with Skip
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.close, color: theme.iconTheme.color),
+                  onPressed: () => Navigator.pop(context),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (_isTrackingActive && _selectedAddictionType != null) ...[
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: theme.primaryColor.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  FaIcon(FontAwesomeIcons.circleCheck, color: theme.primaryColor, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Currently overcoming: ${_selectedAddictionType == "Other (Custom)" ? _customAddictionType : _selectedAddictionType}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                TextButton(
+                  onPressed: _finishIntro,
+                  child: Text(
+                    'Skip',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ] else ...[
-            DropdownButtonFormField<String>(
-              value: _selectedAddictionType,
-              decoration: InputDecoration(
-                labelText: 'Select Addiction Type',
-                labelStyle: theme.textTheme.bodyMedium,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide(color: theme.primaryColor.withValues(alpha: 0.3)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide(color: theme.primaryColor.withValues(alpha: 0.3)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide(color: theme.primaryColor, width: 2),
-                ),
-              ),
-              items: _predefinedAddictions.map((String addiction) {
-                return DropdownMenuItem<String>(
-                  value: addiction,
-                  child: Text(addiction),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
+          ),
+
+          // Page View
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
                 setState(() {
-                  _selectedAddictionType = newValue;
-                  if (newValue == "Other (Custom)") {
-                    _customAddictionType = '';
-                  }
+                  _currentSlide = index;
                 });
               },
-              hint: Text('Choose your challenge', style: theme.textTheme.bodyMedium),
-            ),
-            if (_selectedAddictionType == "Other (Custom)") ...[
-              const SizedBox(height: 15),
-              TextField(
-                controller: _customAddictionController,
-                decoration: InputDecoration(
-                  labelText: 'Enter your custom challenge',
-                  labelStyle: theme.textTheme.bodyMedium,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide(color: theme.primaryColor.withValues(alpha: 0.3)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide(color: theme.primaryColor.withValues(alpha: 0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide(color: theme.primaryColor, width: 2),
-                  ),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _customAddictionType = value;
-                  });
-                },
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMilestoneBadgesSection(ThemeData theme) {
-    final List<Map<String, dynamic>> milestones = [
-      {'days': 21, 'name': '21 Days', 'icon': FontAwesomeIcons.star, 'color': const Color(0xFFCD7F32)}, // Bronze
-      {'days': 30, 'name': '1 Month', 'icon': FontAwesomeIcons.medal, 'color': const Color(0xFFC0C0C0)}, // Silver
-      {'days': 60, 'name': '2 Months', 'icon': FontAwesomeIcons.award, 'color': const Color(0xFFFFD700)}, // Gold
-      {'days': 90, 'name': '3 Months', 'icon': FontAwesomeIcons.trophy, 'color': const Color(0xFF800080)}, // Purple
-      {'days': 180, 'name': '6 Months', 'icon': FontAwesomeIcons.crown, 'color': const Color(0xFF0000FF)}, // Blue
-      {'days': 365, 'name': '1 Year', 'icon': FontAwesomeIcons.gem, 'color': const Color(0xFF008000)}, // Green
-      {'days': 730, 'name': '2 Years', 'icon': FontAwesomeIcons.rocket, 'color': const Color(0xFFFF0000)}, // Red
-    ];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              FaIcon(FontAwesomeIcons.certificate, color: theme.primaryColor, size: 30),
-              const SizedBox(width: 15),
-              Text(
-                'Milestone Badges',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Unlock badges as you progress!',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 15,
-            runSpacing: 15,
-            alignment: WrapAlignment.center,
-            children: milestones.map((milestone) {
-              final isUnlocked = _userDayStatus >= milestone['days'];
-              return Container(
-                width: 80,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isUnlocked 
-                      ? milestone['color'].withValues(alpha: 0.1)
-                      : theme.cardTheme.color?.withValues(alpha: 0.5) ?? theme.cardColor.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: isUnlocked 
-                        ? milestone['color']
-                        : theme.primaryColor.withValues(alpha: 0.3),
-                    width: 2,
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FaIcon(
-                      milestone['icon'],
-                      size: 30,
-                      color: isUnlocked ? milestone['color'] : Colors.grey,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      milestone['name'],
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isUnlocked ? milestone['color'] : Colors.grey,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    if (isUnlocked) ...[
-                      const SizedBox(height: 4),
-                      FaIcon(
-                        FontAwesomeIcons.check,
-                        size: 12,
-                        color: Colors.green,
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUserProfileCard(User? currentUser, ThemeData theme) {
-    final String addictionDisplayName = _selectedAddictionType == "Other (Custom)" 
-        ? (_customAddictionType.isNotEmpty ? _customAddictionType : "Custom Challenge")
-        : (_selectedAddictionType ?? "Not Started");
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 40,
-            backgroundColor: theme.primaryColor.withValues(alpha: 0.3),
-            child: FaIcon(
-              FontAwesomeIcons.user,
-              size: 30,
-              color: theme.primaryColor,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Text(
-            currentUser?.name ?? currentUser?.email ?? 'Guest User',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            _isTrackingActive ? 'Day $_userDayStatus of $addictionDisplayName' : 'Challenge: $addictionDisplayName',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.primaryColor,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (_isTrackingActive) ...[
-            const SizedBox(height: 5),
-            Text(
-              'Status: Day $_userDayStatus',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHabitTimerSection(ThemeData theme) {
-    final String addictionDisplayName = _selectedAddictionType == "Other (Custom)" 
-        ? (_customAddictionType.isNotEmpty ? _customAddictionType : "Custom Challenge")
-        : (_selectedAddictionType ?? "Your Challenge");
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          FaIcon(
-            FontAwesomeIcons.clock,
-            size: 40,
-            color: theme.primaryColor,
-          ),
-          const SizedBox(height: 15),
-          if (_isTrackingActive) ...[
-            Text(
-              'Overcoming: $addictionDisplayName',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: theme.primaryColor,
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
-          const SizedBox(height: 20),
-          if (_isTrackingActive && _habitStartTime != null) ...[
-            StreamBuilder<Duration>(
-              stream: Stream.periodic(const Duration(seconds: 1), (_) {
-                return DateTime.now().difference(_habitStartTime!);
-              }),
-              builder: (context, snapshot) {
-                final duration = snapshot.data ?? Duration.zero;
-                return Column(
-                  children: [
-                    Text(
-                      _formatDuration(duration),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Time Since You Started',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                );
+              itemCount: _slides.length,
+              itemBuilder: (context, index) {
+                return _buildIntroSlide(_slides[index], theme);
               },
             ),
-          ] else ...[
-            Text(
-              'Ready to Start Your Journey?',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (_selectedAddictionType != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                'Challenge: $addictionDisplayName',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.primaryColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-            const SizedBox(height: 15),
-            ElevatedButton.icon(
-              onPressed: _startHabitTracking,
-              icon: const FaIcon(FontAwesomeIcons.play, size: 18),
-              label: const Text('Start Tracking'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+          ),
 
-  Widget _buildDayStatusSection(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              FaIcon(FontAwesomeIcons.trophy, color: theme.primaryColor, size: 30),
-              const SizedBox(width: 15),
-              Text(
-                'Update Your Progress',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 25),
-          Wrap(
-            spacing: 15,
-            runSpacing: 15,
-            alignment: WrapAlignment.center,
-            children: [
-              _buildDayButton(10, 'Day 10', theme),
-              _buildDayButton(20, 'Day 20', theme),
-              _buildDayButton(30, 'Day 30', theme),
-              _buildDayButton(45, 'Day 45', theme),
-              _buildDayButton(60, 'Day 60', theme),
-              _buildDayButton(90, 'Day 90', theme),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: theme.primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Text(
-              'Current: Day $_userDayStatus',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDayButton(int day, String label, ThemeData theme) {
-    final isSelected = _userDayStatus == day;
-    return GestureDetector(
-      onTap: () => _updateDayStatus(day),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected 
-              ? theme.primaryColor
-              : theme.cardTheme.color?.withValues(alpha: 0.5) ?? theme.cardColor.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isSelected 
-                ? Colors.transparent
-                : theme.primaryColor.withValues(alpha: 0.5),
-            width: 2,
-          ),
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: isSelected ? Colors.white : theme.textTheme.bodyMedium?.color,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCommunitySection(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              FaIcon(FontAwesomeIcons.users, color: theme.primaryColor, size: 30),
-              const SizedBox(width: 15),
-              Text(
-                'Wellness Community',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _wellnessUsers.length,
-            itemBuilder: (context, index) {
-              final user = _wellnessUsers[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 15),
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: theme.cardTheme.color?.withOpacity(0.7) ?? theme.cardColor.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 25,
-                      backgroundColor: theme.primaryColor.withOpacity(0.2),
-                      child: FaIcon(
-                        FontAwesomeIcons.user,
-                        size: 20,
-                        color: theme.primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user['username'],
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Day ${user['dayStatus']} - Going Strong!',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          // Bottom Controls
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Indicators
+                Row(
+                  children: List.generate(
+                    _slides.length,
+                    (index) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.only(right: 8),
+                      height: 8,
+                      width: _currentSlide == index ? 24 : 8,
                       decoration: BoxDecoration(
-                        color: theme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FaIcon(
-                            FontAwesomeIcons.fire,
-                            size: 12,
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            '${user['dayStatus']}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                        color: _currentSlide == index
+                            ? theme.primaryColor
+                            : Colors.grey[300],
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              );
-            },
+
+                // Next/Get Started Button
+                ElevatedButton(
+                  onPressed: () {
+                    if (_currentSlide < _slides.length - 1) {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    } else {
+                      _finishIntro();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                  ),
+                  child: Text(
+                    _currentSlide == _slides.length - 1 ? 'Get Started' : 'Next',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIntroSlide(WellnessIntroSlide slide, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Title on Top
+          Padding(
+            padding: const EdgeInsets.only(top: 20.0, bottom: 20.0),
+            child: Text(
+              slide.title,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.judson(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: theme.textTheme.bodyLarge?.color,
+                height: 1.2,
+              ),
+            ),
+          ),
+
+          // Illustration
+          Expanded(
+            child: Container(
+              alignment: Alignment.center,
+              child: Lottie.asset(
+                slide.lottieAsset,
+                fit: BoxFit.contain,
+                frameRate: FrameRate.max,
+                errorBuilder: (context, error, stackTrace) {
+                  debugPrint('Lottie Load Error: $error');
+                  return Container(
+                    padding: const EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 80,
+                      color: theme.primaryColor.withValues(alpha: 0.5),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          
+          // Subtitle
+          Padding(
+            padding: const EdgeInsets.only(top: 20.0, bottom: 40.0),
+            child: Text(
+              slide.subtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackingDashboard(ThemeData theme) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+
+    return SizedBox(
+      height: MediaQuery.of(context).size.height,
+      child: WellnessDashboard(
+        currentUser: currentUser,
+        habitStartTime: _habitStartTime,
+        addictionType: _selectedAddictionType ?? 'Habit',
+        currentStreakDays: _userDayStatus,
       ),
     );
   }

@@ -645,22 +645,19 @@ class ApiService {
     bool isTextOnly = true,
     String status = 'published',
   }) async {
-    debugPrint('=== CREATING CONTENT ===');
+    debugPrint('=== CREATING CONTENT (Cloudflare) ===');
     debugPrint('Title: $title');
     debugPrint('Topic: $topic');
     debugPrint('Post Type: $postType');
     debugPrint('Is Text Only: $isTextOnly');
     
-    // Find working backend URL first
-    final workingUrl = await getWorkingBackendUrl();
-    debugPrint('Using working backend URL: $workingUrl');
-    
-    final uri = Uri.parse('$workingUrl/api/content');
+    // Use Cloudflare Worker URL directly
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/contents');
     debugPrint('Content creation URI: $uri');
     
     try {
-      final res = await _postWithRetry(
-        uri.toString(),
+      final res = await _client.post(
+        uri,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -679,7 +676,7 @@ class ApiService {
       debugPrint('createContent response status: ${res.statusCode}');
       debugPrint('createContent response body: ${res.body}');
       
-      if (res.statusCode == 201) {
+      if (res.statusCode == 201 || res.statusCode == 200) {
         final data = json.decode(res.body);
         debugPrint('Content created successfully!');
         return Content.fromJson(data as Map<String, dynamic>);
@@ -687,8 +684,8 @@ class ApiService {
         // Throw an exception with the actual error message
         final errorData = json.decode(res.body);
         debugPrint('Content creation failed with status ${res.statusCode}');
-        debugPrint('Error details: ${errorData['detail'] ?? 'Unknown error'}');
-        throw Exception('API Error ${res.statusCode}: ${errorData['detail'] ?? 'Unknown error'}');
+        debugPrint('Error details: ${errorData['detail'] ?? errorData['error'] ?? 'Unknown error'}');
+        throw Exception('API Error ${res.statusCode}: ${errorData['detail'] ?? errorData['error'] ?? 'Unknown error'}');
       }
     } catch (e) {
       debugPrint('Exception in createContent: $e');
