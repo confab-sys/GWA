@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'podcasts_screen.dart';
 import 'video_upload_screen.dart';
 import '../models/video.dart';
+import '../models/podcast.dart';
 
 import '../services/video_service.dart';
 import '../services/cloudflare_storage_service.dart';
@@ -13,30 +14,6 @@ import '../widgets/cloudflare_video_player.dart';
 import '../widgets/premium_video_card.dart';
 import '../widgets/category_button.dart';
 import '../widgets/view_more_card.dart';
-
-class Podcast {
-  final String id;
-  final String title;
-  final String subtitle;
-  final String category;
-  final String duration;
-  final double listenProgress;
-  final String thumbnailUrl;
-  bool isFavorite;
-  bool isSaved;
-
-  Podcast({
-    required this.id,
-    required this.title,
-    required this.subtitle,
-    required this.category,
-    required this.duration,
-    this.listenProgress = 0.0,
-    required this.thumbnailUrl,
-    this.isFavorite = false,
-    this.isSaved = false,
-  });
-}
 
 class VideoPodcastScreen extends StatefulWidget {
   const VideoPodcastScreen({super.key});

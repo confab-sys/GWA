@@ -1,0 +1,14 @@
+name = "gwa-podcast-worker"
+main = "podcast-worker.js"
+compatibility_date = "2024-12-01"
+
+# R2 Storage Binding for podcast files
+[[r2_buckets]]
+binding = "GWA_PODCASTS_BUCKET"
+bucket_name = "gwa-podcasts"
+
+# D1 Database Binding for podcast metadata
+[[d1_databases]]
+binding = "GWA_PODCASTS_DB"
+database_name = "gwa-podcasts"
+database_id = "0f961373-542e-4208-92a1-a21124c216a7"

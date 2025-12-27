@@ -1,6 +1,6 @@
 /**
- * GWA Video Worker - Fresh Implementation
- * Handles video storage in R2 and metadata in D1
+ * GWA Podcast Worker
+ * Handles podcast storage in R2 and metadata in D1
  */
 
 // CORS headers for cross-origin requests
@@ -26,25 +26,25 @@ export default {
     
     try {
       // Route requests based on path and method
-      if (pathname === '/api/videos' && method === 'GET') {
-        return await handleListVideos(request, env, CORS_HEADERS);
-      } else if (pathname === '/api/videos/sync' && method === 'POST') {
-        return await handleSyncVideos(request, env, CORS_HEADERS);
-      } else if (pathname === '/api/videos/upload' && method === 'POST') {
-        return await handleUploadVideo(request, env, CORS_HEADERS);
-      } else if (pathname.startsWith('/api/videos/') && pathname.endsWith('/signed-url') && method === 'GET') {
+      if (pathname === '/api/podcasts' && method === 'GET') {
+        return await handleListPodcasts(request, env, CORS_HEADERS);
+      } else if (pathname === '/api/podcasts/sync' && method === 'POST') {
+        return await handleSyncPodcasts(request, env, CORS_HEADERS);
+      } else if (pathname === '/api/podcasts/upload' && method === 'POST') {
+        return await handleUploadPodcast(request, env, CORS_HEADERS);
+      } else if (pathname.startsWith('/api/podcasts/') && pathname.endsWith('/signed-url') && method === 'GET') {
         const pathParts = pathname.split('/');
-        const videoId = pathParts[3]; // /api/videos/{id}/signed-url
-        return await handleGetSignedUrl(request, env, CORS_HEADERS, videoId);
-      } else if (pathname.startsWith('/api/videos/signed/') && method === 'GET') {
-        // Handle direct video serving from signed URLs
+        const podcastId = pathParts[3]; // /api/podcasts/{id}/signed-url
+        return await handleGetSignedUrl(request, env, CORS_HEADERS, podcastId);
+      } else if (pathname.startsWith('/api/podcasts/signed/') && method === 'GET') {
+        // Handle direct podcast serving from signed URLs
         const pathParts = pathname.split('/');
-        const objectKey = pathParts.slice(4).join('/'); // /api/videos/signed/{objectKey} - Handle keys with slashes (e.g. thumbnails/)
-        return await handleServeVideo(request, env, CORS_HEADERS, objectKey);
-      } else if (pathname.startsWith('/api/videos/') && method === 'GET') {
+        const objectKey = pathParts.slice(4).join('/'); // /api/podcasts/signed/{objectKey}
+        return await handleServePodcast(request, env, CORS_HEADERS, objectKey);
+      } else if (pathname.startsWith('/api/podcasts/') && method === 'GET') {
         const pathParts = pathname.split('/');
-        const videoId = pathParts[3]; // /api/videos/{id}
-        return await handleGetVideo(request, env, CORS_HEADERS, videoId);
+        const podcastId = pathParts[3]; // /api/podcasts/{id}
+        return await handleGetPodcast(request, env, CORS_HEADERS, podcastId);
       } else if (pathname === '/' && method === 'GET') {
         return await handleHealthCheck(request, env, CORS_HEADERS);
       } else {
@@ -70,7 +70,7 @@ async function handleHealthCheck(request, env, corsHeaders) {
   return new Response(
     JSON.stringify({ 
       status: 'healthy', 
-      service: 'GWA Video Worker',
+      service: 'GWA Podcast Worker',
       timestamp: new Date().toISOString()
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -78,32 +78,41 @@ async function handleHealthCheck(request, env, corsHeaders) {
 }
 
 /**
- * List all videos with pagination
+ * List all podcasts with pagination
  */
-async function handleListVideos(request, env, corsHeaders) {
+async function handleListPodcasts(request, env, corsHeaders) {
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get('page') || '1');
   const limit = parseInt(url.searchParams.get('limit') || '50');
   const offset = (page - 1) * limit;
+  const category = url.searchParams.get('category');
   
   try {
-    // Get total count
-    const countResult = await env.GWA_VIDEOS_DB.prepare(
-      'SELECT COUNT(*) as total FROM videos'
-    ).first();
+    // Build query
+    let query = 'SELECT * FROM podcasts';
+    let countQuery = 'SELECT COUNT(*) as total FROM podcasts';
+    const params = [];
     
-    // Get videos with pagination
-    const videosResult = await env.GWA_VIDEOS_DB.prepare(`
-      SELECT id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at
-      FROM videos
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `).bind(limit, offset).all();
+    if (category && category !== 'All') {
+      query += ' WHERE category = ?';
+      countQuery += ' WHERE category = ?';
+      params.push(category);
+    }
+    
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    
+    // Get total count
+    const countResult = await env.GWA_PODCASTS_DB.prepare(countQuery).bind(...params).first();
+    
+    // Get podcasts with pagination
+    const podcastsResult = await env.GWA_PODCASTS_DB.prepare(query)
+      .bind(...params, limit, offset)
+      .all();
     
     return new Response(
       JSON.stringify({
         success: true,
-        videos: videosResult.results || [],
+        podcasts: podcastsResult.results || [],
         pagination: {
           page,
           limit,
@@ -114,65 +123,63 @@ async function handleListVideos(request, env, corsHeaders) {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('List videos error:', error);
+    console.error('List podcasts error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to list videos', message: error.message }),
+      JSON.stringify({ error: 'Failed to list podcasts', message: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 }
 
 /**
- * Get single video by ID
+ * Get single podcast by ID
  */
-async function handleGetVideo(request, env, corsHeaders, videoId) {
+async function handleGetPodcast(request, env, corsHeaders, podcastId) {
   try {
-    const video = await env.GWA_VIDEOS_DB.prepare(`
-      SELECT id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at, video_thumbnail_url
-      FROM videos
-      WHERE id = ?
-    `).bind(videoId).first();
+    const podcast = await env.GWA_PODCASTS_DB.prepare(`
+      SELECT * FROM podcasts WHERE id = ?
+    `).bind(podcastId).first();
     
-    if (!video) {
+    if (!podcast) {
       return new Response(
-        JSON.stringify({ error: 'Video not found' }),
+        JSON.stringify({ error: 'Podcast not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     return new Response(
-      JSON.stringify({ success: true, video }),
+      JSON.stringify({ success: true, podcast }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Get video error:', error);
+    console.error('Get podcast error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to get video', message: error.message }),
+      JSON.stringify({ error: 'Failed to get podcast', message: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 }
 
 /**
- * Generate signed URL for video access
+ * Generate signed URL for podcast access
  */
-async function handleGetSignedUrl(request, env, corsHeaders, videoId) {
+async function handleGetSignedUrl(request, env, corsHeaders, podcastId) {
   try {
-    // Get video from database
-    const video = await env.GWA_VIDEOS_DB.prepare(`
-      SELECT object_key FROM videos WHERE id = ?
-    `).bind(videoId).first();
+    // Get podcast from database
+    const podcast = await env.GWA_PODCASTS_DB.prepare(`
+      SELECT object_key FROM podcasts WHERE id = ?
+    `).bind(podcastId).first();
     
-    if (!video || !video.object_key) {
+    if (!podcast || !podcast.object_key) {
       return new Response(
-        JSON.stringify({ error: 'Video not found' }),
+        JSON.stringify({ error: 'Podcast not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Generate signed URL (valid for 1 hour)
-    const expiryTime = 3600; // 1 hour
-    const signedUrl = await generateSignedUrl(env.GWA_VIDEOS_BUCKET, video.object_key, expiryTime);
+    // Generate signed URL (valid for 1 year)
+    const expiryTime = 365 * 24 * 3600; 
+    const signedUrl = await generateSignedUrl(env.GWA_PODCASTS_BUCKET, podcast.object_key, expiryTime);
     
     return new Response(
       JSON.stringify({
@@ -193,14 +200,14 @@ async function handleGetSignedUrl(request, env, corsHeaders, videoId) {
 }
 
 /**
- * Sync videos from R2 bucket to database
+ * Sync podcasts from R2 bucket to database
  */
-async function handleSyncVideos(request, env, corsHeaders) {
+async function handleSyncPodcasts(request, env, corsHeaders) {
   try {
-    console.log('Starting video sync from R2 bucket...');
+    console.log('Starting podcast sync from R2 bucket...');
     
     // List all objects in R2 bucket
-    const objects = await env.GWA_VIDEOS_BUCKET.list();
+    const objects = await env.GWA_PODCASTS_BUCKET.list();
     console.log(`Found ${objects.objects?.length || 0} objects in R2 bucket`);
     
     if (!objects.objects || objects.objects.length === 0) {
@@ -217,61 +224,61 @@ async function handleSyncVideos(request, env, corsHeaders) {
     
     let syncedCount = 0;
     let skippedCount = 0;
-    const syncedVideos = [];
+    const syncedPodcasts = [];
     
     // Process each object
     for (const object of objects.objects) {
       const key = object.key;
       
-      // Only process video files
-      if (!key.match(/\.(mp4|mov|avi|webm|mkv|m4v|3gp)$/i)) {
-        console.log(`Skipping non-video file: ${key}`);
+      // Skip thumbnails folder and non-audio files
+      if (key.startsWith('thumbnails/') || !key.match(/\.(mp3|wav|m4a|aac|ogg)$/i)) {
+        console.log(`Skipping non-podcast file: ${key}`);
         skippedCount++;
         continue;
       }
       
       try {
-        // Check if video already exists in database
-        const existingVideo = await env.GWA_VIDEOS_DB.prepare(
-          'SELECT id FROM videos WHERE object_key = ?'
+        // Check if podcast already exists in database
+        const existingPodcast = await env.GWA_PODCASTS_DB.prepare(
+          'SELECT id FROM podcasts WHERE object_key = ?'
         ).bind(key).first();
         
-        if (existingVideo) {
-          console.log(`Video already exists in database: ${key}`);
+        if (existingPodcast) {
+          console.log(`Podcast already exists in database: ${key}`);
           skippedCount++;
           continue;
         }
         
-        // Generate video metadata
-        const videoId = crypto.randomUUID();
+        // Generate podcast metadata
+        const podcastId = crypto.randomUUID();
         const title = generateTitleFromFilename(key);
-        const category = categorizeVideo(title);
+        const category = 'Uncategorized';
         const fileSize = parseInt(object.size || 0);
         const contentType = getContentTypeFromExtension(key);
-        const description = `Professional ${contentType} video: ${title}`;
+        const description = `Podcast episode: ${title}`;
         const createdAt = new Date(object.uploaded || Date.now()).toISOString();
         
-        console.log(`Processing video: ${key}, size: ${fileSize}, type: ${contentType}, category: ${category}`);
+        console.log(`Processing podcast: ${key}, size: ${fileSize}, type: ${contentType}`);
         
         // Generate signed URL (valid for 1 year)
-        const expiryTime = 365 * 24 * 3600; // 1 year in seconds
-        const signedUrl = await generateSignedUrl(env.GWA_VIDEOS_BUCKET, key, expiryTime);
+        const expiryTime = 365 * 24 * 3600;
+        const signedUrl = await generateSignedUrl(env.GWA_PODCASTS_BUCKET, key, expiryTime);
         const signedUrlExpiresAt = new Date(Date.now() + expiryTime * 1000).toISOString();
         
-        // Insert video into database with signed URL
-        await env.GWA_VIDEOS_DB.prepare(`
-          INSERT INTO videos (id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        // Insert podcast into database
+        await env.GWA_PODCASTS_DB.prepare(`
+          INSERT INTO podcasts (id, title, description, category, object_key, created_at, file_size, content_type, original_name, signed_url, signed_url_expires_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
-          videoId, title, description, category, key, createdAt, fileSize, contentType, key, 0, 0, signedUrl, signedUrlExpiresAt
+          podcastId, title, description, category, key, createdAt, fileSize, contentType, key, signedUrl, signedUrlExpiresAt
         ).run();
         
-        syncedVideos.push({ id: videoId, title, category, object_key: key, signed_url: signedUrl });
+        syncedPodcasts.push({ id: podcastId, title, category, object_key: key });
         syncedCount++;
-        console.log(`Successfully synced video: ${key} (ID: ${videoId})`);
+        console.log(`Successfully synced podcast: ${key} (ID: ${podcastId})`);
         
       } catch (error) {
-        console.error(`Error processing video ${key}:`, error);
+        console.error(`Error processing podcast ${key}:`, error);
         skippedCount++;
       }
     }
@@ -282,7 +289,7 @@ async function handleSyncVideos(request, env, corsHeaders) {
         message: `Sync completed. Synced: ${syncedCount}, Skipped: ${skippedCount}`,
         synced: syncedCount,
         skipped: skippedCount,
-        videos: syncedVideos
+        podcasts: syncedPodcasts
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -290,22 +297,24 @@ async function handleSyncVideos(request, env, corsHeaders) {
   } catch (error) {
     console.error('Sync error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to sync videos', message: error.message }),
+      JSON.stringify({ error: 'Failed to sync podcasts', message: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 }
 
 /**
- * Upload video directly to R2 and save metadata
+ * Upload podcast directly to R2 and save metadata
  */
-async function handleUploadVideo(request, env, corsHeaders) {
+async function handleUploadPodcast(request, env, corsHeaders) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
     const title = formData.get('title') || '';
+    const subtitle = formData.get('subtitle') || '';
     const description = formData.get('description') || '';
     const category = formData.get('category') || 'Uncategorized';
+    const duration = formData.get('duration') || '';
     
     if (!file) {
       return new Response(
@@ -315,9 +324,9 @@ async function handleUploadVideo(request, env, corsHeaders) {
     }
     
     // Validate file type
-    if (!file.name.match(/\.(mp4|mov|avi|webm|mkv|m4v|3gp)$/i)) {
+    if (!file.name.match(/\.(mp3|wav|m4a|aac|ogg)$/i)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid file type. Only video files are allowed.' }),
+        JSON.stringify({ error: 'Invalid file type. Only audio files are allowed.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -326,7 +335,7 @@ async function handleUploadVideo(request, env, corsHeaders) {
     const objectKey = `${Date.now()}-${file.name}`;
     
     // Upload to R2
-    await env.GWA_VIDEOS_BUCKET.put(objectKey, file.stream(), {
+    await env.GWA_PODCASTS_BUCKET.put(objectKey, file.stream(), {
       httpMetadata: {
         contentType: file.type,
       },
@@ -343,48 +352,43 @@ async function handleUploadVideo(request, env, corsHeaders) {
     
     if (thumbnail) {
       thumbnailKey = `thumbnails/${Date.now()}-${thumbnail.name}`;
-      await env.GWA_VIDEOS_BUCKET.put(thumbnailKey, thumbnail.stream(), {
+      await env.GWA_PODCASTS_BUCKET.put(thumbnailKey, thumbnail.stream(), {
         httpMetadata: {
           contentType: thumbnail.type,
         },
       });
-      // Assuming public access or signed URL for thumbnail. 
-      // For now, let's generate a signed URL similar to the video, or just a direct path if public.
-      // Using the same signed URL pattern for consistency
-      const thumbExpiryTime = 365 * 24 * 3600; // 1 year in seconds
-      thumbnailUrl = await generateSignedUrl(env.GWA_VIDEOS_BUCKET, thumbnailKey, thumbExpiryTime);
+      
+      const thumbExpiryTime = 365 * 24 * 3600; 
+      thumbnailUrl = await generateSignedUrl(env.GWA_PODCASTS_BUCKET, thumbnailKey, thumbExpiryTime);
     }
 
     // Generate signed URL (valid for 1 year)
-    const expiryTime = 365 * 24 * 3600; // 1 year in seconds
-    const signedUrl = await generateSignedUrl(env.GWA_VIDEOS_BUCKET, objectKey, expiryTime);
+    const expiryTime = 365 * 24 * 3600;
+    const signedUrl = await generateSignedUrl(env.GWA_PODCASTS_BUCKET, objectKey, expiryTime);
     const signedUrlExpiresAt = new Date(Date.now() + expiryTime * 1000).toISOString();
     
-    // Save metadata to database with signed URL
-    const videoId = crypto.randomUUID();
+    // Save metadata to database
+    const podcastId = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const fileSize = file.size || 0;
     
-    await env.GWA_VIDEOS_DB.prepare(`
-      INSERT INTO videos (id, title, description, category, object_key, created_at, file_size, content_type, original_name, view_count, comment_count, signed_url, signed_url_expires_at, video_thumbnail_url)
+    await env.GWA_PODCASTS_DB.prepare(`
+      INSERT INTO podcasts (id, title, subtitle, description, category, object_key, created_at, file_size, content_type, original_name, duration, thumbnail_url, signed_url, signed_url_expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      videoId, title, description, category, objectKey, createdAt, fileSize, file.type, file.name, 0, 0, signedUrl, signedUrlExpiresAt, thumbnailUrl
+      podcastId, title, subtitle, description, category, objectKey, createdAt, fileSize, file.type, file.name, duration, thumbnailUrl, signedUrl, signedUrlExpiresAt
     ).run();
-    
-    console.log(`Successfully uploaded video: ${file.name} (ID: ${videoId})`);
     
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Video uploaded successfully',
-        video: {
-          id: videoId,
+        message: 'Podcast uploaded successfully',
+        podcast: {
+          id: podcastId,
           title,
           category,
-          object_key: objectKey,
-          file_size: fileSize,
-          content_type: file.type
+          thumbnail_url: thumbnailUrl,
+          signed_url: signedUrl
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -393,7 +397,7 @@ async function handleUploadVideo(request, env, corsHeaders) {
   } catch (error) {
     console.error('Upload error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to upload video', message: error.message }),
+      JSON.stringify({ error: 'Failed to upload podcast', message: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -411,39 +415,39 @@ function generateTitleFromFilename(filename) {
 }
 
 /**
- * Serve video directly from R2 bucket
+ * Serve podcast directly from R2 bucket
  */
-async function handleServeVideo(request, env, corsHeaders, objectKey) {
+async function handleServePodcast(request, env, corsHeaders, objectKey) {
   try {
-    // Get the video object from R2
-    const object = await env.GWA_VIDEOS_BUCKET.get(objectKey);
+    // Get the podcast object from R2
+    const object = await env.GWA_PODCASTS_BUCKET.get(objectKey);
     
     if (!object) {
       return new Response(
-        JSON.stringify({ error: 'Video not found' }),
+        JSON.stringify({ error: 'Podcast not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Set appropriate headers for video streaming
+    // Set appropriate headers for audio streaming
     const headers = {
       ...corsHeaders,
-      'Content-Type': object.httpMetadata?.contentType || 'video/mp4',
+      'Content-Type': object.httpMetadata?.contentType || 'audio/mpeg',
       'Content-Length': object.size,
       'Cache-Control': 'public, max-age=3600',
-      'Accept-Ranges': 'bytes', // Enable range requests for video seeking
+      'Accept-Ranges': 'bytes',
     };
     
-    // Return the video stream
+    // Return the audio stream
     return new Response(object.body, {
       headers,
       status: 200
     });
     
   } catch (error) {
-    console.error('Serve video error:', error);
+    console.error('Serve podcast error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to serve video', message: error.message }),
+      JSON.stringify({ error: 'Failed to serve podcast', message: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -455,33 +459,22 @@ async function handleServeVideo(request, env, corsHeaders, objectKey) {
 function getContentTypeFromExtension(filename) {
   const ext = filename.split('.').pop().toLowerCase();
   const contentTypes = {
-    'mp4': 'video/mp4',
-    'mov': 'video/quicktime',
-    'avi': 'video/x-msvideo',
-    'webm': 'video/webm',
-    'mkv': 'video/x-matroska',
-    'm4v': 'video/x-m4v',
-    '3gp': 'video/3gpp'
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'm4a': 'audio/mp4',
+    'aac': 'audio/aac',
+    'ogg': 'audio/ogg'
   };
-  return contentTypes[ext] || 'video/mp4';
-}
-
-/**
- * Categorize video based on title
- * For now, just return 'Uncategorized' as we want to rely on manual categorization
- */
-function categorizeVideo(title) {
-  return 'Uncategorized';
+  return contentTypes[ext] || 'audio/mpeg';
 }
 
 /**
  * Generate signed URL for R2 object
  */
 async function generateSignedUrl(bucket, objectKey, expirySeconds = 3600) {
-  // In a production environment, you'd implement proper signed URL generation
-  // For now, we'll return a URL with basic access control
   const expiry = Date.now() + (expirySeconds * 1000);
-  
-  // Simple implementation - in production, use proper HMAC signing
-  return `https://gwa-video-worker-v2.aashardcustomz.workers.dev/api/videos/signed/${objectKey}?expiry=${expiry}`;
+  // NOTE: This URL format needs to match your worker's domain
+  // Since we are deploying a new worker, we need to know its name
+  // Assuming 'gwa-podcast-worker' for now, will update if different
+  return `https://gwa-podcast-worker.aashardcustomz.workers.dev/api/podcasts/signed/${objectKey}?expiry=${expiry}`;
 }

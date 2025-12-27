@@ -17,6 +17,7 @@ class VideoService {
     required String title,
     String description = '',
     String category = 'Uncategorized',
+    File? thumbnailFile,
     void Function(int sent, int total)? onProgress,
   }) async {
     try {
@@ -37,6 +38,21 @@ class VideoService {
         filename: videoFile.path.split('/').last,
         contentType: MediaType.parse(mimeType),
       ));
+
+      // Add thumbnail if present
+      if (thumbnailFile != null) {
+        final thumbMimeType = lookupMimeType(thumbnailFile.path) ?? 'image/jpeg';
+        final thumbStream = http.ByteStream(thumbnailFile.openRead());
+        final thumbLength = await thumbnailFile.length();
+        
+        request.files.add(http.MultipartFile(
+          'thumbnail',
+          thumbStream,
+          thumbLength,
+          filename: thumbnailFile.path.split('/').last,
+          contentType: MediaType.parse(thumbMimeType),
+        ));
+      }
 
       // Add form fields
       request.fields['title'] = title;
@@ -83,6 +99,8 @@ class VideoService {
     required String title,
     String description = '',
     String category = 'Uncategorized',
+    Uint8List? thumbnailBytes,
+    String? thumbnailName,
     void Function(int sent, int total)? onProgress,
   }) async {
     try {
@@ -143,6 +161,22 @@ class VideoService {
       print('  Byte length: ${videoBytes.length}');
       
       request.files.add(multipartFile);
+      
+      // Add thumbnail if present
+      if (thumbnailBytes != null && thumbnailName != null) {
+        final cleanThumbName = thumbnailName.split('/').last.split('\\').last;
+        final thumbMimeType = lookupMimeType(cleanThumbName) ?? 'image/jpeg';
+        
+        final thumbStream = http.ByteStream.fromBytes(thumbnailBytes);
+        final thumbMultipart = http.MultipartFile(
+          'thumbnail',
+          thumbStream,
+          thumbnailBytes.length,
+          filename: cleanThumbName,
+          contentType: MediaType.parse(thumbMimeType),
+        );
+        request.files.add(thumbMultipart);
+      }
       
       print('Request files added:');
       print('  Field: file');

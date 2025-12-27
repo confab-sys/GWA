@@ -36,6 +36,12 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   File? _selectedVideo;
   Uint8List? _webVideoBytes;
   String? _webVideoName;
+  
+  // Thumbnail state variables
+  File? _selectedThumbnail;
+  Uint8List? _webThumbnailBytes;
+  String? _webThumbnailName;
+
   bool _isUploading = false;
   String? _uploadError;
   String? _uploadSuccess;
@@ -273,6 +279,43 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
     }
   }
 
+  Future<void> _pickThumbnail() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowCompression: true,
+        withData: true, // Required for web
+      );
+
+      if (result != null) {
+        final file = result.files.single;
+        
+        if (kIsWeb) {
+          if (file.bytes != null) {
+            setState(() {
+              _webThumbnailBytes = file.bytes;
+              _webThumbnailName = file.name;
+              _selectedThumbnail = null;
+            });
+          }
+        } else {
+          if (file.path != null) {
+            setState(() {
+              _selectedThumbnail = File(file.path!);
+              _webThumbnailBytes = null;
+              _webThumbnailName = null;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Error selecting thumbnail: $e');
+      setState(() {
+        _uploadError = 'Error selecting thumbnail: $e';
+      });
+    }
+  }
+
   Future<void> _uploadVideo() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -386,6 +429,8 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           category: _selectedCategory,
+          thumbnailBytes: _webThumbnailBytes,
+          thumbnailName: _webThumbnailName,
         );
       } else {
         print('Uploading mobile video:');
@@ -400,6 +445,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
           title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
           category: _selectedCategory,
+          thumbnailFile: _selectedThumbnail,
         );
       }
 
@@ -535,6 +581,86 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Thumbnail Selection Section
+                      Text(
+                        'Thumbnail (Optional)',
+                        style: GoogleFonts.judson(
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      if ((kIsWeb ? _webThumbnailBytes != null : _selectedThumbnail != null)) ...[
+                        Container(
+                          height: 150,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.grey[200],
+                            image: kIsWeb 
+                                ? DecorationImage(
+                                    image: MemoryImage(_webThumbnailBytes!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : DecorationImage(
+                                    image: FileImage(_selectedThumbnail!),
+                                    fit: BoxFit.cover,
+                                  ),
+                          ),
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: CircleAvatar(
+                                  backgroundColor: Colors.white,
+                                  radius: 16,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close, size: 16, color: Colors.black),
+                                    onPressed: () {
+                                      setState(() {
+                                        _webThumbnailBytes = null;
+                                        _webThumbnailName = null;
+                                        _selectedThumbnail = null;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _pickThumbnail,
+                              icon: const Icon(Icons.image),
+                              label: Text(
+                                _webThumbnailBytes != null || _selectedThumbnail != null 
+                                    ? 'Change Thumbnail' 
+                                    : 'Select Thumbnail',
+                                style: GoogleFonts.judson(),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.black,
+                                side: const BorderSide(color: Colors.black),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       
@@ -831,6 +957,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                       const SizedBox(height: 8),
                       _buildRequirementItem('Video file must be MP4, MOV, AVI, WebM, MKV, M4V, or 3GP format'),
                       _buildRequirementItem('Maximum file size: 100MB'),
+                      _buildRequirementItem('Thumbnail is optional (JPG, PNG, WEBP, GIF)'),
                       _buildRequirementItem('Title is required (minimum 3 characters)'),
                       _buildRequirementItem('Description is optional but recommended'),
                     ],
