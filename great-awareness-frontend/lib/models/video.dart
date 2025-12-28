@@ -12,6 +12,7 @@ class Video {
   final int viewCount;
   final int commentCount;
   final String? category;
+  final String? thumbnailUrl;
   String? signedUrl;
   DateTime? signedUrlExpiry;
 
@@ -27,6 +28,7 @@ class Video {
     this.viewCount = 0,
     this.commentCount = 0,
     this.category,
+    this.thumbnailUrl,
     this.signedUrl,
     this.signedUrlExpiry,
   });
@@ -35,19 +37,22 @@ class Video {
     final nestedVideo = json['video'] is Map<String, dynamic> ? json['video'] as Map<String, dynamic> : null;
 
     return Video(
-      id: json['id'] ?? nestedVideo?['id'],
-      title: json['title'] ?? nestedVideo?['title'],
+      id: json['id'] ?? nestedVideo?['id'] ?? '',
+      title: json['title'] ?? nestedVideo?['title'] ?? 'Untitled',
       description: json['description'] ?? nestedVideo?['description'] ?? '',
-      objectKey: json['object_key'] ?? nestedVideo?['objectKey'] ?? json['objectKey'],
-      createdAt: DateTime.parse(json['created_at'] ?? nestedVideo?['createdAt'] ?? json['createdAt']),
-      fileSize: json['file_size'] ?? nestedVideo?['fileSize'] ?? json['fileSize'] ?? 0,
-      contentType: json['content_type'] ?? nestedVideo?['contentType'] ?? json['contentType'] ?? 'video/mp4',
-      originalName: json['original_name'] ?? nestedVideo?['originalName'] ?? json['originalName'] ?? '',
-      viewCount: json['view_count'] ?? nestedVideo?['viewCount'] ?? json['viewCount'] ?? 0,
-      commentCount: json['comment_count'] ?? nestedVideo?['commentCount'] ?? json['commentCount'] ?? 0,
+      objectKey: json['object_key'] ?? nestedVideo?['object_key'] ?? nestedVideo?['objectKey'] ?? json['objectKey'] ?? '',
+      createdAt: DateTime.tryParse(json['created_at'] ?? nestedVideo?['created_at'] ?? nestedVideo?['createdAt'] ?? json['createdAt'] ?? '') ?? DateTime.now(),
+      fileSize: json['file_size'] ?? nestedVideo?['file_size'] ?? nestedVideo?['fileSize'] ?? json['fileSize'] ?? 0,
+      contentType: json['content_type'] ?? nestedVideo?['content_type'] ?? nestedVideo?['contentType'] ?? json['contentType'] ?? 'video/mp4',
+      originalName: json['original_name'] ?? nestedVideo?['original_name'] ?? nestedVideo?['originalName'] ?? json['originalName'] ?? '',
+      viewCount: json['view_count'] ?? nestedVideo?['view_count'] ?? nestedVideo?['viewCount'] ?? json['viewCount'] ?? 0,
+      commentCount: json['comment_count'] ?? nestedVideo?['comment_count'] ?? nestedVideo?['commentCount'] ?? json['commentCount'] ?? 0,
       category: json['category'] ?? nestedVideo?['category'],
-      signedUrl: json['signed_url'] ?? json['signedUrl'],
-      signedUrlExpiry: (json['signed_url_expires_at'] ?? json['signedUrlExpiry']) != null ? DateTime.parse(json['signed_url_expires_at'] ?? json['signedUrlExpiry']) : null,
+      thumbnailUrl: json['thumbnail_url'] ?? json['video_thumbnail_url'] ?? nestedVideo?['thumbnail_url'] ?? nestedVideo?['video_thumbnail_url'] ?? nestedVideo?['thumbnailUrl'] ?? nestedVideo?['video_thumbnail_url'],
+      signedUrl: json['signed_url'] ?? nestedVideo?['signed_url'] ?? nestedVideo?['signedUrl'] ?? json['signedUrl'],
+      signedUrlExpiry: (json['signed_url_expires_at'] ?? nestedVideo?['signed_url_expires_at'] ?? nestedVideo?['signedUrlExpiry'] ?? json['signedUrlExpiry']) != null 
+          ? DateTime.tryParse(json['signed_url_expires_at'] ?? nestedVideo?['signed_url_expires_at'] ?? nestedVideo?['signedUrlExpiry'] ?? json['signedUrlExpiry'] ?? '') 
+          : null,
     );
   }
 
@@ -64,6 +69,7 @@ class Video {
       'view_count': viewCount,
       'comment_count': commentCount,
       'category': category,
+      'thumbnail_url': thumbnailUrl,
       'signed_url': signedUrl,
       'signed_url_expires_at': signedUrlExpiry?.toIso8601String(),
     };

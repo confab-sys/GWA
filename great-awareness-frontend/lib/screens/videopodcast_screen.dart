@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'podcasts_screen.dart';
 import 'video_upload_screen.dart';
 import '../models/video.dart';
@@ -65,20 +68,54 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
   }
 
   Future<void> _loadMasterClasses() async {
-    setState(() {
-      isLoadingMasterClasses = true;
-    });
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 1. Load from cache
+    final cachedClassesStr = prefs.getString('cached_master_classes');
+    if (cachedClassesStr != null && masterClasses.isEmpty) {
+      try {
+        final List<dynamic> decoded = json.decode(cachedClassesStr);
+        final cachedClasses = decoded.map((json) => MasterClass.fromJson(json)).toList();
+        if (mounted) {
+          setState(() {
+            masterClasses = cachedClasses;
+            isLoadingMasterClasses = false;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading cached master classes: $e');
+      }
+    }
+
+    // 2. Fetch fresh
+    if (masterClasses.isEmpty) {
+      setState(() {
+        isLoadingMasterClasses = true;
+      });
+    }
+
     try {
       final classes = await VideoService.getMasterClasses();
-      setState(() {
-        masterClasses = classes;
-        isLoadingMasterClasses = false;
-      });
+      
+      // Cache fresh data
+      final classesJson = classes.map((c) => c.toJson()).toList();
+      await prefs.setString('cached_master_classes', json.encode(classesJson));
+
+      if (mounted) {
+        setState(() {
+          masterClasses = classes;
+          isLoadingMasterClasses = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading master classes: $e');
-      setState(() {
-        isLoadingMasterClasses = false;
-      });
+      if (mounted) {
+        if (masterClasses.isEmpty) {
+          setState(() {
+            isLoadingMasterClasses = false;
+          });
+        }
+      }
     }
   }
 
@@ -89,11 +126,35 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
   }
 
   Future<void> _loadVideosFromCloudflare() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1. Try to load from cache first
+    final cachedVideosStr = prefs.getString('cached_videos_list');
+    if (cachedVideosStr != null && allVideos.isEmpty) {
+      try {
+        final List<dynamic> decoded = json.decode(cachedVideosStr);
+        final cachedVideos = decoded.map((json) => Video.fromJson(json)).toList();
+        
+        if (mounted) {
+          setState(() {
+            allVideos = cachedVideos;
+            filteredVideos = cachedVideos;
+            isLoading = false;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading cached videos: $e');
+      }
+    }
+
     try {
-      setState(() {
-        isLoading = true;
-        _errorMessage = null;
-      });
+      // Don't set isLoading to true if we have cached data
+      if (allVideos.isEmpty) {
+        setState(() {
+          isLoading = true;
+          _errorMessage = null;
+        });
+      }
 
       debugPrint('Loading videos from Cloudflare database...');
       
@@ -139,23 +200,34 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
         }
       }
 
-      setState(() {
-        allVideos = loadedVideos;
-        filteredVideos = List.from(allVideos);
-        isLoading = false;
-        if (allVideos.isEmpty) {
-          _errorMessage = "No videos found.";
-        }
-      });
+      // Cache the fresh list
+      final videosJson = loadedVideos.map((v) => v.toJson()).toList();
+      await prefs.setString('cached_videos_list', json.encode(videosJson));
+
+      if (mounted) {
+        setState(() {
+          allVideos = loadedVideos;
+          filteredVideos = List.from(allVideos);
+          isLoading = false;
+          if (allVideos.isEmpty) {
+            _errorMessage = "No videos found.";
+          }
+        });
+      }
       
     } catch (e) {
       debugPrint('Error loading videos: $e');
-      setState(() {
-        isLoading = false;
-        allVideos = [];
-        filteredVideos = [];
-        _errorMessage = "Failed to load videos: $e";
-      });
+      if (mounted) {
+        // Only show error state if we have no cached data
+        if (allVideos.isEmpty) {
+          setState(() {
+            isLoading = false;
+            allVideos = [];
+            filteredVideos = [];
+            _errorMessage = "Failed to load videos: $e";
+          });
+        }
+      }
     }
   }
 
@@ -483,10 +555,6 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
                   width: 260,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    image: DecorationImage(
-                      image: NetworkImage(masterClass.imageUrl),
-                      fit: BoxFit.cover,
-                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
@@ -495,8 +563,25 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
                       ),
                     ],
                   ),
-                  child: Stack(
-                    children: [
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: masterClass.imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.broken_image, color: Colors.grey),
+                          ),
+                        ),
                       // Gradient Overlay for readability
                       Container(
                         decoration: BoxDecoration(
@@ -597,7 +682,8 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
                     ],
                   ),
                 ),
-              );
+              ),
+            );
             },
           ),
         ),

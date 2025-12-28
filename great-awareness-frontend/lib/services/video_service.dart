@@ -308,7 +308,7 @@ class VideoService {
         throw Exception(errorResponse['error'] ?? 'Video not found');
       }
     } catch (e) {
-      throw Exception('Failed to get video: $e');
+      throw Exception('Failed to get video: ${e.runtimeType} - $e');
     }
   }
 
