@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 // Configuration for Psychology App Frontend
 // Change currentEnvironment to 'production' when deploying to Neon database

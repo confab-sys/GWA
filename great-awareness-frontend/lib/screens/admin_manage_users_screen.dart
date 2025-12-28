@@ -49,28 +49,28 @@ class _AdminManageUsersScreenState extends State<AdminManageUsersScreen> {
       // Fetch users
       try {
         users = await apiService.getAllUsers(authService.currentUser!.token!) ?? [];
-        print('✅ Successfully fetched ${users.length} users');
+        debugPrint('✅ Successfully fetched ${users.length} users');
       } catch (e) {
         errorMessages += 'Failed to fetch users: ${e.toString()}\n';
-        print('❌ Failed to fetch users: $e');
+        debugPrint('❌ Failed to fetch users: $e');
       }
 
       // Fetch top questions
       try {
         topQuestions = await apiService.getTopQuestions(authService.currentUser!.token!) ?? [];
-        print('✅ Successfully fetched ${topQuestions.length} top questions');
+        debugPrint('✅ Successfully fetched ${topQuestions.length} top questions');
       } catch (e) {
         errorMessages += 'Failed to fetch top questions: ${e.toString()}\n';
-        print('❌ Failed to fetch top questions: $e');
+        debugPrint('❌ Failed to fetch top questions: $e');
       }
 
       // Fetch analytics
       try {
         analytics = await apiService.getAdminAnalytics(authService.currentUser!.token!) ?? {};
-        print('✅ Successfully fetched analytics: $analytics');
+        debugPrint('✅ Successfully fetched analytics: $analytics');
       } catch (e) {
         errorMessages += 'Failed to fetch analytics: ${e.toString()}\n';
-        print('❌ Failed to fetch analytics: $e');
+        debugPrint('❌ Failed to fetch analytics: $e');
       }
 
       setState(() {
@@ -475,9 +475,18 @@ class _AdminManageUsersScreenState extends State<AdminManageUsersScreen> {
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.blue),
             onPressed: () {
-              // TODO: Implement user edit functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Edit functionality coming soon')),
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Edit User'),
+                  content: Text('Edit functionality for ${user['username']} is coming soon.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
               );
             },
           ),

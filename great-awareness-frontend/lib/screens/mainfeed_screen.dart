@@ -2,17 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'post_detail_screen.dart';
 import 'admin_posting_screen.dart';
-import 'notification_screen.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/cache_service.dart';
 import '../services/notification_service.dart';
 import '../models/content.dart';
 import '../models/notification.dart';
-import '../utils/image_helper.dart';
 
 class MainFeedScreen extends StatefulWidget {
   const MainFeedScreen({super.key});
@@ -263,7 +260,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     
     try {
       debugPrint('Attempting to create comment for post $postId with text: $text');
-      final newComment = await _apiService.createComment(token, postId, int.parse(user!.id), text);
+      final newComment = await _apiService.createComment(token, postId, int.parse(user.id), text);
       debugPrint('API Response for createComment: $newComment');
       
       if (newComment != null && mounted) {
@@ -724,7 +721,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
 
     try {
       // Use the toggle endpoint which returns Map<String, dynamic>
-      final result = await _apiService.likeContent(token, post.id, int.parse(user!.id));
+      final result = await _apiService.likeContent(token, post.id, int.parse(user.id));
       
       if (result != null && mounted) {
         // Update with server response for accuracy

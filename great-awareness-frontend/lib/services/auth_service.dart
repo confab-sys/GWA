@@ -34,7 +34,7 @@ class AuthService extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error loading user from storage: $e');
+      debugPrint('Error loading user from storage: $e');
       await _clearUserFromStorage();
     }
   }
@@ -80,7 +80,7 @@ class AuthService extends ChangeNotifier {
       }));
       await prefs.setString('auth_token', user.token ?? '');
     } catch (e) {
-      print('Error saving user to storage: $e');
+      debugPrint('Error saving user to storage: $e');
     }
   }
   
@@ -90,7 +90,7 @@ class AuthService extends ChangeNotifier {
       await prefs.remove('user_data');
       await prefs.remove('auth_token');
     } catch (e) {
-      print('Error clearing user from storage: $e');
+      debugPrint('Error clearing user from storage: $e');
     }
   }
   

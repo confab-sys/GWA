@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'wellness_dashboard.dart';
 import '../services/auth_service.dart';
-import '../models/user.dart';
 
 class WellnessScreen extends StatefulWidget {
   const WellnessScreen({super.key});
@@ -32,42 +31,10 @@ class _WellnessScreenState extends State<WellnessScreen> {
   bool _isTrackingActive = false;
   bool _showIntro = true; // New state to toggle intro sequence
   String? _selectedAddictionType;
-  String _customAddictionType = '';
-  final TextEditingController _customAddictionController = TextEditingController();
   
   // Carousel controllers
   final PageController _pageController = PageController();
   int _currentSlide = 0;
-
-  final List<String> _predefinedAddictions = [
-    'Masturbation',
-    'Alcoholism',
-    'Smoking',
-    'Gambling',
-    'Social Media',
-    'Other (Custom)'
-  ];
-  
-  final List<Map<String, dynamic>> _wellnessUsers = [
-    {
-      'username': 'John_Doe',
-      'dayStatus': 45,
-      'habitStart': DateTime.now().subtract(const Duration(days: 45)),
-      'avatar': 'assets/images/logo man.png',
-    },
-    {
-      'username': 'Sarah_Smith',
-      'dayStatus': 23,
-      'habitStart': DateTime.now().subtract(const Duration(days: 23)),
-      'avatar': 'assets/images/logo man 2.png',
-    },
-    {
-      'username': 'Mike_Johnson',
-      'dayStatus': 67,
-      'habitStart': DateTime.now().subtract(const Duration(days: 67)),
-      'avatar': 'assets/images/main logo man.png',
-    },
-  ];
 
   final List<WellnessIntroSlide> _slides = [
     WellnessIntroSlide(
@@ -95,7 +62,6 @@ class _WellnessScreenState extends State<WellnessScreen> {
 
   @override
   void dispose() {
-    _customAddictionController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -127,24 +93,6 @@ class _WellnessScreenState extends State<WellnessScreen> {
     }
   }
 
-  void _startHabitTracking() {
-    if (_selectedAddictionType == null || _selectedAddictionType!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please select an addiction type first'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _habitStartTime = DateTime.now();
-      _isTrackingActive = true;
-      _userDayStatus = 0;
-      _showIntro = false; // Ensure intro is hidden
-    });
-  }
 
   void _finishIntro() {
     setState(() {
@@ -152,30 +100,6 @@ class _WellnessScreenState extends State<WellnessScreen> {
     });
   }
 
-  void _updateDayStatus(int newDay) {
-    setState(() {
-      _userDayStatus = newDay;
-    });
-  }
-
-  String _formatDuration(Duration duration) {
-    int years = duration.inDays ~/ 365;
-    int months = (duration.inDays % 365) ~/ 30;
-    int days = (duration.inDays % 365) % 30;
-    int hours = duration.inHours % 24;
-    int minutes = duration.inMinutes % 60;
-    int seconds = duration.inSeconds % 60;
-
-    if (years > 0) {
-      return '${years}y ${months}m ${days}d ${hours}h ${minutes}m ${seconds}s';
-    } else if (months > 0) {
-      return '${months}m ${days}d ${hours}h ${minutes}m ${seconds}s';
-    } else if (days > 0) {
-      return '${days}d ${hours}h ${minutes}m ${seconds}s';
-    } else {
-      return '${hours}h ${minutes}m ${seconds}s';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

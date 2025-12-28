@@ -10,7 +10,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
+  // final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -162,20 +162,18 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       
       if (user != null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully!')),
         );
         
-        // Navigate to login page after successful signup
-        Future.delayed(const Duration(seconds: 2), () {
-          Navigator.of(context).pushReplacementNamed('/login1');
-        });
+        Navigator.pushReplacementNamed(context, '/login');
       } else {
         // This shouldn't happen if the API service is working correctly
         throw Exception('Account creation failed - no user data returned');
       }
     } catch (e) {
-      print('Signup error: $e');
+      debugPrint('Signup error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
       );
@@ -476,6 +474,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
+          // ignore: deprecated_member_use
           value: _selectedCounty,
           decoration: InputDecoration(
             labelText: 'County',

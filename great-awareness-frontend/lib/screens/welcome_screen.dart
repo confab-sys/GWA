@@ -94,7 +94,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                 'The mind that is aware, shall see the truth! and that truth shall set the body free!',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.judson(
-                  textStyle: TextStyle(
+                  textStyle: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.normal,

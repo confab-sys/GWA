@@ -41,6 +41,7 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
       );
 
       if (result != null) {
+        if (!mounted) return;
         if (kIsWeb) {
           setState(() {
             _audioBytes = result.files.single.bytes;
@@ -56,9 +57,11 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking audio: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking audio: $e')),
+        );
+      }
     }
   }
 
@@ -68,6 +71,7 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null) {
+        if (!mounted) return;
         if (kIsWeb) {
           final bytes = await image.readAsBytes();
           setState(() {
@@ -82,9 +86,11 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking thumbnail: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking thumbnail: $e')),
+        );
+      }
     }
   }
 
@@ -152,6 +158,7 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
         throw Exception('Audio upload failed');
       }
 
+      if (!mounted) return;
       setState(() {
         _statusMessage = 'Creating podcast...';
       });

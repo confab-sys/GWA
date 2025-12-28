@@ -33,7 +33,7 @@ class _Login1ScreenState extends State<Login1Screen> {
     final emailController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Reset Password', style: GoogleFonts.judson(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -52,7 +52,7 @@ class _Login1ScreenState extends State<Login1Screen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text('Cancel', style: GoogleFonts.judson(color: Colors.black)),
           ),
           ElevatedButton(
@@ -65,7 +65,7 @@ class _Login1ScreenState extends State<Login1Screen> {
                 return;
               }
               
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(dialogContext); // Close dialog
               
               // Show loading
               ScaffoldMessenger.of(context).showSnackBar(
@@ -74,13 +74,14 @@ class _Login1ScreenState extends State<Login1Screen> {
               
               try {
                 await _apiService.forgotPassword(email);
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Password reset link sent to your email')),
                   );
                 }
               } catch (e) {
-                if (mounted) {
+                debugPrint('Forgot password error: $e');
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error: ${e.toString()}')),
                   );
@@ -113,27 +114,27 @@ class _Login1ScreenState extends State<Login1Screen> {
 
       if (user != null && mounted) {
         // Login successful - update AuthService
-        print('Login successful, updating AuthService...');
+        debugPrint('Login successful, updating AuthService...');
         final authService = Provider.of<AuthService>(context, listen: false);
         authService.login(user);
         
         // Navigate to home
-        print('Navigating to home...');
+        debugPrint('Navigating to home...');
         // Temporarily disable subscription popup to test if that's the issue
         FeedScreen.setShowSubscriptionPopup(true);
         Navigator.of(context).pushReplacementNamed('/home').then((_) {
-          print('Navigation to home completed');
+          debugPrint('Navigation to home completed');
         }).catchError((error) {
-          print('Navigation error: $error');
+          debugPrint('Navigation error: $error');
         });
       } else {
-        print('Login failed: user is null');
+        debugPrint('Login failed: user is null');
         setState(() {
           _errorMessage = 'Invalid email or password';
         });
       }
     } catch (e) {
-      print('Login exception: $e');
+      debugPrint('Login exception: $e');
       setState(() {
         _errorMessage = 'Login failed: ${e.toString()}';
       });

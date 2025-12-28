@@ -265,23 +265,23 @@ class _QAScreenState extends State<QAScreen> {
                                 }
                                 
                                 // Then reload questions and show success message
-                                await _loadQuestions();
-                                
-                                if (mounted) {
-                                  ScaffoldMessenger.of(screenContext).showSnackBar(
-                                    const SnackBar(content: Text('Question posted successfully!')),
-                                  );
-                                }
-                              } else {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(screenContext).showSnackBar(
-                                    const SnackBar(content: Text('Please log in to post questions')),
-                                  );
-                                }
+                              await _loadQuestions();
+                              
+                              if (screenContext.mounted) {
+                                ScaffoldMessenger.of(screenContext).showSnackBar(
+                                  const SnackBar(content: Text('Question posted successfully')),
+                                );
+                              }
+                            } else {
+                              if (screenContext.mounted) {
+                                ScaffoldMessenger.of(screenContext).showSnackBar(
+                                  const SnackBar(content: Text('Please log in to post questions')),
+                                );
+                              }
                               }
                             } catch (e) {
                               debugPrint('Error posting question: $e');
-                              if (mounted) {
+                              if (screenContext.mounted) {
                                 ScaffoldMessenger.of(screenContext).showSnackBar(
                                   SnackBar(
                                     content: Text('Failed to post question: $e'),
@@ -753,6 +753,8 @@ class _QAScreenState extends State<QAScreen> {
       });
     }
 
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -913,7 +915,7 @@ class _QAScreenState extends State<QAScreen> {
                                   }
                                 }
                               } catch (e) {
-                                if (mounted) {
+                                if (screenContext.mounted) {
                                   ScaffoldMessenger.of(screenContext).showSnackBar(
                                     SnackBar(
                                       content: Text('Error posting comment: ${e.toString()}'),

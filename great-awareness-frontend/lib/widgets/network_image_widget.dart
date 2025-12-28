@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// A robust network image widget that handles loading states, errors, and URL validation
@@ -96,7 +95,7 @@ class NetworkImageWidget extends StatelessWidget {
       future: _checkImageAvailability(imageUrl),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildLoadingWidget(ImageChunkEvent(cumulativeBytesLoaded: 0, expectedTotalBytes: null));
+          return _buildLoadingWidget(const ImageChunkEvent(cumulativeBytesLoaded: 0, expectedTotalBytes: null));
         }
         
         if (snapshot.hasData && snapshot.data == true) {

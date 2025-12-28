@@ -6,8 +6,7 @@ import '../services/video_service.dart';
 import '../services/video_sync_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/cloudflare_video_player.dart';
-// TODO: Create video_upload_screen.dart or implement upload functionality
-// import 'video_upload_screen.dart';
+import 'video_upload_screen.dart';
 
 class VideosScreen extends StatefulWidget {
   const VideosScreen({super.key});
@@ -92,7 +91,7 @@ class _VideosScreenState extends State<VideosScreen> {
               }
             }
           }).catchError((error) {
-            print('Auto-sync failed: $error');
+            debugPrint('Auto-sync failed: $error');
           });
         }
       }
@@ -115,11 +114,6 @@ class _VideosScreenState extends State<VideosScreen> {
   }
 
   void _navigateToUpload() async {
-    // TODO: Implement video upload functionality or create VideoUploadScreen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Video upload not implemented yet')),
-    );
-    /*
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -131,7 +125,6 @@ class _VideosScreenState extends State<VideosScreen> {
     if (result == true) {
       _refreshVideos();
     }
-    */
   }
 
   void _playVideo(Video video) async {
@@ -155,6 +148,8 @@ class _VideosScreenState extends State<VideosScreen> {
       try {
         // Try to get a fresh signed URL
         final freshVideo = await VideoSyncService.getVideoWithFreshSignedUrl(video.id);
+        
+        if (!mounted) return;
         Navigator.pop(context); // Close loading dialog
         
         // Navigate to the video player with fresh signed URL
@@ -172,6 +167,7 @@ class _VideosScreenState extends State<VideosScreen> {
           ),
         );
       } catch (e) {
+        if (!mounted) return;
         Navigator.pop(context); // Close loading dialog
         
         // Show error message
@@ -218,6 +214,7 @@ class _VideosScreenState extends State<VideosScreen> {
 
     try {
       final results = await VideoSyncService.completeSync();
+      if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
 
       if (results['syncSuccess'] || results['signedUrlsSuccess']) {
@@ -241,6 +238,7 @@ class _VideosScreenState extends State<VideosScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

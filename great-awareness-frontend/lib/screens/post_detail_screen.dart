@@ -27,6 +27,7 @@ class PostDetailScreen extends StatefulWidget {
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
   late bool _isLiked;
+  bool _isSaved = false;
   late int _likesCount;
   late int _commentsCount;
   final ApiService _apiService = ApiService();
@@ -295,12 +296,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         onTap: () => _sharePost(),
                       ),
                       _buildInteractionButton(
-                        icon: Icons.bookmark_border, // TODO: Implement save state
-                        label: 'Save',
-                        color: Colors.grey, // TODO: Implement save state
+                        icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                        label: _isSaved ? 'Saved' : 'Save',
+                        color: _isSaved ? Colors.blue : Colors.grey,
                         onTap: () {
+                          setState(() {
+                            _isSaved = !_isSaved;
+                          });
                           widget.onSaveToggle(widget.postIndex);
-                          setState(() {});
                         },
                       ),
                     ],
@@ -339,6 +342,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         int.parse(user.id)
       );
       
+      if (!mounted) return;
+
       if (result != null) {
         setState(() {
           _likesCount = result['likes_count'];
@@ -355,10 +360,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     } catch (e) {
       debugPrint('Error liking post: $e');
       // Revert on error
-      setState(() {
-        _isLiked = !_isLiked;
-        _likesCount += _isLiked ? 1 : -1;
-      });
+      if (mounted) {
+        setState(() {
+          _isLiked = !_isLiked;
+          _likesCount += _isLiked ? 1 : -1;
+        });
+      }
     }
   }
 
@@ -374,6 +381,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     
     try {
       final comments = await _apiService.getComments(user.token!, widget.post.id);
+      if (!mounted) return;
       if (comments != null) {
         setState(() {
           _comments = comments;
@@ -383,9 +391,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     } catch (e) {
       debugPrint('Error loading comments: $e');
     } finally {
-      setState(() {
-        _isLoadingComments = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingComments = false;
+        });
+      }
     }
   }
 
@@ -416,15 +426,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       );
       if (newComment != null) {
         await _loadComments(); // Reload to get fresh list
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment added')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Comment added')),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error adding comment: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to add comment')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to add comment')),
+        );
+      }
     }
   }
 

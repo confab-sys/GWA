@@ -42,7 +42,7 @@ class _TestAdminPostScreenState extends State<TestAdminPostScreen> {
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = authService.currentUser?.token;
       
-      print('Token: $token');
+      debugPrint('Token: $token');
       
       if (token == null) {
         setState(() {
@@ -53,7 +53,7 @@ class _TestAdminPostScreenState extends State<TestAdminPostScreen> {
 
       // Create content using API service
       final apiService = ApiService();
-      print('Creating content with API...');
+      debugPrint('Creating content with API...');
       
       final newContent = await apiService.createContent(
         token,
@@ -79,7 +79,7 @@ class _TestAdminPostScreenState extends State<TestAdminPostScreen> {
         });
       }
     } catch (e) {
-      print('Error: $e');
+      debugPrint('Error: $e');
       setState(() {
         _isLoading = false;
         _result = '❌ ERROR: ${e.toString()}';

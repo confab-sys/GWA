@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import '../models/video.dart';
 import '../models/master_class.dart';
-import '../utils/config.dart';
 
 class VideoService {
   static const String baseUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev'; // Your deployed worker domain
@@ -31,7 +30,7 @@ class VideoService {
         throw Exception('Failed to load master classes: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error loading master classes: $e');
+      debugPrint('Error loading master classes: $e');
       return [];
     }
   }
@@ -84,14 +83,14 @@ class VideoService {
       request.fields['description'] = description;
       request.fields['category'] = category;
 
-      print('Uploading mobile video:');
-      print('  File field: file');
-      print('  File path: ${videoFile.path}');
-      print('  File size: ${fileLength} bytes');
-      print('  MIME type: $mimeType');
-      print('  Title: $title');
-      print('  Description: ${description.isEmpty ? "(empty)" : description}');
-      print('  Category: $category');
+      debugPrint('Uploading mobile video:');
+      debugPrint('  File field: file');
+      debugPrint('  File path: ${videoFile.path}');
+      debugPrint('  File size: $fileLength bytes');
+      debugPrint('  MIME type: $mimeType');
+      debugPrint('  Title: $title');
+      debugPrint('  Description: ${description.isEmpty ? "(empty)" : description}');
+      debugPrint('  Category: $category');
 
       // Send request with progress tracking
       final streamedResponse = await request.send();
@@ -146,18 +145,18 @@ class VideoService {
       
       // Ensure we have a valid video MIME type
       if (!mimeType.startsWith('video/')) {
-        print('Warning: MIME type $mimeType does not start with video/, using video/mp4 instead');
+        debugPrint('Warning: MIME type $mimeType does not start with video/, using video/mp4 instead');
         mimeType = 'video/mp4';
       }
       
-      print('Uploading video to web API:');
-      print('  Original file name: $fileName');
-      print('  Clean file name: $cleanFileName');
-      print('  File size: ${videoBytes.length} bytes');
-      print('  MIME type: $mimeType');
-      print('  Title: $title');
-      print('  Description: ${description.isEmpty ? "(empty)" : description}');
-      print('  Category: $category');
+      debugPrint('Uploading video to web API:');
+      debugPrint('  Original file name: $fileName');
+      debugPrint('  Clean file name: $cleanFileName');
+      debugPrint('  File size: ${videoBytes.length} bytes');
+      debugPrint('  MIME type: $mimeType');
+      debugPrint('  Title: $title');
+      debugPrint('  Description: ${description.isEmpty ? "(empty)" : description}');
+      debugPrint('  Category: $category');
       
       final request = http.MultipartRequest(
         'POST',
@@ -178,12 +177,12 @@ class VideoService {
         contentType: MediaType.parse(mimeType),
       );
       
-      print('Multipart file details:');
-      print('  Field name: ${multipartFile.field}');
-      print('  Filename: ${multipartFile.filename}');
-      print('  Content type: ${multipartFile.contentType}');
-      print('  Length: ${multipartFile.length}');
-      print('  Byte length: ${videoBytes.length}');
+      debugPrint('Multipart file details:');
+      debugPrint('  Field name: ${multipartFile.field}');
+      debugPrint('  Filename: ${multipartFile.filename}');
+      debugPrint('  Content type: ${multipartFile.contentType}');
+      debugPrint('  Length: ${multipartFile.length}');
+      debugPrint('  Byte length: ${videoBytes.length}');
       
       request.files.add(multipartFile);
       
@@ -203,28 +202,28 @@ class VideoService {
         request.files.add(thumbMultipart);
       }
       
-      print('Request files added:');
-      print('  Field: file');
-      print('  Filename: ${multipartFile.filename}');
-      print('  Size: ${multipartFile.length} bytes');
+      debugPrint('Request files added:');
+      debugPrint('  Field: file');
+      debugPrint('  Filename: ${multipartFile.filename}');
+      debugPrint('  Size: ${multipartFile.length} bytes');
 
       // Add form fields
       request.fields['title'] = title;
       request.fields['description'] = description;
       request.fields['category'] = category;
 
-      print('Sending request to: $baseUrl/api/videos/upload');
-      print('Request headers: ${request.headers}');
-      print('Request fields: ${request.fields}');
-      print('Request files: ${request.files.map((f) => '${f.field}: ${f.filename} (${f.length} bytes)').toList()}');
+      debugPrint('Sending request to: $baseUrl/api/videos/upload');
+      debugPrint('Request headers: ${request.headers}');
+      debugPrint('Request fields: ${request.fields}');
+      debugPrint('Request files: ${request.files.map((f) => '${f.field}: ${f.filename} (${f.length} bytes)').toList()}');
       
       // Send request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('Response status: ${response.statusCode}');
-      print('Response headers: ${response.headers}');
-      print('Response body: ${response.body}');
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response headers: ${response.headers}');
+      debugPrint('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
         final jsonResponse = json.decode(response.body);
@@ -238,7 +237,7 @@ class VideoService {
         );
       }
     } catch (e) {
-      print('Upload error: $e');
+      debugPrint('Upload error: $e');
       return VideoUploadResponse(
         success: false,
         error: 'Upload error',

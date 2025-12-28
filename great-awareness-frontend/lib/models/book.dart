@@ -39,7 +39,6 @@ class Book {
     this.isDownloaded = false,
   });
 
-  static const String _publicR2Url = 'https://pub-36251f5d8b4d4e1e977c867f3343dadc.r2.dev';
   static const String _workerUrl = 'https://gwa-books-worker.aashardcustomz.workers.dev';
 
   factory Book.fromJson(Map<String, dynamic> json) {

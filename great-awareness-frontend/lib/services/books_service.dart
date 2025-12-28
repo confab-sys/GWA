@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/book.dart';
 
@@ -20,24 +21,23 @@ class BooksService {
               .toList();
         }
       }
+      return [];
     } catch (e) {
-      print('Error fetching books from API: $e');
+      debugPrint('Error fetching books from API: $e');
       rethrow; // Propagate error so UI can handle it (or show retry)
     }
-    
-    return [];
   }
 
   static Future<void> syncBooks() async {
     try {
       final response = await http.post(Uri.parse('$workerUrl/sync'));
       if (response.statusCode == 200) {
-        print('Books synced successfully: ${response.body}');
+        debugPrint('Books synced successfully: ${response.body}');
       } else {
-        print('Failed to sync books: ${response.statusCode} ${response.body}');
+        debugPrint('Failed to sync books: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
-      print('Error syncing books: $e');
+      debugPrint('Error syncing books: $e');
     }
   }
 

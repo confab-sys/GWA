@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 class Video {
   final String id;
@@ -151,8 +151,8 @@ class VideoListResponse {
       try {
         videos.add(Video.fromJson(videoJson));
       } catch (e) {
-        print('Error parsing video: $e');
-        // print('Video JSON: $videoJson'); // Uncomment for debugging
+        debugPrint('Error parsing video: $e');
+        // debugPrint('Video JSON: $videoJson'); // Uncomment for debugging
       }
     }
 

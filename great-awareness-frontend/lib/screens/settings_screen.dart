@@ -64,12 +64,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     // Show feedback if a post was created
     if (result != null && result is Map<String, dynamic>) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('New post created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('New post created successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+      }
     }
   }
 
@@ -81,6 +83,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final userName = currentUser?.name ?? prefs.getString('user_name') ?? 'John Doe';
     final userEmail = currentUser?.email ?? prefs.getString('user_email') ?? 'john.doe@example.com';
     
+    if (!mounted) return;
+
     setState(() {
       _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
       _dataSaverEnabled = prefs.getBool('data_saver_enabled') ?? false;
@@ -119,6 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       
       if (pickedFile != null) {
+        if (!mounted) return;
         if (kIsWeb) {
           // For web, read the image bytes
           final bytes = await pickedFile.readAsBytes();

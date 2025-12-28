@@ -183,7 +183,7 @@ class _EventsScreenState extends State<EventsScreen> {
           mockEvents[i].availability = savedEvent.availability;
         }
       } catch (e) {
-        print('Error loading saved events: $e');
+        debugPrint('Error loading saved events: $e');
       }
     }
 
@@ -362,7 +362,7 @@ class _EventsScreenState extends State<EventsScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -398,7 +398,7 @@ class _EventsScreenState extends State<EventsScreen> {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.7), // Darker gradient for better text visibility
+                        Colors.black.withValues(alpha: 0.7), // Darker gradient for better text visibility
                       ],
                     ),
                   ),
@@ -410,7 +410,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), // Slightly larger
                     decoration: BoxDecoration(
-                      color: eventColor.withOpacity(0.9),
+                      color: eventColor.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -443,14 +443,14 @@ class _EventsScreenState extends State<EventsScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: daysUntilEvent <= 3 ? Colors.red.withOpacity(0.9) : Colors.green.withOpacity(0.9),
+                      color: daysUntilEvent <= 3 ? Colors.red.withValues(alpha: 0.9) : Colors.green.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       daysUntilEvent == 0 ? 'Today' : daysUntilEvent == 1 ? 'Tomorrow' : '$daysUntilEvent days',
                       style: GoogleFonts.inter(
-                        textStyle: TextStyle(
-                          fontSize: 10, // Slightly larger
+                        textStyle: const TextStyle(
+                          fontSize: 10, // Slightly larger.
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
@@ -485,7 +485,7 @@ class _EventsScreenState extends State<EventsScreen> {
                         style: GoogleFonts.inter(
                           textStyle: TextStyle(
                             fontSize: 10, // Slightly larger description
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             height: 1.2,
                           ),
                         ),
@@ -585,7 +585,7 @@ class _EventsScreenState extends State<EventsScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.grey[100],
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.grey[100],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? color : Colors.grey[300]!,
@@ -618,47 +618,47 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 
-  Widget _buildAvailabilityButton(Event event, AvailabilityStatus status, String text, Color color) {
-    final isSelected = event.availability == status;
-    
-    return GestureDetector(
-      onTap: () => _updateAvailability(event, status),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.grey[100],
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey[300]!,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                size: 14,
-                color: color,
-              ),
-            if (isSelected) const SizedBox(width: 4),
-            Text(
-              text,
-              style: GoogleFonts.inter(
-                textStyle: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected ? color : Colors.grey[600],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget _buildAvailabilityButton(Event event, AvailabilityStatus status, String text, Color color) {
+  //   final isSelected = event.availability == status;
+  //   
+  //   return GestureDetector(
+  //     onTap: () => _updateAvailability(event, status),
+  //     child: AnimatedContainer(
+  //       duration: const Duration(milliseconds: 200),
+  //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  //       decoration: BoxDecoration(
+  //         color: isSelected ? color.withOpacity(0.1) : Colors.grey[100],
+  //         borderRadius: BorderRadius.circular(20),
+  //         border: Border.all(
+  //           color: isSelected ? color : Colors.grey[300]!,
+  //           width: 1,
+  //         ),
+  //       ),
+  //       child: Row(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           if (isSelected)
+  //             Icon(
+  //               Icons.check_circle,
+  //               size: 14,
+  //               color: color,
+  //             ),
+  //           if (isSelected) const SizedBox(width: 4),
+  //           Text(
+  //             text,
+  //             style: GoogleFonts.inter(
+  //               textStyle: TextStyle(
+  //                 fontSize: 12,
+  //                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+  //                 color: isSelected ? color : Colors.grey[600],
+  //               ),
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   void _showFilterDialog() {
     showDialog(
@@ -707,7 +707,9 @@ class _EventsScreenState extends State<EventsScreen> {
       ),
       leading: Radio<String>(
         value: filter,
+        // ignore: deprecated_member_use
         groupValue: selectedFilter,
+        // ignore: deprecated_member_use
         onChanged: (value) {
           setState(() {
             selectedFilter = value!;

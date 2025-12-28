@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
 class NetworkTestWidget extends StatefulWidget {
-  const NetworkTestWidget({Key? key}) : super(key: key);
+  const NetworkTestWidget({super.key});
 
   @override
-  _NetworkTestWidgetState createState() => _NetworkTestWidgetState();
+  State<NetworkTestWidget> createState() => _NetworkTestWidgetState();
 }
 
 class _NetworkTestWidgetState extends State<NetworkTestWidget> {

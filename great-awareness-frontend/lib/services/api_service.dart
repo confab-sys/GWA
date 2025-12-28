@@ -1095,7 +1095,7 @@ class ApiService {
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         debugPrint('Successfully fetched ${(data as List).length} users');
-        return data as List<dynamic>;
+        return data;
       } else if (res.statusCode == 403) {
         debugPrint('Admin access denied');
         throw Exception('Admin access required');
@@ -1129,7 +1129,7 @@ class ApiService {
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
         debugPrint('Successfully fetched ${(data as List).length} top questions');
-        return data as List<dynamic>;
+        return data;
       } else if (res.statusCode == 403) {
         debugPrint('Admin access denied');
         throw Exception('Admin access required');

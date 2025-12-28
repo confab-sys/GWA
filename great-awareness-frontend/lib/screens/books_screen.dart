@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:ui'; // For BackdropFilter
@@ -31,28 +32,40 @@ class _BooksScreenState extends State<BooksScreen> {
   }
 
   Future<void> _loadBooks() async {
-    setState(() {
-      isLoading = true;
-    });
+    final prefs = await SharedPreferences.getInstance();
 
+    // 1. Try to load from cache first
+    final cachedBooksStr = prefs.getString('cached_books_list');
+    if (cachedBooksStr != null && allBooks.isEmpty) {
+      try {
+        final List<dynamic> decoded = json.decode(cachedBooksStr);
+        final cachedBooks = decoded.map((json) => Book.fromJson(json)).toList();
+        
+        await _applyUserData(cachedBooks, prefs);
+
+        if (mounted) {
+          setState(() {
+            allBooks = cachedBooks;
+            filteredBooks = cachedBooks;
+            isLoading = false;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading cached books: $e');
+      }
+    }
+
+    // 2. Fetch fresh data
     try {
       // Fetch books from service
       final books = await BooksService.fetchBooks();
 
       // Load saved progress/favorites from SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final savedDataStr = prefs.getString('books_user_data');
-      if (savedDataStr != null) {
-        final savedData = json.decode(savedDataStr) as Map<String, dynamic>;
-        for (var book in books) {
-          if (savedData.containsKey(book.id)) {
-            final bookData = savedData[book.id];
-            book.isFavorite = bookData['isFavorite'] ?? false;
-            book.readingProgress = bookData['readingProgress']?.toDouble() ?? 0.0;
-            book.isDownloaded = bookData['isDownloaded'] ?? false;
-          }
-        }
-      }
+      await _applyUserData(books, prefs);
+
+      // Cache the fresh list
+      final booksJson = books.map((b) => b.toJson()).toList();
+      await prefs.setString('cached_books_list', json.encode(booksJson));
 
       if (mounted) {
         setState(() {
@@ -62,17 +75,34 @@ class _BooksScreenState extends State<BooksScreen> {
         });
       }
     } catch (e) {
-      print('Error loading books: $e');
+      debugPrint('Error loading books: $e');
       if (mounted) {
-        setState(() {
-          isLoading = false;
-          // You might want to show an error message or empty state here
-          allBooks = [];
-          filteredBooks = [];
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load books: $e')),
-        );
+        // Only show error state/message if we don't have cached data
+        if (allBooks.isEmpty) {
+          setState(() {
+            isLoading = false;
+            allBooks = [];
+            filteredBooks = [];
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load books: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _applyUserData(List<Book> books, SharedPreferences prefs) async {
+    final savedDataStr = prefs.getString('books_user_data');
+    if (savedDataStr != null) {
+      final savedData = json.decode(savedDataStr) as Map<String, dynamic>;
+      for (var book in books) {
+        if (savedData.containsKey(book.id)) {
+          final bookData = savedData[book.id];
+          book.isFavorite = bookData['isFavorite'] ?? false;
+          book.readingProgress = bookData['readingProgress']?.toDouble() ?? 0.0;
+          book.isDownloaded = bookData['isDownloaded'] ?? false;
+        }
       }
     }
   }
@@ -172,7 +202,7 @@ class _BooksScreenState extends State<BooksScreen> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -353,35 +383,57 @@ class _BooksScreenState extends State<BooksScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
                   ],
-                  image: DecorationImage(
-                    image: book.coverImageUrl.startsWith('assets') 
-                        ? AssetImage(book.coverImageUrl) as ImageProvider
-                        : NetworkImage(book.coverImageUrl),
-                    fit: BoxFit.cover,
-                  ),
                 ),
-                child: book.readingProgress > 0 
-                    ? Align(
-                        alignment: Alignment.bottomCenter,
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(12),
-                            bottomRight: Radius.circular(12),
-                          ),
-                          child: LinearProgressIndicator(
-                            value: book.readingProgress / 100,
-                            backgroundColor: Colors.white24,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.orangeAccent),
-                            minHeight: 4,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      book.coverImageUrl.startsWith('assets')
+                          ? Image.asset(
+                              book.coverImageUrl,
+                              fit: BoxFit.cover,
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: book.coverImageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[200],
+                                child: const Icon(Icons.error),
+                              ),
+                            ),
+                      if (book.readingProgress > 0)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(12),
+                              bottomRight: Radius.circular(12),
+                            ),
+                            child: LinearProgressIndicator(
+                              value: book.readingProgress / 100,
+                              backgroundColor: Colors.white24,
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.orangeAccent),
+                              minHeight: 4,
+                            ),
                           ),
                         ),
-                      )
-                    : null,
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -441,7 +493,7 @@ class _BooksScreenState extends State<BooksScreen> {
           children: [
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-              child: Container(color: Colors.black.withOpacity(0.5)),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
             ),
             Center(
               child: ScaleTransition(
@@ -468,7 +520,7 @@ class _BooksScreenState extends State<BooksScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
+                                      color: Colors.black.withValues(alpha: 0.2),
                                       blurRadius: 8,
                                       offset: const Offset(0, 4),
                                     ),

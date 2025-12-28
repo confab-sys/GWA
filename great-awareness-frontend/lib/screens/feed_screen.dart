@@ -38,11 +38,11 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   void initState() {
     super.initState();
-    print('FeedScreen initState called, _shouldShowSubscriptionPopup: ${FeedScreen._shouldShowSubscriptionPopup}');
+    debugPrint('FeedScreen initState called, _shouldShowSubscriptionPopup: ${FeedScreen._shouldShowSubscriptionPopup}');
     // Show subscription popup only when navigating from login
     if (FeedScreen._shouldShowSubscriptionPopup) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        print('Showing subscription dialog...');
+        debugPrint('Showing subscription dialog...');
         _showSubscriptionDialog();
         FeedScreen._shouldShowSubscriptionPopup = false; // Reset flag after showing
       });

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
@@ -29,7 +30,7 @@ class PodcastService {
       
       throw Exception('Failed to load podcasts: ${response.statusCode}');
     } catch (e) {
-      print('Error fetching podcasts: $e');
+      debugPrint('Error fetching podcasts: $e');
       return [];
     }
   }
@@ -47,7 +48,7 @@ class PodcastService {
       }
       return null;
     } catch (e) {
-      print('Error fetching podcast details: $e');
+      debugPrint('Error fetching podcast details: $e');
       return null;
     }
   }
@@ -78,10 +79,10 @@ class PodcastService {
           return data['url'] as String;
         }
       }
-      print('Upload failed with status ${response.statusCode}: ${response.body}');
+      debugPrint('Upload failed with status ${response.statusCode}: ${response.body}');
       return null;
     } catch (e) {
-      print('Error uploading audio: $e');
+      debugPrint('Error uploading audio: $e');
       return null;
     }
   }
@@ -107,10 +108,10 @@ class PodcastService {
           return data['url'] as String;
         }
       }
-      print('Upload failed with status ${response.statusCode}: ${response.body}');
+      debugPrint('Upload failed with status ${response.statusCode}: ${response.body}');
       return null;
     } catch (e) {
-      print('Error uploading audio bytes: $e');
+      debugPrint('Error uploading audio bytes: $e');
       return null;
     }
   }
@@ -146,10 +147,10 @@ class PodcastService {
           return Podcast.fromJson(data['podcast']);
         }
       }
-      print('Create podcast failed with status ${response.statusCode}: ${response.body}');
+      debugPrint('Create podcast failed with status ${response.statusCode}: ${response.body}');
       return null;
     } catch (e) {
-      print('Error creating podcast: $e');
+      debugPrint('Error creating podcast: $e');
       return null;
     }
   }

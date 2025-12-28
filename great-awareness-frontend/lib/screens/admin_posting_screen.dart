@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
@@ -157,7 +156,9 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
           });
 
           // Return to previous screen with the created content
-          Navigator.pop(context, newContent);
+          if (mounted) {
+            Navigator.pop(context, newContent);
+          }
         } else {
           throw Exception('Failed to create content');
         }
@@ -236,6 +237,8 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     
+    if (!mounted) return;
+
     if (image != null) {
       if (kIsWeb) {
         // On web, read the image bytes
@@ -260,6 +263,8 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.camera);
     
+    if (!mounted) return;
+
     if (image != null) {
       if (kIsWeb) {
         // On web, read the image bytes

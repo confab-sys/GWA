@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class CloudflareStorageService {
   static const String workerUrl = 'https://gwa-video-worker-v2.aashardcustomz.workers.dev';
@@ -17,36 +18,36 @@ class CloudflareStorageService {
   /// Fetch videos from Cloudflare R2 bucket using Cloudflare Worker API
   static Future<List<CloudflareVideo>> fetchVideosFromBucket() async {
     try {
-      print('Fetching videos from Cloudflare Worker API: $workerUrl/api/videos');
+      debugPrint('Fetching videos from Cloudflare Worker API: $workerUrl/api/videos');
       
       // Try Cloudflare Worker API first
       final workerVideos = await _fetchVideosFromWorker();
       if (workerVideos.isNotEmpty) {
-        print('Successfully loaded ${workerVideos.length} videos from Cloudflare Worker');
+        debugPrint('Successfully loaded ${workerVideos.length} videos from Cloudflare Worker');
         return workerVideos;
       }
       
-      print('Cloudflare Worker API failed or returned no videos');
+      debugPrint('Cloudflare Worker API failed or returned no videos');
       
       // Try to sync videos from R2 to database first
-      print('Attempting to sync videos from R2 bucket to database...');
+      debugPrint('Attempting to sync videos from R2 bucket to database...');
       final syncResult = await _syncVideosFromR2();
       if (syncResult) {
-        print('Video sync completed, retrying fetch...');
+        debugPrint('Video sync completed, retrying fetch...');
         // Retry fetching after sync
         final workerVideosAfterSync = await _fetchVideosFromWorker();
         if (workerVideosAfterSync.isNotEmpty) {
-          print('Successfully loaded ${workerVideosAfterSync.length} videos after sync');
+          debugPrint('Successfully loaded ${workerVideosAfterSync.length} videos after sync');
           return workerVideosAfterSync;
         }
       }
       
-      print('All API methods failed, using configured videos as fallback');
+      debugPrint('All API methods failed, using configured videos as fallback');
       // Final fallback to manual configuration
       return getConfiguredVideos();
     } catch (e) {
-      print('Error in fetchVideosFromBucket: $e');
-      print('Using configured videos as final fallback');
+      debugPrint('Error in fetchVideosFromBucket: $e');
+      debugPrint('Using configured videos as final fallback');
       // Final fallback: return configured videos
       return getConfiguredVideos();
     }
@@ -70,7 +71,7 @@ class CloudflareStorageService {
       }
       return [];
     } catch (e) {
-      print('Cloudflare Worker API error: $e');
+      debugPrint('Cloudflare Worker API error: $e');
       return [];
     }
   }
@@ -78,7 +79,7 @@ class CloudflareStorageService {
   /// Sync videos from R2 bucket to database
   static Future<bool> _syncVideosFromR2() async {
     try {
-      print('Attempting to sync videos from R2 bucket to database...');
+      debugPrint('Attempting to sync videos from R2 bucket to database...');
       
       // Try to access the Cloudflare Worker sync endpoint
       final response = await http.post(
@@ -90,23 +91,23 @@ class CloudflareStorageService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('Video sync result: ${data['synced']} videos synced, ${data['skipped']} videos skipped');
+        debugPrint('Video sync result: ${data['synced']} videos synced, ${data['skipped']} videos skipped');
         return data['synced'] > 0;
       }
       
-      print('Sync endpoint returned status: ${response.statusCode}');
+      debugPrint('Sync endpoint returned status: ${response.statusCode}');
       return false;
     } on TimeoutException catch (e) {
-      print('Video sync timeout: $e');
-      print('Cloudflare Worker may be down or unreachable');
+      debugPrint('Video sync timeout: $e');
+      debugPrint('Cloudflare Worker may be down or unreachable');
       return false;
     } on SocketException catch (e) {
-      print('Video sync network error: $e');
-      print('Cannot reach Cloudflare Worker - using local fallback');
+      debugPrint('Video sync network error: $e');
+      debugPrint('Cannot reach Cloudflare Worker - using local fallback');
       return false;
     } catch (e) {
-      print('Video sync error: $e');
-      print('Using local video fallback');
+      debugPrint('Video sync error: $e');
+      debugPrint('Using local video fallback');
       return false;
     }
   }
@@ -129,120 +130,7 @@ class CloudflareStorageService {
     }).toList();
   }
 
-  /// Fetch videos using S3 API
-  static Future<List<CloudflareVideo>> _fetchVideosFromS3Api() async {
-    try {
-      // List objects in the bucket using S3 API
-      final response = await http.get(
-        Uri.parse('$s3Endpoint/$bucketName'),
-        headers: {
-          'Accept': 'application/xml',
-        },
-      );
 
-      if (response.statusCode == 200) {
-        return _parseS3XmlResponse(response.body);
-      } else if (response.statusCode == 403 || response.statusCode == 401) {
-        // Authentication required - try with public access
-        return await _fetchVideosFromPublicEndpoint();
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
-  }
-  
-  /// Fetch from public endpoint if S3 API requires auth
-  static Future<List<CloudflareVideo>> _fetchVideosFromPublicEndpoint() async {
-    try {
-      // Try the public URL first
-      final response = await http.get(
-        Uri.parse('$publicUrl/'),
-        headers: {
-          'Accept': 'application/xml',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return _parseXmlResponse(response.body);
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// Check if common video files exist in the bucket
-  static Future<List<CloudflareVideo>> _fetchVideosByExistenceCheck() async {
-    List<CloudflareVideo> foundVideos = [];
-    
-    // List of common video filenames to check
-    final commonVideos = [
-      'understanding-addiction-psychology.mp4',
-      'breaking-free-pornography.mp4',
-      'building-healthy-habits.mp4',
-      'understanding-childhood-trauma.mp4',
-      'emdr-therapy-explained.mp4',
-      'self-compassion-practices.mp4',
-      'healthy-communication-skills.mp4',
-      'setting-boundaries.mp4',
-      'healing-from-heartbreak.mp4',
-    ];
-
-    // Check each video file
-    for (final videoFile in commonVideos) {
-      try {
-        final response = await http.head(
-          Uri.parse('$publicUrl/$videoFile'),
-        );
-        
-        if (response.statusCode == 200) {
-          final contentLength = int.tryParse(response.headers['content-length'] ?? '0') ?? 0;
-          final lastModified = response.headers['last-modified'];
-          
-          foundVideos.add(CloudflareVideo(
-            key: videoFile,
-            url: '$publicUrl/$videoFile',
-            lastModified: lastModified != null ? 
-              DateTime.parse(lastModified) : DateTime.now(),
-            size: contentLength,
-            title: _generateTitleFromFilename(videoFile),
-            category: _categorizeVideo(videoFile),
-            duration: _estimateDuration(contentLength),
-          ));
-        }
-      } catch (e) {
-        // Video file not found, continue checking other files
-      }
-    }
-
-    // If no videos found, return default list
-    return foundVideos.isNotEmpty ? foundVideos : _getDefaultVideos();
-  }
-
-  /// Parse S3 API XML response (deprecated - not used)
-  static List<CloudflareVideo> _parseS3XmlResponse(String xmlString) {
-    // XML parsing removed - using JSON API instead
-    return [];
-  }
-
-  /// Parse XML response from Cloudflare R2 public endpoint (deprecated - not used)
-  static List<CloudflareVideo> _parseXmlResponse(String xmlString) {
-    // XML parsing removed - using JSON API instead
-    return [];
-  }
-
-  /// Generate title from filename
-  static String _generateTitleFromFilename(String filename) {
-    // Remove .mp4 extension and replace hyphens with spaces
-    String name = filename.replaceAll('.mp4', '').replaceAll('-', ' ');
-    // Capitalize first letter of each word
-    return name.split(' ').map((word) => 
-      word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase()
-    ).join(' ');
-  }
 
   /// Categorize video based on filename or content
   static String _categorizeVideo(String filename) {
@@ -271,7 +159,7 @@ class CloudflareStorageService {
     
     if (totalMinutes < 60) {
       int seconds = ((minutes - totalMinutes) * 60).round();
-      return '${totalMinutes}:${seconds.toString().padLeft(2, '0')}';
+      return '$totalMinutes:${seconds.toString().padLeft(2, '0')}';
     } else {
       int hours = totalMinutes ~/ 60;
       int remainingMinutes = totalMinutes % 60;
@@ -294,122 +182,25 @@ class CloudflareStorageService {
     final allVideos = getConfiguredVideos();
     List<CloudflareVideo> accessibleVideos = [];
     
-    print('Testing accessibility of ${allVideos.length} videos...');
+    debugPrint('Testing accessibility of ${allVideos.length} videos...');
     
     for (final video in allVideos) {
       final isAccessible = await testVideoUrl(video.url);
       if (isAccessible) {
-        print('✓ Video accessible: ${video.title}');
+        debugPrint('✓ Video accessible: ${video.title}');
         accessibleVideos.add(video);
       } else {
-        print('✗ Video not accessible: ${video.title} - ${video.url}');
+        debugPrint('✗ Video not accessible: ${video.title} - ${video.url}');
       }
     }
     
-    print('Found ${accessibleVideos.length} accessible videos out of ${allVideos.length}');
+    debugPrint('Found ${accessibleVideos.length} accessible videos out of ${allVideos.length}');
     return accessibleVideos;
   }
 
-  /// Manually add a video to local cache (for when R2 sync isn't working)
-  static List<CloudflareVideo> addVideoToCache(String videoKey, String title, {String? description}) {
-    final existingVideos = getConfiguredVideos();
-    
-    // Check if video already exists
-    final exists = existingVideos.any((video) => video.key == videoKey);
-    if (exists) {
-      print('Video $videoKey already exists in cache');
-      return existingVideos;
-    }
-    
-    // Add new video
-    final newVideo = CloudflareVideo(
-      key: videoKey,
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', // Fallback URL
-      lastModified: DateTime.now(),
-      size: 47 * 1024 * 1024, // Default size
-      title: title,
-      category: _categorizeVideo(title),
-      duration: '15:42',
-    );
-    
-    print('Added video to cache: $title ($videoKey)');
-    return [...existingVideos, newVideo];
-  }
-
-  /// Get videos based on manual configuration (recommended approach)
   static List<CloudflareVideo> getConfiguredVideos() {
-    return [
-      CloudflareVideo(
-        key: 'sample-video-1.mp4',
-        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 30)),
-        size: 47 * 1024 * 1024, // 47MB (estimated size)
-        title: 'Building Healthy Relationships',
-        category: 'Relationships',
-        duration: '15:42', // Estimated based on file size
-      ),
-      CloudflareVideo(
-        key: 'sample-video-2.mp4',
-        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 25)),
-        size: 65 * 1024 * 1024, // 65MB (estimated size)
-        title: 'Overcoming Anxiety',
-        category: 'Managing Anxiety',
-        duration: '21:18', // Estimated based on file size
-      ),
-      CloudflareVideo(
-        key: 'sample-video-3.mp4',
-        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 20)),
-        size: 30 * 1024 * 1024, // 30MB (estimated size)
-        title: 'Understanding Addiction',
-        category: 'Overcoming Addictions',
-        duration: '10:00', // Estimated based on file size
-      ),
-      CloudflareVideo(
-        key: 'sample-video-4.mp4',
-        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-        lastModified: DateTime.now().subtract(const Duration(days: 15)),
-        size: 25 * 1024 * 1024, // 25MB (estimated size)
-        title: 'Healing from Trauma',
-        category: 'Healing Trauma',
-        duration: '8:30', // Estimated based on file size
-      ),
-    ];
+    return [];
   }
-
-  /// Get default videos if bucket access fails
-  static List<CloudflareVideo> _getDefaultVideos() {
-    return getConfiguredVideos();
-  }
-
-  /// For S3 API access (if you want to use proper S3 authentication)
-  /// You'll need to configure these credentials in your Cloudflare R2 settings
-  /*
-  static Future<List<CloudflareVideo>> fetchVideosWithS3API() async {
-    final String s3Endpoint = 'https://$accountId.r2.cloudflarestorage.com';
-    final String bucketUrl = '$s3Endpoint/$bucketName';
-    
-    // Create proper AWS Signature Version 4 signed request
-    final request = http.Request('GET', Uri.parse('$bucketUrl/'));
-    
-    // Add AWS Signature V4 headers (implementation needed)
-    // This would require: x-amz-date, authorization header, etc.
-    
-    try {
-      final response = await http.Client().send(request);
-      final responseBody = await response.stream.bytesToString();
-      
-      if (response.statusCode == 200) {
-        return _parseXmlResponse(responseBody);
-      }
-    } catch (e) {
-      print('S3 API error: $e');
-    }
-    
-    return _getDefaultVideos();
-  }
-  */
 }
 
 class CloudflareVideo {

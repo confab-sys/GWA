@@ -33,11 +33,10 @@ class VideoPlayerScreen extends StatefulWidget {
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late VideoPlayerController _videoPlayerController;
   late ChewieController _chewieController;
-  bool _isPlaying = false;
   int _likes = 0;
   bool _isLiked = false;
   List<VideoComment> _comments = [];
-  TextEditingController _commentController = TextEditingController();
+  final TextEditingController _commentController = TextEditingController();
   bool _showComments = false;
 
   @override
@@ -51,7 +50,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _initializePlayer() async {
     try {
-      print('Initializing video player with URL: ${widget.videoUrl}');
+      debugPrint('Initializing video player with URL: ${widget.videoUrl}');
       
       _videoPlayerController = VideoPlayerController.networkUrl(
         Uri.parse(widget.videoUrl),
@@ -59,7 +58,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
       await _videoPlayerController.initialize();
       
-      print('Video player initialized successfully');
+      debugPrint('Video player initialized successfully');
 
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController,
@@ -84,7 +83,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           playedColor: Colors.blue,
           handleColor: Colors.blueAccent,
           backgroundColor: Colors.grey,
-          bufferedColor: Colors.lightBlue.withOpacity(0.5),
+          bufferedColor: Colors.lightBlue.withValues(alpha: 0.5),
         ),
         allowFullScreen: true,
         allowMuting: true,
@@ -92,14 +91,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       );
 
       _videoPlayerController.addListener(() {
-        setState(() {
-          _isPlaying = _videoPlayerController.value.isPlaying;
-        });
+        setState(() {});
       });
 
       setState(() {});
     } catch (e) {
-      print('Error initializing video player: $e');
+      debugPrint('Error initializing video player: $e');
       setState(() {
         // Show error state
       });

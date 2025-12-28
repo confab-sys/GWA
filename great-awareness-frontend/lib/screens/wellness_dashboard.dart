@@ -90,7 +90,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         color: theme.cardTheme.color ?? Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(2, 0),
           ),
@@ -113,7 +113,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           // Profile Placeholder
           CircleAvatar(
             radius: 35,
-            backgroundColor: theme.primaryColor.withOpacity(0.1),
+            backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
             child: FaIcon(FontAwesomeIcons.user, color: theme.primaryColor, size: 30),
           ),
           const SizedBox(height: 10),
@@ -194,7 +194,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         margin: const EdgeInsets.symmetric(horizontal: 20),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
         decoration: BoxDecoration(
-          color: isSelected ? theme.primaryColor.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? theme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -224,7 +224,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.1))),
+        border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -311,7 +311,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -386,10 +386,10 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: unlocked ? color.withOpacity(0.5) : Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: unlocked ? color.withValues(alpha: 0.5) : Colors.grey.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: (unlocked ? color : Colors.grey).withOpacity(0.1),
+            color: (unlocked ? color : Colors.grey).withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -433,7 +433,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: theme.primaryColor.withOpacity(0.1),
+              backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
               child: Text(
                 (user['name'] as String)[0],
                 style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold),
@@ -474,14 +474,14 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
+        border: Border.all(color: theme.primaryColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: theme.primaryColor.withOpacity(0.1),
+              color: theme.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: FaIcon(FontAwesomeIcons.calendar, color: theme.primaryColor),
@@ -557,9 +557,9 @@ class _RealTimeTimerState extends State<_RealTimeTimer> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
-        color: widget.theme.primaryColor.withOpacity(0.05),
+        color: widget.theme.primaryColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: widget.theme.primaryColor.withOpacity(0.2)),
+        border: Border.all(color: widget.theme.primaryColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

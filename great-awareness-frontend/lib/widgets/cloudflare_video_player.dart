@@ -318,11 +318,11 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
       if (response.success && mounted) {
         // Optionally update the local view count if needed
         // For now, we'll just track it silently
-        print('View tracked successfully. New count: ${response.viewCount}');
+        debugPrint('View tracked successfully. New count: ${response.viewCount}');
       }
     } catch (e) {
       // Silently fail - view tracking shouldn't interrupt video playback
-      print('Failed to track view: $e');
+      debugPrint('Failed to track view: $e');
     }
   }
 

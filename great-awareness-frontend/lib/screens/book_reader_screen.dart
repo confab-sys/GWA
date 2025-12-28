@@ -4,12 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:epubx/epubx.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class BookReaderScreen extends StatefulWidget {
   final String bookId;
@@ -95,7 +92,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         final tempFile = File('${tempDir.path}/${widget.bookId}.epub');
         await tempFile.writeAsBytes(response.bodyBytes);
         _downloadedFilePath = tempFile.path;
-        debugPrint('Book downloaded successfully to: ${_downloadedFilePath}');
+        debugPrint('Book downloaded successfully to: $_downloadedFilePath');
       } else {
         throw Exception('Failed to download book: ${response.statusCode} - ${response.reasonPhrase}');
       }
@@ -431,7 +428,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                         "body": Style(
                           fontFamily: 'Judson',
                           fontSize: FontSize(18),
-                          lineHeight: LineHeight(1.6),
+                          lineHeight: const LineHeight(1.6),
                         ),
                         "p": Style(
                           margin: Margins(bottom: Margin(16)),
@@ -454,7 +451,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
               child: LinearProgressIndicator(
                 value: _readingProgress,
                 backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
               ),
             ),
             
@@ -466,7 +463,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                 right: 0,
                 child: Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
@@ -484,7 +481,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                         icon: const Icon(Icons.navigate_before),
                         label: Text('Previous', style: GoogleFonts.judson()),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.9),
+                          backgroundColor: Colors.white.withValues(alpha: 0.9),
                           foregroundColor: Colors.black,
                         ),
                       ),
@@ -502,7 +499,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                         icon: const Icon(Icons.navigate_next),
                         label: Text('Next', style: GoogleFonts.judson()),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.9),
+                          backgroundColor: Colors.white.withValues(alpha: 0.9),
                           foregroundColor: Colors.black,
                         ),
                       ),

@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/book.dart';
-import 'book_reader_screen.dart';
 
 class BooksSalesScreen extends StatefulWidget {
   const BooksSalesScreen({super.key});
@@ -53,11 +52,11 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
 
     // Load saved data from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
-    final savedBooksData = prefs.getString('books_sales_data');
+    // final savedBooksData = prefs.getString('books_sales_data');
     
     // Clear old data to force fresh load
     await prefs.remove('books_sales_data');
-    print('Cleared old books sales data - loading fresh books');
+    debugPrint('Cleared old books sales data - loading fresh books');
 
     setState(() {
       books = initialBooks;
@@ -78,12 +77,12 @@ class _BooksSalesScreenState extends State<BooksSalesScreen> {
     _saveBooks();
   }
 
-  void _updateReadingProgress(Book book, double progress) {
-    setState(() {
-      book.readingProgress = progress.clamp(0.0, 100.0);
-    });
-    _saveBooks();
-  }
+  // void _updateReadingProgress(Book book, double progress) {
+  //   setState(() {
+  //     book.readingProgress = progress.clamp(0.0, 100.0);
+  //   });
+  //   _saveBooks();
+  // }
 
   Future<void> _downloadBook(Book book) async {
     // Simulate download process

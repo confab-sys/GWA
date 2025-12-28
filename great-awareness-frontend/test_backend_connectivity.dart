@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 import 'dart:async';
 import 'package:http/http.dart' as http;
@@ -15,7 +17,7 @@ void main() async {
   for (final url in testUrls) {
     print('\nTesting URL: $url');
     try {
-      final response = await http.get(Uri.parse('$url/')).timeout(Duration(seconds: 10));
+      final response = await http.get(Uri.parse('$url/')).timeout(const Duration(seconds: 10));
       print('✅ SUCCESS - Status: ${response.statusCode}');
       print('Response length: ${response.body.length}');
     } on SocketException catch (e) {

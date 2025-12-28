@@ -4,9 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
-import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/podcast.dart';
 import '../services/podcast_service.dart';
 import '../services/auth_service.dart';
@@ -22,7 +20,7 @@ class PodcastsScreen extends StatefulWidget {
 
 class _PodcastsScreenState extends State<PodcastsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final PodcastService _podcastService = PodcastService();
+  // final PodcastService _podcastService = PodcastService();
   List<Podcast> allPodcasts = [];
   List<Podcast> filteredPodcasts = [];
   TextEditingController searchController = TextEditingController();
@@ -62,7 +60,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
         isLoading = false;
         errorMessage = 'Failed to load podcasts. Please try again later.';
       });
-      print('Error loading podcasts: $e');
+      debugPrint('Error loading podcasts: $e');
     }
   }
 
@@ -118,14 +116,14 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
       }
 
       if (isDownloaded && localPath != null) {
-        print('Playing from local file: $localPath');
+        debugPrint('Playing from local file: $localPath');
         _audioController = VideoPlayerController.file(File(localPath));
       } else {
         String audioUrl = podcast.audioUrl;
         if (audioUrl.isEmpty) {
           throw Exception('No audio URL available');
         }
-        print('Playing from network: $audioUrl');
+        debugPrint('Playing from network: $audioUrl');
         _audioController = VideoPlayerController.networkUrl(Uri.parse(audioUrl));
       }
       _controllerNotifier.value = _audioController;
@@ -171,7 +169,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
       }
 
     } catch (e) {
-      print('Error playing podcast: $e');
+      debugPrint('Error playing podcast: $e');
       if (mounted && _currentPlayingPodcastId == podcast.id) {
         setState(() {
           _isPlayerLoading = false;
@@ -421,7 +419,7 @@ class _PodcastsScreenState extends State<PodcastsScreen> {
   }
 
   Widget _buildCategories(bool isDarkMode) {
-    final categories = ['All', ...allPodcasts.map((e) => e.category).toSet().toList()];
+    final categories = ['All', ...allPodcasts.map((e) => e.category).toSet()];
     
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

@@ -42,7 +42,7 @@ class ViewMoreCard extends StatelessWidget {
                   border: Border.all(color: Colors.white, width: 2),
                 ),
                 child: Text(
-                  '${count}+',
+                  '$count+',
                   style: GoogleFonts.judson(
                     textStyle: const TextStyle(
                       color: Colors.white,

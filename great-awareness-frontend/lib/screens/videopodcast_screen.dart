@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'podcasts_screen.dart';
 import 'video_upload_screen.dart';
 import '../models/video.dart';
-import '../models/podcast.dart';
 import '../models/master_class.dart';
 
 import '../services/video_service.dart';
@@ -23,12 +22,9 @@ class VideoPodcastScreen extends StatefulWidget {
   State<VideoPodcastScreen> createState() => _VideoPodcastScreenState();
 }
 
-class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
   List<Video> allVideos = [];
   List<Video> filteredVideos = [];
-  List<Podcast> allPodcasts = [];
-  List<Podcast> filteredPodcasts = [];
   List<MasterClass> masterClasses = [];
   TextEditingController searchController = TextEditingController();
   String selectedCategory = 'All';
@@ -63,7 +59,6 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadVideosFromCloudflare();
     _loadMasterClasses();
     searchController.addListener(_onSearchChanged);
@@ -80,7 +75,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         isLoadingMasterClasses = false;
       });
     } catch (e) {
-      print('Error loading master classes: $e');
+      debugPrint('Error loading master classes: $e');
       setState(() {
         isLoadingMasterClasses = false;
       });
@@ -89,7 +84,6 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
 
   @override
   void dispose() {
-    _tabController.dispose();
     searchController.dispose();
     super.dispose();
   }
@@ -101,7 +95,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
         _errorMessage = null;
       });
 
-      print('Loading videos from Cloudflare database...');
+      debugPrint('Loading videos from Cloudflare database...');
       
       // Get videos from database using VideoService
       final response = await VideoService.listVideos(
@@ -155,7 +149,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       });
       
     } catch (e) {
-      print('Error loading videos: $e');
+      debugPrint('Error loading videos: $e');
       setState(() {
         isLoading = false;
         allVideos = [];
@@ -170,17 +164,10 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
     setState(() {
       if (query.isEmpty) {
         filteredVideos = List.from(allVideos);
-        filteredPodcasts = List.from(allPodcasts);
       } else {
         filteredVideos = allVideos.where((video) {
           return video.title.toLowerCase().contains(query) ||
                  video.description.toLowerCase().contains(query);
-        }).toList();
-        
-        filteredPodcasts = allPodcasts.where((podcast) {
-          return podcast.title.toLowerCase().contains(query) ||
-                 podcast.subtitle.toLowerCase().contains(query) ||
-                 podcast.category.toLowerCase().contains(query);
         }).toList();
       }
     });
@@ -259,96 +246,75 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text(
-          'Videos & Podcasts',
-          style: GoogleFonts.judson(
-            textStyle: const TextStyle(
-              color: Colors.black,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+        toolbarHeight: 80, // Slightly taller for search bar
+        title: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: TextField(
+            controller: searchController,
+            decoration: InputDecoration(
+              hintText: 'Search videos...',
+              hintStyle: GoogleFonts.judson(
+                textStyle: TextStyle(color: Colors.grey[500]),
+              ),
+              prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+              filled: true,
+              fillColor: const Color(0xFFFAFAFA), // Soft off-white
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16), // Softer radius
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            style: GoogleFonts.judson(
+              textStyle: const TextStyle(color: Colors.black, fontSize: 16),
             ),
           ),
         ),
-        actions: const [], // Removed upload/refresh icons
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(130), // Increased height for breathing room
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Search Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20), // More vertical breathing room
-                child: TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search videos...',
-                    hintStyle: GoogleFonts.judson(
-                      textStyle: TextStyle(color: Colors.grey[500]),
-                    ),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
-                    filled: true,
-                    fillColor: const Color(0xFFFAFAFA), // Soft off-white
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16), // Softer radius
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                  style: GoogleFonts.judson(
-                    textStyle: const TextStyle(color: Colors.black, fontSize: 16),
-                  ),
-                ),
-              ),
-              // Tab Bar
-              TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.black,
-                indicatorWeight: 3, // Thicker indicator
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.grey[500],
-                labelStyle: GoogleFonts.judson(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                indicatorSize: TabBarIndicatorSize.label,
-                tabs: const [
-                  Tab(text: 'Videos'),
-                  Tab(text: 'Podcasts'),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: _buildVideosTab(),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          _buildVideosTab(),
-          _buildPodcastsTab(),
+          Consumer<AuthService>(
+            builder: (context, authService, child) {
+              final currentUser = authService.currentUser;
+              if (currentUser == null || !currentUser.isAdmin) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: FloatingActionButton(
+                  heroTag: 'upload_video_btn',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const VideoUploadScreen(),
+                      ),
+                    );
+                  },
+                  backgroundColor: Colors.black,
+                  child: const Icon(Icons.upload, color: Colors.white),
+                ),
+              );
+            },
+          ),
+          FloatingActionButton(
+            heroTag: 'podcast_btn',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PodcastsScreen(),
+                ),
+              );
+            },
+            backgroundColor: Colors.black,
+            child: const Icon(Icons.podcasts, color: Colors.white),
+          ),
+          const SizedBox(height: 80), // Avoid crashing into bottom nav
         ],
-      ),
-      floatingActionButton: Consumer<AuthService>(
-        builder: (context, authService, child) {
-          final currentUser = authService.currentUser;
-          if (currentUser == null || !currentUser.isAdmin) {
-            return const SizedBox.shrink();
-          }
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 80), // Avoid crashing into bottom nav
-            child: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const VideoUploadScreen(),
-                  ),
-                );
-              },
-              backgroundColor: Colors.black,
-              child: const Icon(Icons.upload, color: Colors.white),
-            ),
-          );
-        },
       ),
     );
   }
@@ -793,71 +759,6 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> with SingleTick
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPodcastsTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.podcasts,
-            size: 64,
-            color: Colors.grey[600],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Explore Our Podcasts',
-            style: GoogleFonts.judson(
-              textStyle: const TextStyle(
-                color: Colors.black,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Discover healing and growth through our podcast collection',
-            style: GoogleFonts.judson(
-              textStyle: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 16,
-              ),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PodcastsScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-            ),
-            child: Text(
-              'Go to Podcasts',
-              style: GoogleFonts.judson(
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

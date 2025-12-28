@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                 _showFirstText ? 'Empowering Minds' : 'Deconstructing Reality',
                 key: ValueKey<bool>(_showFirstText),
                 style: GoogleFonts.judson(
-                  textStyle: TextStyle(
+                  textStyle: const TextStyle(
                     color: Colors.white70,
                     fontSize: 16,
                     fontWeight: FontWeight.normal,

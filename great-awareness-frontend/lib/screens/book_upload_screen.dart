@@ -124,20 +124,26 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
 
       if (response.statusCode == 200) {
         final result = json.decode(responseBody);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Book uploaded successfully: ${result['bookId']}')),        );
+          SnackBar(content: Text('Book uploaded successfully: ${result['bookId']}')),
+        );
         Navigator.pop(context);
       } else {
         throw Exception('Upload failed: ${response.statusCode} - $responseBody');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading book: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading book: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
   }
 
@@ -229,7 +235,7 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
                             ),
                           )
                         else
-                          Icon(
+                          const Icon(
                             Icons.image,
                             size: 48,
                             color: Colors.grey,
@@ -423,7 +429,9 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
                             child: RadioListTile<String>(
                               title: Text('Free', style: GoogleFonts.judson()),
                               value: 'free',
+                              // ignore: deprecated_member_use
                               groupValue: _accessLevel,
+                              // ignore: deprecated_member_use
                               onChanged: (value) {
                                 setState(() {
                                   _accessLevel = value!;
@@ -435,7 +443,9 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
                             child: RadioListTile<String>(
                               title: Text('Premium', style: GoogleFonts.judson()),
                               value: 'premium',
+                              // ignore: deprecated_member_use
                               groupValue: _accessLevel,
+                              // ignore: deprecated_member_use
                               onChanged: (value) {
                                 setState(() {
                                   _accessLevel = value!;
@@ -475,6 +485,7 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
                       CheckboxListTile(
                         title: Text('Allow Download', style: GoogleFonts.judson()),
                         value: _downloadAllowed,
+                        activeColor: Colors.black,
                         onChanged: (value) {
                           setState(() {
                             _downloadAllowed = value!;
@@ -484,6 +495,7 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
                       CheckboxListTile(
                         title: Text('Allow Streaming', style: GoogleFonts.judson()),
                         value: _streamAllowed,
+                        activeColor: Colors.black,
                         onChanged: (value) {
                           setState(() {
                             _streamAllowed = value!;
