@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'wellness_dashboard.dart';
 import '../services/auth_service.dart';
 
@@ -29,7 +30,7 @@ class _WellnessScreenState extends State<WellnessScreen> {
   DateTime? _habitStartTime;
   int _userDayStatus = 0;
   bool _isTrackingActive = false;
-  bool _showIntro = true; // New state to toggle intro sequence
+  bool _showIntro = true;
   String? _selectedAddictionType;
   
   // Carousel controllers
@@ -66,39 +67,76 @@ class _WellnessScreenState extends State<WellnessScreen> {
     super.dispose();
   }
 
-  void _loadUserData() {
+  Future<void> _loadUserData() async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final currentUser = authService.currentUser;
     
     if (currentUser != null) {
-      // Simulate data loading
+      final prefs = await SharedPreferences.getInstance();
+      final storedTime = prefs.getString('recovery_start_timestamp_${currentUser.id}');
+      final storedType = prefs.getString('recovery_type_${currentUser.id}');
+
       setState(() {
-        _userDayStatus = 15;
-        _habitStartTime = DateTime.now().subtract(const Duration(days: 15));
-        
-        // For demonstration, we'll assume tracking is NOT active initially
-        // so the user can see the intro sequence.
-        // In a real app, check DB: if user has active habit -> _isTrackingActive = true;
-        _isTrackingActive = false; // Changed to false to show intro by default
-        
-        // If tracking was active, we would skip intro
-        if (_isTrackingActive) {
+        if (storedTime != null) {
+          _habitStartTime = DateTime.parse(storedTime);
+          _isTrackingActive = true;
           _showIntro = false;
+          _userDayStatus = DateTime.now().difference(_habitStartTime!).inDays;
         } else {
+          _habitStartTime = null;
+          _isTrackingActive = false;
           _showIntro = true;
+          _userDayStatus = 0;
         }
 
-        _selectedAddictionType = 'Masturbation'; 
+        _selectedAddictionType = storedType ?? 'General'; 
       });
     }
   }
 
+  Future<void> _startRecovery() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    final now = DateTime.now().toUtc();
+
+    if (currentUser != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('recovery_start_timestamp_${currentUser.id}', now.toIso8601String());
+    }
+
+    setState(() {
+      _habitStartTime = now;
+      _isTrackingActive = true;
+      _showIntro = false;
+      _userDayStatus = 0;
+    });
+  }
+  
+  Future<void> _resetRecovery() async {
+     final authService = Provider.of<AuthService>(context, listen: false);
+     final currentUser = authService.currentUser;
+     final now = DateTime.now().toUtc();
+     
+     if (currentUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('recovery_start_timestamp_${currentUser.id}', now.toIso8601String());
+     }
+     
+     setState(() {
+        _habitStartTime = now;
+        _userDayStatus = 0;
+     });
+  }
 
   void _finishIntro() {
+    // If tracking is active, just hide intro.
+    // If not, we might want to prompt user to start?
+    // For now, just show dashboard (which will likely be empty or show "Start" button)
     setState(() {
       _showIntro = false;
     });
   }
+
 
 
   @override
@@ -316,6 +354,8 @@ class _WellnessScreenState extends State<WellnessScreen> {
         habitStartTime: _habitStartTime,
         addictionType: _selectedAddictionType ?? 'Habit',
         currentStreakDays: _userDayStatus,
+        onStartRecovery: _startRecovery,
+        onResetRecovery: _resetRecovery,
       ),
     );
   }

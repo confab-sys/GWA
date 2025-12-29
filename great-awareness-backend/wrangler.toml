@@ -1,0 +1,16 @@
+name = "gwa-main-worker"
+main = "workers/main-worker.js"
+compatibility_date = "2024-12-28"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gwa-main-db"
+database_id = "71bfffe9-e765-4929-94ce-f71187ab0214"
+
+[[r2_buckets]]
+binding = "GWA_USERS_BUCKET"
+bucket_name = "gwa-users"
+
+[[r2_buckets]]
+binding = "GWA_CONTENT_BUCKET"
+bucket_name = "gwa-content"

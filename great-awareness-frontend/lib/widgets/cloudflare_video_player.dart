@@ -96,7 +96,7 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
           playedColor: Colors.blue,
           handleColor: Colors.blueAccent,
           backgroundColor: Colors.grey,
-          bufferedColor: Colors.lightBlue.withValues(alpha: 0.5), // Use withValues instead of withOpacity
+          bufferedColor: Colors.lightBlue.withOpacity(0.5), // Use withOpacity for compatibility
         ),
         placeholder: Container(
           color: Colors.black,
@@ -199,7 +199,7 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
           playedColor: Colors.blue,
           handleColor: Colors.blueAccent,
           backgroundColor: Colors.grey,
-          bufferedColor: Colors.lightBlue.withValues(alpha: 0.5), // Use withValues instead of withOpacity
+          bufferedColor: Colors.lightBlue.withOpacity(0.5), // Use withOpacity for compatibility
         ),
         aspectRatio: _videoPlayerController!.value.aspectRatio,
       );
@@ -228,7 +228,7 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
             Icon(
               Icons.error_outline,
               size: 64,
-              color: Colors.white.withValues(alpha: 0.8), // Use withValues instead of withOpacity
+              color: Colors.white.withOpacity(0.8), // Use withOpacity for compatibility
             ),
             const SizedBox(height: 16),
             Text(
@@ -244,7 +244,7 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
               errorMessage ?? 'Unable to play this video',
               style: GoogleFonts.inter(
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.8), // Use withValues instead of withOpacity
+                color: Colors.white.withOpacity(0.8), // Use withOpacity for compatibility
               ),
               textAlign: TextAlign.center,
             ),
@@ -394,7 +394,7 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                   Text(
                     widget.subtitle,
                     style: GoogleFonts.inter(
-                      color: Colors.white.withValues(alpha: 0.8), // Use withValues instead of withOpacity
+                      color: Colors.white.withOpacity(0.8), // Use withOpacity for compatibility
                       fontSize: 14,
                     ),
                   ),
@@ -404,7 +404,7 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                   Text(
                     widget.video.description,
                     style: GoogleFonts.inter(
-                      color: Colors.white.withValues(alpha: 0.7), // Use withValues instead of withOpacity
+                      color: Colors.white.withOpacity(0.7), // Use withOpacity for compatibility
                       fontSize: 14,
                       height: 1.4,
                     ),
@@ -416,13 +416,13 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                     Icon(
                       Icons.schedule,
                       size: 16,
-                      color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                      color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                     ),
                     const SizedBox(width: 4),
                     Text(
                       widget.video.formattedDuration,
                       style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                        color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                         fontSize: 12,
                       ),
                     ),
@@ -430,13 +430,13 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                     Icon(
                       Icons.video_file,
                       size: 16,
-                      color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                      color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                     ),
                     const SizedBox(width: 4),
                     Text(
                       widget.video.formattedFileSize,
                       style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                        color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                         fontSize: 12,
                       ),
                     ),
@@ -444,13 +444,13 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                     Icon(
                       Icons.visibility,
                       size: 16,
-                      color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                      color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                     ),
                     const SizedBox(width: 4),
                     Text(
                       widget.video.formattedViewCount,
                       style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                        color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                         fontSize: 12,
                       ),
                     ),
@@ -458,13 +458,13 @@ class _CloudflareVideoPlayerState extends State<CloudflareVideoPlayer> {
                     Icon(
                       Icons.comment,
                       size: 16,
-                      color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                      color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                     ),
                     const SizedBox(width: 4),
                     Text(
                       widget.video.formattedCommentCount,
                       style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.6), // Use withValues instead of withOpacity
+                        color: Colors.white.withOpacity(0.6), // Use withOpacity for compatibility
                         fontSize: 12,
                       ),
                     ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -130,6 +132,14 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _submitForm() async {
+    debugPrint('=== SIGNUP SUBMIT FORM ===');
+    debugPrint('First Name: "${_firstNameController.text}" (Type: ${_firstNameController.text.runtimeType})');
+    debugPrint('Last Name: "${_lastNameController.text}" (Type: ${_lastNameController.text.runtimeType})');
+    debugPrint('Email: "${_emailController.text}" (Type: ${_emailController.text.runtimeType})');
+    debugPrint('Phone: "${_phoneController.text}" (Type: ${_phoneController.text.runtimeType})');
+    debugPrint('County: "$_selectedCounty" (Type: ${_selectedCounty.runtimeType})');
+    debugPrint('Password: "${_passwordController.text}" (Type: ${_passwordController.text.runtimeType})');
+    
     if (_passwordController.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password must be at least 8 characters')),
@@ -157,7 +167,7 @@ class _SignupScreenState extends State<SignupScreen> {
         _lastNameController.text,
         _emailController.text,
         _phoneController.text,
-        _selectedCounty!,
+        _selectedCounty ?? '',
         _passwordController.text,
       );
       
@@ -172,10 +182,63 @@ class _SignupScreenState extends State<SignupScreen> {
         // This shouldn't happen if the API service is working correctly
         throw Exception('Account creation failed - no user data returned');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Signup error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+      debugPrint('Stack trace: $stackTrace');
+      
+      if (!mounted) return;
+      
+      // Show detailed error dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Signup Error'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('An error occurred during signup:'),
+                const SizedBox(height: 8),
+                Text(
+                  e.toString(),
+                  style: const TextStyle(color: Colors.red, fontFamily: 'Courier'),
+                ),
+                if (e.toString().contains('type \'double\' is not a subtype of type \'int\'')) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Diagnosis: A data type mismatch occurred. This usually means the app received a decimal number (e.g., 0.5) where it expected a whole number (e.g., 1).',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                   const Text('Potential causes:'),
+                   const Text('• Backend returned a decimal for an ID'),
+                   const Text('• Animation value calculation error'),
+                   const Text('• Screen size calculation error'),
+                ],
+                const SizedBox(height: 16),
+                const Text('Stack Trace (Share this with support):', style: TextStyle(fontWeight: FontWeight.bold)),
+                Container(
+                  height: 150,
+                  padding: const EdgeInsets.all(8),
+                  color: Colors.grey[200],
+                  child: SingleChildScrollView(
+                    child: Text(
+                      stackTrace.toString(),
+                      style: const TextStyle(fontSize: 10, fontFamily: 'Courier'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
       );
     }
   }

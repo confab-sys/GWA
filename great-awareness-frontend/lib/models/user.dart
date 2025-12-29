@@ -1,6 +1,6 @@
 class User {
-  final String id;
-  final String email;
+  final String? id;
+  final String? email;
   final String? name;
   final String? token;
   final String? role;
@@ -24,14 +24,14 @@ class User {
   factory User.fromJson(Map<String, dynamic> json, {String? token}) {
     return User(
       id: json['id']?.toString() ?? '',
-      email: json['email'] ?? '',
-      name: json['name'] ?? '${json['first_name'] ?? ''} ${json['last_name'] ?? ''}'.trim(),
-      token: token ?? json['token'],
-      role: json['role'] ?? 'user',
-      firstName: json['first_name'],
-      lastName: json['last_name'],
-      phoneNumber: json['phone_number'],
-      county: json['county'],
+      email: json['email']?.toString() ?? '',
+      name: json['name']?.toString() ?? '${json['first_name']?.toString() ?? ''} ${json['last_name']?.toString() ?? ''}'.trim(),
+      token: token ?? json['token']?.toString(),
+      role: json['role']?.toString() ?? 'user',
+      firstName: json['first_name']?.toString(),
+      lastName: json['last_name']?.toString(),
+      phoneNumber: json['phone_number']?.toString(),
+      county: json['county']?.toString(),
     );
   }
   

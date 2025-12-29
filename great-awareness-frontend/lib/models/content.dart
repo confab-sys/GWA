@@ -48,6 +48,14 @@ class Content {
       return def;
     }
 
+    int toInt(dynamic val) {
+      if (val == null) return 0;
+      if (val is int) return val;
+      if (val is double) return val.toInt();
+      if (val is String) return int.tryParse(val) ?? 0;
+      return 0;
+    }
+
     DateTime toDateTime(dynamic val) {
       if (val == null) return DateTime.now();
       if (val is! String) return DateTime.now();
@@ -57,7 +65,7 @@ class Content {
     }
 
     return Content(
-      id: json['id'] ?? 0,
+      id: toInt(json['id']),
       title: json['title'] ?? '',
       body: json['body'] ?? '',
       topic: json['topic'] ?? '',
@@ -66,8 +74,8 @@ class Content {
       isTextOnly: toBool(json['is_text_only'], true),
       authorName: json['author_name'] ?? 'Admin',
       authorAvatar: json['author_avatar'],
-      likesCount: json['likes_count'] ?? 0,
-      commentsCount: json['comments_count'] ?? 0,
+      likesCount: toInt(json['likes_count']),
+      commentsCount: toInt(json['comments_count']),
       isLikedByUser: toBool(json['is_liked_by_user'] ?? json['is_liked'], false),
       status: json['status'] ?? 'published',
       isFeatured: toBool(json['is_featured'], false),
@@ -76,7 +84,7 @@ class Content {
       publishedAt: json['published_at'] != null 
           ? toDateTime(json['published_at'])
           : null,
-      createdBy: json['created_by'],
+      createdBy: json['created_by'] != null ? toInt(json['created_by']) : null,
     );
   }
   

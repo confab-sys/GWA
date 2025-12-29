@@ -45,6 +45,29 @@ export default {
 
       // --- Contents Endpoints ---
       // Initialize DB (Helper)
+      if (url.pathname === "/api/db/init-users" && method === "POST") {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            profile_image TEXT,
+            device_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+        
+        // Add device_id column if it doesn't exist (migration)
+        try {
+          await env.DB.prepare("ALTER TABLE users ADD COLUMN device_id TEXT").run();
+        } catch (e) {
+          // Column likely already exists
+        }
+        
+        return new Response("Users table initialized/updated", { headers: corsHeaders });
+      }
+
       if (url.pathname === "/api/db/init-likes" && method === "POST") {
         await env.DB.prepare(`
           CREATE TABLE IF NOT EXISTS content_likes (
@@ -326,7 +349,7 @@ async function handleServeImage(bucket, key, corsHeaders) {
 
 async function handleSignup(request, env, corsHeaders) {
   try {
-    const { username, email, password } = await request.json();
+    const { username, email, password, device_id_hash } = await request.json();
 
     if (!username || !email || !password) {
       return new Response(JSON.stringify({ error: "Missing fields" }), { status: 400, headers: corsHeaders });
@@ -345,8 +368,8 @@ async function handleSignup(request, env, corsHeaders) {
 
     // Insert user
     const { success } = await env.DB.prepare(
-      `INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)`
-    ).bind(username, email, storedHash).run();
+      `INSERT INTO users (username, email, password_hash, device_id) VALUES (?, ?, ?, ?)`
+    ).bind(username, email, storedHash, device_id_hash || null).run();
 
     if (!success) throw new Error("Failed to create user");
 
@@ -366,7 +389,7 @@ async function handleLogin(request, env, corsHeaders) {
 
     const user = await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
     if (!user) {
-      return new Response(JSON.stringify({ error: "Invalid credentials" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "User not found" }), { status: 401, headers: corsHeaders });
     }
 
     // Verify password
@@ -375,16 +398,24 @@ async function handleLogin(request, env, corsHeaders) {
     const hash = await hashPassword(password, salt);
     
     if (toHex(hash) !== hashHex) {
-      return new Response(JSON.stringify({ error: "Invalid credentials" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "Invalid password" }), { status: 401, headers: corsHeaders });
     }
 
     // In a real app, generate JWT here. For now, returning user info.
     // NOTE: DO NOT return password_hash
     const { password_hash, ...userInfo } = user;
 
+    // Map DB fields to frontend expected fields
+    const responseUser = {
+      ...userInfo,
+      id: user.id, // Explicitly include ID
+      name: user.username, // Map username to name
+      device_id: user.device_id,
+    };
+
     return new Response(JSON.stringify({ 
       message: "Login successful", 
-      user: userInfo,
+      user: responseUser,
       token: "dummy-jwt-token-placeholder" // TODO: Implement JWT signing
     }), { headers: corsHeaders });
 

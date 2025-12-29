@@ -339,7 +339,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       final result = await _apiService.likeContent(
         user.token!, 
         widget.post.id, 
-        int.parse(user.id)
+        int.tryParse(user.id ?? '') ?? 0
       );
       
       if (!mounted) return;
@@ -421,7 +421,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       final newComment = await _apiService.createComment(
         user.token!, 
         widget.post.id, 
-        int.parse(user.id),
+        int.tryParse(user.id ?? '') ?? 0,
         text
       );
       if (newComment != null) {

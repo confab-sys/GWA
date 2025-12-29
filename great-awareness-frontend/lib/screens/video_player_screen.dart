@@ -83,7 +83,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           playedColor: Colors.blue,
           handleColor: Colors.blueAccent,
           backgroundColor: Colors.grey,
-          bufferedColor: Colors.lightBlue.withValues(alpha: 0.5),
+          bufferedColor: Colors.lightBlue.withOpacity(0.5),
         ),
         allowFullScreen: true,
         allowMuting: true,

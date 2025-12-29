@@ -260,7 +260,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     
     try {
       debugPrint('Attempting to create comment for post $postId with text: $text');
-      final newComment = await _apiService.createComment(token, postId, int.parse(user.id), text);
+      final newComment = await _apiService.createComment(token, postId, int.tryParse(user.id ?? '') ?? 0, text);
       debugPrint('API Response for createComment: $newComment');
       
       if (newComment != null && mounted) {
@@ -721,7 +721,7 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
 
     try {
       // Use the toggle endpoint which returns Map<String, dynamic>
-      final result = await _apiService.likeContent(token, post.id, int.parse(user.id));
+      final result = await _apiService.likeContent(token, post.id, int.tryParse(user.id ?? '') ?? 0);
       
       if (result != null && mounted) {
         // Update with server response for accuracy

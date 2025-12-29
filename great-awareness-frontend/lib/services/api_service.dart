@@ -412,9 +412,9 @@ class ApiService {
   }
 
   Future<User?> login(String email, String password) async {
-    debugPrint('=== LOGIN ATTEMPT ===');
+    debugPrint('=== LOGIN ATTEMPT (Cloudflare) ===');
     debugPrint('Email: $email');
-    debugPrint('Default API Base URL: $apiBaseUrl');
+    debugPrint('Cloudflare Worker URL: $cloudflareWorkerUrl');
     
     // Skip mobile connectivity check for web production and local development
     if (kIsWeb || apiBaseUrl.contains('localhost') || apiBaseUrl.contains('127.0.0.1')) {
@@ -433,22 +433,8 @@ class ApiService {
       }
     }
     
-    // Find working backend URL
-    final workingUrl = await getWorkingBackendUrl();
-    debugPrint('Using working backend URL: $workingUrl');
-    
-    // Test backend connection first
-    debugPrint('Testing backend connection before login...');
-    final connectionTest = await testBackendConnection();
-    debugPrint('Connection test result: $connectionTest');
-    
-    if (!connectionTest['success']) {
-      debugPrint('Backend connection test failed, attempting login anyway...');
-      // Continue with login attempt even if connection test fails
-      // This allows for cases where the connection test might be blocked but login works
-    }
-    
-    final uri = Uri.parse('$workingUrl/api/auth/login');
+    // Use Cloudflare Worker directly for authentication
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/auth/login');
     debugPrint('Login URI: $uri');
     
     try {
@@ -460,25 +446,17 @@ class ApiService {
       
       if (res.statusCode == 200) {
         final data = json.decode(res.body);
-        final token = data['access_token'] ?? data['token'];
+        final token = data['token'] ?? data['access_token']; // Cloudflare uses 'token'
+        final userData = data['user'];
         
-        // Try to get user data using the token
-        try {
-          final userUri = Uri.parse('$workingUrl/api/auth/me');
-          final userRes = await _getWithRetry(
-            userUri.toString(),
-            headers: {'Authorization': 'Bearer $token'},
-          );
-          
-          if (userRes.statusCode == 200) {
-            final userData = json.decode(userRes.body);
-            return User.fromJson(userData, token: token);
-          }
-        } catch (e) {
-          debugPrint('Error fetching user data: $e');
+        debugPrint('Login successful. User data: $userData');
+        
+        if (userData != null) {
+          // Construct User object directly from login response
+          return User.fromJson(userData as Map<String, dynamic>, token: token);
         }
         
-        // Fallback: create basic user object
+        // Fallback if user data is missing in response (should not happen with current worker code)
         return User(
           id: email.hashCode.toString(),
           email: email,
@@ -494,7 +472,10 @@ class ApiService {
       debugPrint('Login request failed: $e');
       
       // Enhanced error message for mobile users
-      if (e.toString().contains('SocketException')) {
+      if (e is TypeError) {
+        debugPrint('LOGIN TYPE ERROR: $e');
+        throw Exception('Data error during login: $e. Please contact support.');
+      } else if (e.toString().contains('SocketException')) {
         throw Exception('Network connection failed. Please check your internet connection and try again.\n\nIf the problem persists:\n• Try switching between WiFi and mobile data\n• Restart the app\n• Contact support');
       } else if (e.toString().contains('TimeoutException')) {
         throw Exception('Connection timeout. The server is taking too long to respond.\n\nPlease try again in a few moments.');
@@ -536,41 +517,30 @@ class ApiService {
   }
 
   Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
-    debugPrint('=== SIGNUP ATTEMPT ===');
+    debugPrint('=== SIGNUP ATTEMPT (DEBUG MODE v2) ===');
     debugPrint('Email: $email');
     
-    // Find working backend URL
-    final workingUrl = await getWorkingBackendUrl();
-    debugPrint('Using working backend URL: $workingUrl');
-    
-    final uri = Uri.parse('$workingUrl/api/auth/register');
-    
-    // Generate username from email (before @ symbol)
-    String username = email.split('@')[0];
-    
-    // Ensure username meets minimum length requirement (at least 3 characters)
-    if (username.length < 3) {
-      username = username + firstName.toLowerCase() + lastName.toLowerCase();
-    }
-    
-    // If still too short, add numbers
-    if (username.length < 3) {
-      username = '${username}123';
-    }
-    
-    // Add timestamp to ensure uniqueness and avoid conflicts
-    username = username + DateTime.now().millisecondsSinceEpoch.toString().substring(8);
-    
-    // Get device ID hash for single-identity validation
-    final deviceIdHash = await getDeviceId();
-    debugPrint('Device ID hash: $deviceIdHash');
-    
-    debugPrint('Attempting signup with username: $username, email: $email');
-    
-    final res = await _postWithRetry(
-      uri.toString(),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({
+    try {
+      // 1. Prepare data
+      debugPrint('Step 1: Preparing data...');
+      String username = email.split('@')[0];
+      if (username.length < 3) {
+        username = username + firstName.toLowerCase() + lastName.toLowerCase();
+      }
+      if (username.length < 3) {
+        username = '${username}123';
+      }
+      username = username + DateTime.now().millisecondsSinceEpoch.toString().substring(8);
+      
+      String deviceIdHash = 'unknown';
+      try {
+        deviceIdHash = (await getDeviceId()).toString();
+      } catch (e) {
+        debugPrint('Error getting device ID: $e');
+      }
+      debugPrint('Device ID hash: $deviceIdHash');
+      
+      final signupBody = {
         'username': username,
         'first_name': firstName,
         'last_name': lastName,
@@ -579,28 +549,127 @@ class ApiService {
         'county': county,
         'password': password,
         'device_id_hash': deviceIdHash,
-      }),
-    );
-    
-    debugPrint('Signup response status: ${res.statusCode}');
-    debugPrint('Signup response body: ${res.body}');
-    
-    if (res.statusCode == 200 || res.statusCode == 201) {
-      final data = json.decode(res.body);
-      debugPrint('Signup successful, user data: $data');
-      // The backend returns user data directly, not wrapped in a 'user' key
-      return User.fromJson(data is Map<String, dynamic> ? data : {}, token: null);
-    } else if (res.statusCode == 400) {
-      final errorData = json.decode(res.body);
-      final errorMessage = errorData['detail'] ?? errorData['message'] ?? 'Bad request';
-      throw Exception('Signup failed: $errorMessage');
-    } else if (res.statusCode == 409) {
-      final errorData = json.decode(res.body);
-      final errorMessage = errorData['detail'] ?? errorData['message'] ?? 'Account already exists';
-      throw Exception(errorMessage);
-    } else {
-      // Handle other status codes
-      throw Exception('Signup failed with status ${res.statusCode}: ${res.body}');
+      };
+      
+      debugPrint('Signup Body Keys: ${signupBody.keys.toList()}');
+      signupBody.forEach((key, value) {
+        debugPrint('Field $key: "$value" (Type: ${value.runtimeType})');
+        if (value is! String) {
+           debugPrint('WARNING: Field $key is not a String! It is ${value.runtimeType}');
+        }
+      });
+      
+      // 2. Signup on Render (Primary)
+      debugPrint('Step 2: Getting backend URL...');
+      final baseUrl = await getWorkingBackendUrl();
+      // NOTE: Backend endpoint is /register, not /signup
+      final renderUri = Uri.parse('$baseUrl/api/auth/register');
+      debugPrint('Primary Signup URI (Render): $renderUri');
+      
+      debugPrint('Step 3: Sending POST request...');
+      final res = await _postWithRetry(
+        renderUri.toString(),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(signupBody),
+      );
+      
+      debugPrint('Render Signup response status: ${res.statusCode}');
+      // Print response body for debugging
+      debugPrint('Render Signup response body: ${res.body.length > 2000 ? res.body.substring(0, 2000) + '...' : res.body}');
+      
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        debugPrint('Signup successful on Render');
+        
+        // 3. Sync to Cloudflare (Critical for Login)
+        debugPrint('Step 4: Syncing to Cloudflare...');
+        await _syncToCloudflare(signupBody);
+        debugPrint('Cloudflare sync process completed');
+        
+        // 4. Auto-login (using Cloudflare)
+        debugPrint('Step 5: Auto-login (Cloudflare)...');
+        try {
+          final user = await login(email, password);
+          debugPrint('Auto-login result: ${user != null ? "Success" : "Failed (null)"}');
+          return user;
+        } catch (e) {
+          debugPrint('Auto-login failed with error: $e');
+          // If login fails but signup succeeded, return basic user manually to allow progression
+          // This avoids the user being stuck on signup screen when account IS created
+          return User(
+            id: email.hashCode.toString(),
+            email: email,
+            token: null, // User will need to login again or token is missing
+            role: 'user',
+            firstName: firstName,
+            lastName: lastName,
+          );
+        }
+      } else if (res.statusCode == 400 || res.statusCode == 409) {
+        final errorData = json.decode(res.body);
+        final errorMessage = errorData['detail'] ?? errorData['message'] ?? errorData['error'] ?? 'Request failed';
+        throw Exception(errorMessage);
+      } else {
+        throw Exception('Signup failed with status ${res.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('CRITICAL SIGNUP ERROR: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (e is TypeError) {
+         debugPrint('TYPE ERROR DETAILS: $e');
+         debugPrint('This often happens when a JSON field has an unexpected type (e.g. double instead of int).');
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _syncToCloudflare(Map<String, dynamic> body) async {
+    debugPrint('=== SYNCING TO CLOUDFLARE ===');
+    try {
+      final cloudflareUri = Uri.parse('$cloudflareWorkerUrl/api/auth/signup');
+      debugPrint('Cloudflare Sync URI: $cloudflareUri');
+      
+      // Use configured client instead of raw http to benefit from SSL config
+      var res = await _client.post(
+        cloudflareUri,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      ).timeout(const Duration(seconds: 15));
+      
+      debugPrint('Cloudflare Sync status: ${res.statusCode}');
+      debugPrint('Cloudflare Sync body: ${res.body}');
+
+      // Self-healing: If 500 (Internal Server Error), it might be due to missing 'users' table
+      if (res.statusCode == 500) {
+        debugPrint('Cloudflare sync failed with 500. Attempting to initialize Users table...');
+        try {
+          final initUri = Uri.parse('$cloudflareWorkerUrl/api/db/init-users');
+          final initRes = await _client.post(
+            initUri,
+            headers: {'Content-Type': 'application/json'},
+          ).timeout(const Duration(seconds: 10));
+          
+          debugPrint('Init table response: ${initRes.statusCode} - ${initRes.body}');
+          
+          if (initRes.statusCode == 200) {
+             debugPrint('Table initialized. Retrying sync...');
+             res = await _client.post(
+              cloudflareUri,
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(body),
+            ).timeout(const Duration(seconds: 15));
+            debugPrint('Retry Cloudflare Sync status: ${res.statusCode}');
+            debugPrint('Retry Cloudflare Sync body: ${res.body}');
+          }
+        } catch (e) {
+          debugPrint('Failed to auto-initialize table: $e');
+        }
+      }
+      
+      if (res.statusCode >= 400) {
+        debugPrint('Cloudflare Sync error body: ${res.body}');
+      }
+    } catch (e) {
+      debugPrint('Error syncing to Cloudflare: $e');
     }
   }
 

@@ -590,8 +590,8 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Colors.black.withValues(alpha: 0.1),
-                              Colors.black.withValues(alpha: 0.7),
+                              Colors.black.withOpacity(0.1),
+                              Colors.black.withOpacity(0.7),
                             ],
                           ),
                         ),
@@ -603,7 +603,7 @@ class _VideoPodcastScreenState extends State<VideoPodcastScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
+                            color: Colors.black,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(

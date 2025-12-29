@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/user.dart';
+import '../widgets/recovery_timer.dart';
 
 class WellnessDashboard extends StatefulWidget {
   final User? currentUser;
   final DateTime? habitStartTime;
   final String addictionType;
   final int currentStreakDays;
+  final VoidCallback? onStartRecovery;
+  final VoidCallback? onResetRecovery;
 
   const WellnessDashboard({
     super.key,
@@ -16,6 +19,8 @@ class WellnessDashboard extends StatefulWidget {
     required this.habitStartTime,
     required this.addictionType,
     required this.currentStreakDays,
+    this.onStartRecovery,
+    this.onResetRecovery,
   });
 
   @override
@@ -90,7 +95,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         color: theme.cardTheme.color ?? Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(2, 0),
           ),
@@ -113,7 +118,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           // Profile Placeholder
           CircleAvatar(
             radius: 35,
-            backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
+            backgroundColor: theme.primaryColor.withOpacity(0.1),
             child: FaIcon(FontAwesomeIcons.user, color: theme.primaryColor, size: 30),
           ),
           const SizedBox(height: 10),
@@ -194,7 +199,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         margin: const EdgeInsets.symmetric(horizontal: 20),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
         decoration: BoxDecoration(
-          color: isSelected ? theme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected ? theme.primaryColor.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -224,7 +229,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
-        border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
+        border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.1))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -271,35 +276,345 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   }
 
   Widget _buildHomeContent(ThemeData theme) {
-    return ListView(
+    if (widget.habitStartTime == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Illustration or Icon
+            Icon(FontAwesomeIcons.heartPulse, size: 80, color: theme.primaryColor.withOpacity(0.5)),
+            const SizedBox(height: 30),
+            Text(
+              "Ready to start your journey?",
+              style: GoogleFonts.judson(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Begin tracking your recovery today.",
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: widget.onStartRecovery,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                elevation: 5,
+              ),
+              child: Text(
+                "Start Recovery",
+                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          // The Timer
+          RecoveryTimer(startTime: widget.habitStartTime!),
+          
+          const SizedBox(height: 40),
+          
+          // Motivation / Quote Card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(25),
+            decoration: BoxDecoration(
+              color: theme.cardTheme.color ?? Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Icon(FontAwesomeIcons.quoteLeft, color: theme.primaryColor.withOpacity(0.3), size: 30),
+                const SizedBox(height: 15),
+                Text(
+                  "\"The only way to make sense out of change is to plunge into it, move with it, and join the dance.\"",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.judson(
+                    fontSize: 20,
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Text(
+                  "- Alan Watts",
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 40),
+          
+          // Reset Option
+          TextButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context, 
+                builder: (ctx) => AlertDialog(
+                  title: Text("Reset Recovery?", style: GoogleFonts.judson(fontWeight: FontWeight.bold)),
+                  content: const Text("This will reset your progress to zero. This action cannot be undone."),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("Cancel"),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        widget.onResetRecovery?.call();
+                      },
+                      child: Text("Reset", style: TextStyle(color: theme.colorScheme.error)),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: Icon(Icons.refresh, size: 16, color: Colors.grey[500]),
+            label: Text(
+              "Reset Progress",
+              style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 12),
+            ),
+          ),
+          
+          const SizedBox(height: 40),
+          
+          // Content Suggestions
+          _buildContentSuggestions(theme),
+          
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentSuggestions(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Recommended for You',
-          style: GoogleFonts.judson(fontSize: 22, fontWeight: FontWeight.bold),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5),
+          child: Text(
+            'Resources for Your Journey',
+            style: GoogleFonts.judson(
+              fontSize: 22, 
+              fontWeight: FontWeight.bold,
+              color: theme.textTheme.bodyLarge?.color,
+            ),
+          ),
         ),
-        const SizedBox(height: 15),
-        _buildVideoCard(
-          theme,
-          'Understanding Triggers',
-          'Learn how to identify and manage your emotional triggers.',
-          'assets/images/video_thumb_1.jpg', // Placeholder
+        const SizedBox(height: 20),
+        
+        // Videos Section
+        _buildSectionHeader("Videos", FontAwesomeIcons.youtube, Colors.red),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 160,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildResourceCard(
+                theme,
+                "Understanding Addiction",
+                "Dr. Gabor Maté explains the roots of addiction.",
+                FontAwesomeIcons.play,
+                Colors.redAccent,
+              ),
+              const SizedBox(width: 15),
+              _buildResourceCard(
+                theme,
+                "Breaking the Cycle",
+                "Practical tips for overcoming urges.",
+                FontAwesomeIcons.play,
+                Colors.redAccent,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 15),
-        _buildVideoCard(
-          theme,
-          'Morning Meditation',
-          'Start your day with clarity and focus.',
-          'assets/images/video_thumb_2.jpg', // Placeholder
+        
+        const SizedBox(height: 30),
+        
+        // Podcasts Section
+        _buildSectionHeader("Podcasts", FontAwesomeIcons.podcast, Colors.purple),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 160,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildResourceCard(
+                theme,
+                "Recovery Elevator",
+                "Stories of hope and recovery.",
+                FontAwesomeIcons.headphones,
+                Colors.purpleAccent,
+              ),
+              const SizedBox(width: 15),
+              _buildResourceCard(
+                theme,
+                "The Sober Guy",
+                "Men's mental health and addiction.",
+                FontAwesomeIcons.headphones,
+                Colors.purpleAccent,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 15),
-        _buildVideoCard(
-          theme,
-          'The Power of Habit',
-          'Building small habits for long-term success.',
-          'assets/images/video_thumb_3.jpg', // Placeholder
+        
+        const SizedBox(height: 30),
+        
+        // Books Section
+        _buildSectionHeader("Books", FontAwesomeIcons.bookOpen, Colors.blue),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 160,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildResourceCard(
+                theme,
+                "Atomic Habits",
+                "James Clear on building good habits.",
+                FontAwesomeIcons.book,
+                Colors.blueAccent,
+              ),
+              const SizedBox(width: 15),
+              _buildResourceCard(
+                theme,
+                "In the Realm of Hungry Ghosts",
+                "Close encounters with addiction.",
+                FontAwesomeIcons.book,
+                Colors.blueAccent,
+              ),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 30),
+        
+        // Posts/Articles Section
+        _buildSectionHeader("Articles", FontAwesomeIcons.newspaper, Colors.green),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 160,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildResourceCard(
+                theme,
+                "5 Steps to Recovery",
+                "A guide to starting your journey.",
+                FontAwesomeIcons.fileLines,
+                Colors.green,
+              ),
+              const SizedBox(width: 15),
+              _buildResourceCard(
+                theme,
+                "Dealing with Relapse",
+                "How to get back on track.",
+                FontAwesomeIcons.fileLines,
+                Colors.green,
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon, Color color) {
+    return Row(
+      children: [
+        FaIcon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResourceCard(ThemeData theme, String title, String subtitle, IconData icon, Color accentColor) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: accentColor,
+              shape: BoxShape.circle,
+            ),
+            child: FaIcon(icon, size: 20, color: Colors.white),
+          ),
+          const Spacer(),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: theme.textTheme.bodyLarge?.color,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 5),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
@@ -311,7 +626,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -386,10 +701,10 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: unlocked ? color.withValues(alpha: 0.5) : Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(color: unlocked ? color.withOpacity(0.5) : Colors.grey.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: (unlocked ? color : Colors.grey).withValues(alpha: 0.1),
+            color: (unlocked ? color : Colors.grey).withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -433,7 +748,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: theme.primaryColor.withValues(alpha: 0.1),
+              backgroundColor: theme.primaryColor.withOpacity(0.1),
               child: Text(
                 (user['name'] as String)[0],
                 style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold),
@@ -474,14 +789,14 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: theme.primaryColor.withValues(alpha: 0.2)),
+        border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: theme.primaryColor.withValues(alpha: 0.1),
+              color: theme.primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: FaIcon(FontAwesomeIcons.calendar, color: theme.primaryColor),
@@ -557,9 +872,9 @@ class _RealTimeTimerState extends State<_RealTimeTimer> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
-        color: widget.theme.primaryColor.withValues(alpha: 0.05),
+        color: widget.theme.primaryColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: widget.theme.primaryColor.withValues(alpha: 0.2)),
+        border: Border.all(color: widget.theme.primaryColor.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
