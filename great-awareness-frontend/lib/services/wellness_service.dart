@@ -88,6 +88,76 @@ class WellnessResource {
   }
 }
 
+class Milestone {
+  final int id;
+  final String label;
+  final int durationSeconds;
+  final int iconCode;
+  final String colorHex;
+  final String description;
+  final bool isUnlocked;
+
+  Milestone({
+    required this.id,
+    required this.label,
+    required this.durationSeconds,
+    required this.iconCode,
+    required this.colorHex,
+    required this.description,
+    required this.isUnlocked,
+  });
+
+  factory Milestone.fromJson(Map<String, dynamic> json) {
+    return Milestone(
+      id: json['id'],
+      label: json['label'],
+      durationSeconds: json['duration_seconds'],
+      iconCode: json['icon_code'],
+      colorHex: json['color_hex'],
+      description: json['description'],
+      isUnlocked: json['is_unlocked'] == true || json['is_unlocked'] == 1,
+    );
+  }
+}
+
+class WellnessEvent {
+  final int id;
+  final String title;
+  final String description;
+  final String? imageUrl;
+  final String? location;
+  final DateTime eventDate;
+  final String createdBy;
+  final bool isJoined;
+  final int participantCount;
+
+  WellnessEvent({
+    required this.id,
+    required this.title,
+    required this.description,
+    this.imageUrl,
+    this.location,
+    required this.eventDate,
+    required this.createdBy,
+    this.isJoined = false,
+    this.participantCount = 0,
+  });
+
+  factory WellnessEvent.fromJson(Map<String, dynamic> json) {
+    return WellnessEvent(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      imageUrl: json['image_url'],
+      location: json['location'],
+      eventDate: DateTime.parse(json['event_date']),
+      createdBy: json['created_by'],
+      isJoined: json['is_joined'] == true || json['is_joined'] == 1,
+      participantCount: json['participant_count'] ?? 0,
+    );
+  }
+}
+
 class WellnessService extends ChangeNotifier {
   final AuthService _authService;
   
@@ -196,6 +266,32 @@ class WellnessService extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> getMilestones() async {
+    final user = _authService.currentUser;
+    if (user == null) return {'milestones': <Milestone>[], 'new_unlocks': <String>[]};
+
+    try {
+      final response = await http.get(
+        Uri.parse('$wellnessWorkerUrl/api/wellness/milestones?user_id=${user.id}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> milestonesData = data['milestones'];
+        final List<dynamic> newUnlocksData = data['new_unlocks'];
+        
+        return {
+          'milestones': milestonesData.map((json) => Milestone.fromJson(json)).toList(),
+          'new_unlocks': newUnlocksData.map((e) => e.toString()).toList(),
+        };
+      }
+      return {'milestones': <Milestone>[], 'new_unlocks': <String>[]};
+    } catch (e) {
+      debugPrint('Error fetching milestones: $e');
+      return {'milestones': <Milestone>[], 'new_unlocks': <String>[]};
+    }
+  }
+
   Future<void> addResource({
     required String type,
     required String title,
@@ -222,6 +318,111 @@ class WellnessService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Error adding resource: $e');
+      rethrow;
+    }
+  }
+
+  // --- EVENTS METHODS ---
+
+  Future<List<WellnessEvent>> getEvents() async {
+    final user = _authService.currentUser;
+    // Even if user is null, we can fetch public events, but 'isJoined' will be false
+    final userIdParam = user != null ? '?user_id=${user.id}' : '';
+
+    try {
+      final response = await http.get(
+        Uri.parse('$wellnessWorkerUrl/api/wellness/events$userIdParam'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => WellnessEvent.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching events: $e');
+      return [];
+    }
+  }
+
+  Future<void> createEvent({
+    required String title,
+    required String description,
+    String? imageUrl,
+    String? location,
+    required DateTime eventDate,
+  }) async {
+    final user = _authService.currentUser;
+    if (user == null) throw Exception("User not logged in");
+
+    try {
+      final response = await http.post(
+        Uri.parse('$wellnessWorkerUrl/api/wellness/events'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'title': title,
+          'description': description,
+          'image_url': imageUrl,
+          'location': location,
+          'event_date': eventDate.toIso8601String(),
+          'created_by': user.id,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to create event: ${response.body}");
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error creating event: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> joinEvent(int eventId) async {
+    final user = _authService.currentUser;
+    if (user == null) throw Exception("User not logged in");
+
+    try {
+      final response = await http.post(
+        Uri.parse('$wellnessWorkerUrl/api/wellness/events/join'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'user_id': user.id,
+          'event_id': eventId,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to join event: ${response.body}");
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error joining event: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> leaveEvent(int eventId) async {
+    final user = _authService.currentUser;
+    if (user == null) throw Exception("User not logged in");
+
+    try {
+      final response = await http.post(
+        Uri.parse('$wellnessWorkerUrl/api/wellness/events/leave'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'user_id': user.id,
+          'event_id': eventId,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to leave event: ${response.body}");
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error leaving event: $e');
       rethrow;
     }
   }

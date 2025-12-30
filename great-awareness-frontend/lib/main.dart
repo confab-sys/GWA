@@ -16,6 +16,7 @@ import 'screens/book_upload_screen.dart';
 import 'services/auth_service.dart';
 import 'services/theme_provider.dart';
 import 'services/notification_service.dart';
+import 'services/wellness_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -31,6 +32,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => AuthService()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => NotificationService()),
+        ChangeNotifierProxyProvider<AuthService, WellnessService>(
+          create: (context) => WellnessService(Provider.of<AuthService>(context, listen: false)),
+          update: (context, auth, previous) => previous ?? WellnessService(auth),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

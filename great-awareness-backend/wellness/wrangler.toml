@@ -13,3 +13,15 @@ database_id = "ea3f72c4-ff64-4ba0-a6e1-f52f0d489ccb"
 binding = "USERS_DB"
 database_name = "gwa-main-db"
 database_id = "71bfffe9-e765-4929-94ce-f71187ab0214"
+
+# The new Milestone Database
+[[d1_databases]]
+binding = "MILESTONE_DB"
+database_name = "milestone"
+database_id = "2ab787d4-8441-436a-a7e4-61b0807b0bc7"
+
+# The Events Database
+[[d1_databases]]
+binding = "EVENTS_DB"
+database_name = "events"
+database_id = "f943d1f3-1865-4aab-9649-77a1b425e79f"

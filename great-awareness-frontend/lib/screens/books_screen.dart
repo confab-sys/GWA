@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:ui'; // For BackdropFilter
 import '../models/book.dart';
+import '../services/auth_service.dart';
 import '../services/books_service.dart';
 import 'book_reader_screen.dart';
 import 'pdf_reader_screen.dart';
