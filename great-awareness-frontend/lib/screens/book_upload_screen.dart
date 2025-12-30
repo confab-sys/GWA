@@ -6,6 +6,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../services/wellness_service.dart';
 
 class BookUploadScreen extends StatefulWidget {
   const BookUploadScreen({super.key});
@@ -31,6 +33,7 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
   File? _bookFile;
   File? _coverImage;
   bool _isUploading = false;
+  bool _addToWellnessProgram = false;
 
   @override
   void dispose() {
@@ -124,6 +127,28 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
 
       if (response.statusCode == 200) {
         final result = json.decode(responseBody);
+        
+        if (_addToWellnessProgram) {
+          try {
+            final wellnessService = Provider.of<WellnessService>(context, listen: false);
+            // Assuming result contains urls
+            final bookUrl = result['url'] ?? result['bookUrl'] ?? '';
+            final coverUrl = result['coverUrl'] ?? result['coverImageUrl'] ?? '';
+            
+            if (bookUrl.isNotEmpty) {
+              await wellnessService.addResource(
+                type: 'book',
+                title: _titleController.text,
+                subtitle: _authorController.text,
+                url: bookUrl,
+                thumbnailUrl: coverUrl,
+              );
+            }
+          } catch (e) {
+            debugPrint('Error adding to wellness program: $e');
+          }
+        }
+
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Book uploaded successfully: ${result['bookId']}')),
@@ -502,11 +527,34 @@ class _BookUploadScreenState extends State<BookUploadScreen> {
                           });
                         },
                       ),
+
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Add to Wellness Program
+              CheckboxListTile(
+                title: Text(
+                  'Add to Wellness Program',
+                  style: GoogleFonts.judson(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  'Book will be available in the Wellness Dashboard',
+                  style: GoogleFonts.judson(fontSize: 12),
+                ),
+                value: _addToWellnessProgram,
+                activeColor: Colors.black,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: (value) {
+                  setState(() {
+                    _addToWellnessProgram = value!;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
 
               // Upload Button
               SizedBox(

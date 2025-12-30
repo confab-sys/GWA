@@ -2,25 +2,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/user.dart';
 import '../widgets/recovery_timer.dart';
+import '../services/wellness_service.dart';
+import '../services/auth_service.dart';
 
 class WellnessDashboard extends StatefulWidget {
   final User? currentUser;
-  final DateTime? habitStartTime;
-  final String addictionType;
-  final int currentStreakDays;
-  final VoidCallback? onStartRecovery;
-  final VoidCallback? onResetRecovery;
 
   const WellnessDashboard({
     super.key,
     required this.currentUser,
-    required this.habitStartTime,
-    required this.addictionType,
-    required this.currentStreakDays,
-    this.onStartRecovery,
-    this.onResetRecovery,
   });
 
   @override
@@ -29,7 +23,13 @@ class WellnessDashboard extends StatefulWidget {
 
 class _WellnessDashboardState extends State<WellnessDashboard> {
   int _selectedIndex = 0; // 0: Home (Videos), 1: Achievements, 2: Community, 3: Events
+  WellnessStatus? _status;
+  bool _isLoading = true;
+  List<CommunityMember> _communityMembers = [];
+  List<WellnessResource> _resources = [];
   
+  late WellnessService _wellnessService;
+
   final List<String> _menuItems = ['Home', 'Achievements', 'Community', 'Events'];
   final List<IconData> _menuIcons = [
     FontAwesomeIcons.house,
@@ -37,6 +37,55 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
     FontAwesomeIcons.users,
     FontAwesomeIcons.calendarDay,
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _wellnessService = WellnessService(context.read<AuthService>());
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final status = await _wellnessService.getStatus();
+      final resources = await _wellnessService.getResources();
+      setState(() {
+        _status = status;
+        _resources = resources;
+      });
+      
+      if (_selectedIndex == 2) { // Load community if tab selected
+        _loadCommunity();
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadCommunity() async {
+    final members = await _wellnessService.getCommunity();
+    setState(() => _communityMembers = members);
+  }
+
+  Future<void> _handleJoin(String addictionType) async {
+    try {
+      await _wellnessService.joinProgram(addictionType);
+      await _loadData();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
+  Future<void> _handleReset() async {
+    try {
+      await _wellnessService.resetTimer();
+      await _loadData();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +176,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
             style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           Text(
-            '${widget.currentStreakDays} Day Streak',
+            '${_status?.streakDays ?? 0} Day Streak',
             style: GoogleFonts.inter(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold),
           ),
           
@@ -156,7 +205,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           UserAccountsDrawerHeader(
             decoration: BoxDecoration(color: theme.primaryColor),
             accountName: Text(widget.currentUser?.name ?? 'Guest User'),
-            accountEmail: Text('${widget.currentStreakDays} Day Streak'),
+            accountEmail: Text('${_status?.streakDays ?? 0} Day Streak'),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
               child: FaIcon(FontAwesomeIcons.user, color: theme.primaryColor),
@@ -235,7 +284,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Timer (Left aligned on Top Bar)
-          _RealTimeTimer(habitStartTime: widget.habitStartTime, theme: theme),
+          _RealTimeTimer(habitStartTime: _status?.startDate, theme: theme),
           
           // Notifications / Profile (Mobile only usually, but here for consistency)
           Row(
@@ -276,7 +325,11 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   }
 
   Widget _buildHomeContent(ThemeData theme) {
-    if (widget.habitStartTime == null) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_status == null || !_status!.isActive) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -302,7 +355,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
             ),
             const SizedBox(height: 40),
             ElevatedButton(
-              onPressed: widget.onStartRecovery,
+              onPressed: () => _showJoinDialog(theme),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryColor,
                 padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
@@ -325,7 +378,14 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         children: [
           const SizedBox(height: 20),
           // The Timer
-          RecoveryTimer(startTime: widget.habitStartTime!),
+          if (_status?.startDate != null)
+             RecoveryTimer(startTime: _status!.startDate!),
+          
+          const SizedBox(height: 10),
+          Text(
+            "Recovering from: ${_status?.addictionType}",
+            style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600]),
+          ),
           
           const SizedBox(height: 40),
           
@@ -389,7 +449,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
                     TextButton(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        widget.onResetRecovery?.call();
+                        _handleReset();
                       },
                       child: Text("Reset", style: TextStyle(color: theme.colorScheme.error)),
                     ),
@@ -410,6 +470,46 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           _buildContentSuggestions(theme),
           
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  void _showJoinDialog(ThemeData theme) {
+    final TextEditingController controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Start Your Journey", style: GoogleFonts.judson(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("What are you recovering from?"),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: "e.g., Alcohol, Smoking, Gaming",
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                Navigator.pop(ctx);
+                _handleJoin(controller.text);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: theme.primaryColor),
+            child: const Text("Start", style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
@@ -439,23 +539,16 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           height: 160,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            children: [
-              _buildResourceCard(
-                theme,
-                "Understanding Addiction",
-                "Dr. Gabor Maté explains the roots of addiction.",
-                FontAwesomeIcons.play,
-                Colors.redAccent,
-              ),
-              const SizedBox(width: 15),
-              _buildResourceCard(
-                theme,
-                "Breaking the Cycle",
-                "Practical tips for overcoming urges.",
-                FontAwesomeIcons.play,
-                Colors.redAccent,
-              ),
-            ],
+            children: _buildResourceList(
+              theme, 
+              'video', 
+              FontAwesomeIcons.play, 
+              Colors.redAccent,
+              [
+                {'title': "Understanding Addiction", 'subtitle': "Dr. Gabor Maté explains the roots of addiction.", 'url': 'https://www.youtube.com/watch?v=66cYcSak6nE'},
+                {'title': "Breaking the Cycle", 'subtitle': "Practical tips for overcoming urges.", 'url': 'https://www.youtube.com/watch?v=VideoID2'},
+              ]
+            ),
           ),
         ),
         
@@ -468,23 +561,16 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           height: 160,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            children: [
-              _buildResourceCard(
-                theme,
-                "Recovery Elevator",
-                "Stories of hope and recovery.",
-                FontAwesomeIcons.headphones,
-                Colors.purpleAccent,
-              ),
-              const SizedBox(width: 15),
-              _buildResourceCard(
-                theme,
-                "The Sober Guy",
-                "Men's mental health and addiction.",
-                FontAwesomeIcons.headphones,
-                Colors.purpleAccent,
-              ),
-            ],
+            children: _buildResourceList(
+              theme, 
+              'podcast', 
+              FontAwesomeIcons.headphones, 
+              Colors.purpleAccent,
+              [
+                {'title': "Recovery Elevator", 'subtitle': "Stories of hope and recovery.", 'url': 'https://www.recoveryelevator.com/'},
+                {'title': "The Sober Guy", 'subtitle': "Men's mental health and addiction.", 'url': 'https://www.thesoberguy.com/'},
+              ]
+            ),
           ),
         ),
         
@@ -497,23 +583,16 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           height: 160,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            children: [
-              _buildResourceCard(
-                theme,
-                "Atomic Habits",
-                "James Clear on building good habits.",
-                FontAwesomeIcons.book,
-                Colors.blueAccent,
-              ),
-              const SizedBox(width: 15),
-              _buildResourceCard(
-                theme,
-                "In the Realm of Hungry Ghosts",
-                "Close encounters with addiction.",
-                FontAwesomeIcons.book,
-                Colors.blueAccent,
-              ),
-            ],
+            children: _buildResourceList(
+              theme, 
+              'book', 
+              FontAwesomeIcons.book, 
+              Colors.blueAccent,
+              [
+                {'title': "Atomic Habits", 'subtitle': "James Clear on building good habits.", 'url': 'https://jamesclear.com/atomic-habits'},
+                {'title': "In the Realm of Hungry Ghosts", 'subtitle': "Close encounters with addiction.", 'url': 'https://drgabormate.com/book/in-the-realm-of-hungry-ghosts/'},
+              ]
+            ),
           ),
         ),
         
@@ -526,23 +605,16 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           height: 160,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            children: [
-              _buildResourceCard(
-                theme,
-                "5 Steps to Recovery",
-                "A guide to starting your journey.",
-                FontAwesomeIcons.fileLines,
-                Colors.green,
-              ),
-              const SizedBox(width: 15),
-              _buildResourceCard(
-                theme,
-                "Dealing with Relapse",
-                "How to get back on track.",
-                FontAwesomeIcons.fileLines,
-                Colors.green,
-              ),
-            ],
+            children: _buildResourceList(
+              theme, 
+              'article', 
+              FontAwesomeIcons.fileLines, 
+              Colors.green,
+              [
+                {'title': "5 Steps to Recovery", 'subtitle': "A guide to starting your journey.", 'url': 'https://example.com/recovery-steps'},
+                {'title': "Dealing with Relapse", 'subtitle': "How to get back on track.", 'url': 'https://example.com/relapse-help'},
+              ]
+            ),
           ),
         ),
       ],
@@ -565,57 +637,84 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
     );
   }
 
-  Widget _buildResourceCard(ThemeData theme, String title, String subtitle, IconData icon, Color accentColor) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: accentColor,
-              shape: BoxShape.circle,
+  Widget _buildResourceCard(ThemeData theme, String title, String subtitle, IconData icon, Color accentColor, {String? url}) {
+    return InkWell(
+      onTap: () async {
+        if (url != null && url.isNotEmpty) {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          }
+        }
+      },
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color ?? Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            child: FaIcon(icon, size: 20, color: Colors.white),
-          ),
-          const Spacer(),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: theme.textTheme.bodyLarge?.color,
+          ],
+          border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: accentColor,
+                shape: BoxShape.circle,
+              ),
+              child: FaIcon(icon, size: 20, color: Colors.white),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 5),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              color: Colors.grey[600],
+            const Spacer(),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: theme.textTheme.bodyLarge?.color,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 5),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: Colors.grey[600],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  List<Widget> _buildResourceList(ThemeData theme, String type, IconData icon, Color color, List<Map<String, String>> defaults) {
+    final fetched = _resources.where((r) => r.type == type).toList();
+    
+    if (fetched.isNotEmpty) {
+      return fetched.map((r) => Padding(
+        padding: const EdgeInsets.only(right: 15),
+        child: _buildResourceCard(theme, r.title, r.subtitle ?? '', icon, color, url: r.url),
+      )).toList();
+    }
+
+    return defaults.map((d) => Padding(
+      padding: const EdgeInsets.only(right: 15),
+      child: _buildResourceCard(theme, d['title']!, d['subtitle']!, icon, color, url: d['url']),
+    )).toList();
   }
 
   Widget _buildVideoCard(ThemeData theme, String title, String subtitle, String imagePath) {
@@ -674,21 +773,49 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   }
 
   Widget _buildAchievementsContent(ThemeData theme) {
+    // Calculate elapsed time from start date
+    final startTime = _status?.startDate;
+    final now = DateTime.now();
+    final elapsed = startTime != null ? now.difference(startTime) : Duration.zero;
+
+    // Define badges
+    final badges = [
+      _BadgeData('24 Hours', const Duration(hours: 24), FontAwesomeIcons.hourglassStart, Colors.blue),
+      _BadgeData('7 Days', const Duration(days: 7), FontAwesomeIcons.calendarWeek, Colors.cyan),
+      _BadgeData('21 Days', const Duration(days: 21), FontAwesomeIcons.personWalking, Colors.teal),
+      _BadgeData('30 Days', const Duration(days: 30), FontAwesomeIcons.medal, Colors.green),
+      _BadgeData('60 Days', const Duration(days: 60), FontAwesomeIcons.star, Colors.lime),
+      _BadgeData('180 Days', const Duration(days: 180), FontAwesomeIcons.shieldHeart, Colors.orange),
+      _BadgeData('1 Year', const Duration(days: 365), FontAwesomeIcons.trophy, Colors.amber),
+      _BadgeData('2 Years', const Duration(days: 365 * 2), FontAwesomeIcons.award, Colors.deepOrange),
+      _BadgeData('3 Years', const Duration(days: 365 * 3), FontAwesomeIcons.crown, Colors.red),
+      _BadgeData('5 Years', const Duration(days: 365 * 5), FontAwesomeIcons.gem, Colors.purple),
+      _BadgeData('10 Years+', const Duration(days: 365 * 10), FontAwesomeIcons.mountainSun, Colors.indigo),
+    ];
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         Text('Your Milestones', style: GoogleFonts.judson(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
-        Wrap(
-          spacing: 15,
-          runSpacing: 15,
-          children: [
-            _buildBadge(theme, '24 Hours', FontAwesomeIcons.check, Colors.blue, true),
-            _buildBadge(theme, '3 Days', FontAwesomeIcons.star, Colors.orange, true),
-            _buildBadge(theme, '1 Week', FontAwesomeIcons.trophy, Colors.purple, widget.currentStreakDays >= 7),
-            _buildBadge(theme, '1 Month', FontAwesomeIcons.crown, Colors.amber, widget.currentStreakDays >= 30),
-          ],
-        ),
+        
+        if (startTime == null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(
+              "Start your recovery journey to unlock badges!",
+              style: GoogleFonts.inter(color: Colors.grey),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 15,
+            runSpacing: 15,
+            children: badges.map((badge) {
+              final isUnlocked = elapsed >= badge.duration;
+              return _buildBadge(theme, badge.label, badge.icon, badge.color, isUnlocked);
+            }).toList(),
+          ),
       ],
     );
   }
@@ -730,42 +857,51 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   }
 
   Widget _buildCommunityContent(ThemeData theme) {
-    // Mock Data
-    final users = [
-      {'name': 'Alex', 'status': 'Online', 'streak': 45},
-      {'name': 'Sarah', 'status': 'Offline', 'streak': 12},
-      {'name': 'Mike', 'status': 'Online', 'streak': 89},
-      {'name': 'Emma', 'status': 'Online', 'streak': 5},
-    ];
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_communityMembers.isEmpty) {
+      return Center(child: Text("No active members yet. Be the first!", style: GoogleFonts.inter()));
+    }
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         Text('Active Members', style: GoogleFonts.judson(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
-        ...users.map((user) => Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: theme.primaryColor.withOpacity(0.1),
-              child: Text(
-                (user['name'] as String)[0],
-                style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold),
+        ..._communityMembers.map((member) {
+          final streak = DateTime.now().difference(member.startDate).inDays;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: theme.primaryColor.withOpacity(0.1),
+                child: Text(
+                  member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+                  style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold),
+                ),
+              ),
+              title: Text(member.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$streak Day Streak', style: GoogleFonts.inter(fontSize: 12)),
+                  Text('Recovering from: ${member.addictionType}', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+              trailing: Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Colors.green, // Assuming active if in list
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-            title: Text(user['name'] as String, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-            subtitle: Text('${user['streak']} Day Streak', style: GoogleFonts.inter(fontSize: 12)),
-            trailing: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: user['status'] == 'Online' ? Colors.green : Colors.grey,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        )),
+          );
+        }),
       ],
     );
   }
@@ -827,6 +963,141 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   }
 }
 
+class _BadgeData {
+  final String label;
+  final Duration duration;
+  final IconData icon;
+  final Color color;
+
+  _BadgeData(this.label, this.duration, this.icon, this.color);
+}
+
+class _RealTimeAchievements extends StatefulWidget {
+  final DateTime? startTime;
+  final ThemeData theme;
+
+  const _RealTimeAchievements({required this.startTime, required this.theme});
+
+  @override
+  State<_RealTimeAchievements> createState() => _RealTimeAchievementsState();
+}
+
+class _RealTimeAchievementsState extends State<_RealTimeAchievements> {
+  late Timer _timer;
+  Duration _elapsed = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTime();
+    // Update every minute is enough for badges, but every second feels more "real-time" if a badge is about to pop
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
+  }
+
+  @override
+  void didUpdateWidget(_RealTimeAchievements oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.startTime != oldWidget.startTime) {
+      _updateTime();
+    }
+  }
+
+  void _updateTime() {
+    if (widget.startTime != null) {
+      final now = DateTime.now();
+      setState(() {
+        _elapsed = now.difference(widget.startTime!);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Define badges
+    final badges = [
+      _BadgeData('24 Hours', const Duration(hours: 24), FontAwesomeIcons.hourglassStart, Colors.blue),
+      _BadgeData('7 Days', const Duration(days: 7), FontAwesomeIcons.calendarWeek, Colors.cyan),
+      _BadgeData('21 Days', const Duration(days: 21), FontAwesomeIcons.personWalking, Colors.teal),
+      _BadgeData('30 Days', const Duration(days: 30), FontAwesomeIcons.medal, Colors.green),
+      _BadgeData('60 Days', const Duration(days: 60), FontAwesomeIcons.star, Colors.lime),
+      _BadgeData('180 Days', const Duration(days: 180), FontAwesomeIcons.shieldHeart, Colors.orange),
+      _BadgeData('1 Year', const Duration(days: 365), FontAwesomeIcons.trophy, Colors.amber),
+      _BadgeData('2 Years', const Duration(days: 365 * 2), FontAwesomeIcons.award, Colors.deepOrange),
+      _BadgeData('3 Years', const Duration(days: 365 * 3), FontAwesomeIcons.crown, Colors.red),
+      _BadgeData('5 Years', const Duration(days: 365 * 5), FontAwesomeIcons.gem, Colors.purple),
+      _BadgeData('10 Years+', const Duration(days: 365 * 10), FontAwesomeIcons.mountainSun, Colors.indigo),
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text('Your Milestones', style: GoogleFonts.judson(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 20),
+        
+        if (widget.startTime == null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(
+              "Start your recovery journey to unlock badges!",
+              style: GoogleFonts.inter(color: Colors.grey),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 15,
+            runSpacing: 15,
+            children: badges.map((badge) {
+              final isUnlocked = _elapsed >= badge.duration;
+              return _buildBadge(widget.theme, badge.label, badge.icon, badge.color, isUnlocked);
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBadge(ThemeData theme, String label, IconData icon, Color color, bool unlocked) {
+    return Container(
+      width: 100,
+      height: 120,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color ?? Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: unlocked ? color.withOpacity(0.5) : Colors.grey.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: (unlocked ? color : Colors.grey).withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FaIcon(icon, size: 30, color: unlocked ? color : Colors.grey[300]),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: unlocked ? theme.textTheme.bodyLarge?.color : Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RealTimeTimer extends StatefulWidget {
   final DateTime? habitStartTime;
   final ThemeData theme;
@@ -848,10 +1119,18 @@ class _RealTimeTimerState extends State<_RealTimeTimer> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
   }
 
+  @override
+  void didUpdateWidget(_RealTimeTimer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.habitStartTime != oldWidget.habitStartTime) {
+      _updateTime();
+    }
+  }
+
   void _updateTime() {
     if (widget.habitStartTime != null) {
       setState(() {
-        _duration = DateTime.now().difference(widget.habitStartTime!);
+        _duration = DateTime.now().difference(widget.habitStartTime!.toLocal());
       });
     }
   }

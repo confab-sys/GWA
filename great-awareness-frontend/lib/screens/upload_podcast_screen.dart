@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/podcast_service.dart';
 import '../services/image_upload_service.dart';
+import '../services/wellness_service.dart';
+import 'package:provider/provider.dart';
 
 class UploadPodcastScreen extends StatefulWidget {
   const UploadPodcastScreen({super.key});
@@ -30,6 +32,7 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
   Uint8List? _thumbnailBytes;
   
   bool _isUploading = false;
+  bool _addToWellnessProgram = false;
   String? _statusMessage;
 
   Future<void> _pickAudio() async {
@@ -175,6 +178,21 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
       );
 
       if (podcast != null) {
+        if (_addToWellnessProgram) {
+          try {
+            final wellnessService = Provider.of<WellnessService>(context, listen: false);
+            await wellnessService.addResource(
+              type: 'podcast',
+              title: _titleController.text,
+              subtitle: _subtitleController.text,
+              url: audioUrl,
+              thumbnailUrl: imageResponse.imageUrl!,
+            );
+          } catch (e) {
+            debugPrint('Error adding to wellness program: $e');
+          }
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Podcast uploaded successfully!')),
@@ -352,7 +370,42 @@ class _UploadPodcastScreenState extends State<UploadPodcastScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Add to Wellness Program
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: CheckboxListTile(
+                  title: Text(
+                    'Add to Wellness Program',
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Podcast will be available in the Wellness Dashboard',
+                    style: GoogleFonts.judson(
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  value: _addToWellnessProgram,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      _addToWellnessProgram = value ?? false;
+                    });
+                  },
+                  activeColor: Colors.blue[700],
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ),
+              const SizedBox(height: 24),
 
               // Upload Button
               SizedBox(

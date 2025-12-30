@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:provider/provider.dart';
 import '../services/video_service.dart';
+import '../services/wellness_service.dart';
 import '../models/video.dart';
 
 class VideoUploadScreen extends StatefulWidget {
@@ -42,6 +44,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
   Uint8List? _webThumbnailBytes;
   String? _webThumbnailName;
 
+  bool _addToWellnessProgram = false;
   bool _isUploading = false;
   String? _uploadError;
   String? _uploadSuccess;
@@ -450,6 +453,26 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
       }
 
       if (response.success) {
+        if (_addToWellnessProgram && response.video != null) {
+          try {
+            final wellnessService = Provider.of<WellnessService>(context, listen: false);
+            final videoUrl = response.video!.signedUrl ?? '';
+            final thumbUrl = response.video!.thumbnailUrl;
+            
+            if (videoUrl.isNotEmpty) {
+                await wellnessService.addResource(
+                  type: 'video',
+                  title: _titleController.text.trim(),
+                  subtitle: _descriptionController.text.trim(),
+                  url: videoUrl,
+                  thumbnailUrl: thumbUrl,
+                );
+            }
+          } catch (e) {
+            debugPrint('Error adding to wellness program: $e');
+          }
+        }
+
         setState(() {
           _uploadSuccess = 'Video uploaded successfully!';
           _isUploading = false;
@@ -823,7 +846,37 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                 style: GoogleFonts.judson(),
               ),
               
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              // Add to Wellness Program Checkbox
+              CheckboxListTile(
+                title: Text(
+                  'Add to Wellness Program',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                subtitle: Text(
+                  'Video will be available in the Wellness Dashboard',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                value: _addToWellnessProgram,
+                onChanged: (bool? value) {
+                  setState(() {
+                    _addToWellnessProgram = value ?? false;
+                  });
+                },
+                activeColor: Colors.black,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              
+              const SizedBox(height: 8),
               
               // Error/Success Messages
               if (_uploadError != null)

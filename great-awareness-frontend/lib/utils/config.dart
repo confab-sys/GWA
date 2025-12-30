@@ -22,6 +22,7 @@ String getApiBaseUrl() {
 
 // Cloudflare Configuration
 const String cloudflareWorkerUrl = 'https://gwa-main-worker.aashardcustomz.workers.dev';
+const String wellnessWorkerUrl = 'https://gwa-wellness-worker.aashardcustomz.workers.dev';
 const String cloudflarePublicUrl = 'https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev'; // Deprecated - use Worker API instead
 
 // App Configuration

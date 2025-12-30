@@ -31,14 +31,14 @@ class _RecoveryTimerState extends State<RecoveryTimer>
   void initState() {
     super.initState();
     _currentTime = DateTime.now();
-    _duration = RecoveryDuration.from(widget.startTime, _currentTime);
+    _duration = RecoveryDuration.from(widget.startTime.toLocal(), _currentTime);
     
     _ticker = createTicker((elapsed) {
       final now = DateTime.now();
       if (now.difference(_currentTime).inMilliseconds > 0) {
         setState(() {
           _currentTime = now;
-          _duration = RecoveryDuration.from(widget.startTime, _currentTime);
+          _duration = RecoveryDuration.from(widget.startTime.toLocal(), _currentTime);
         });
       }
     });

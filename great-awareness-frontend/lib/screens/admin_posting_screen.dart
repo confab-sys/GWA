@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/image_upload_service.dart';
+import '../services/wellness_service.dart';
 
 class AdminPostingScreen extends StatefulWidget {
   const AdminPostingScreen({super.key});
@@ -26,6 +27,7 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
   Uint8List? _selectedImageBytes; // For web image data
   bool _isDeviceImage = false; // Track if image is from device or assets
   bool _isLoading = false;
+  bool _addToWellnessProgram = false;
 
   final List<String> _psychologyTopics = [
     'Addictions',
@@ -126,6 +128,26 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
           isTextOnly: _selectedPostType == 'text',
           status: 'published',
         );
+
+        if (newContent != null && _addToWellnessProgram) {
+          try {
+            final wellnessService = Provider.of<WellnessService>(context, listen: false);
+            // Use image path as URL if available, otherwise we might need a post viewer URL
+            // For now, we'll use the image path if it exists
+            if (finalImagePath != null && finalImagePath.isNotEmpty) {
+              await wellnessService.addResource(
+                type: 'article', // Using article for posts
+                title: _titleController.text,
+                subtitle: _contentController.text,
+                url: finalImagePath, // TODO: Use actual post URL when available
+                thumbnailUrl: finalImagePath,
+              );
+            }
+          } catch (e) {
+            debugPrint('Error adding to wellness program: $e');
+            // Don't block success if wellness add fails
+          }
+        }
 
         setState(() {
           _isLoading = false;
@@ -712,6 +734,36 @@ class _AdminPostingScreenState extends State<AdminPostingScreen> {
                 style: GoogleFonts.judson(),
               ),
               const SizedBox(height: 24),
+
+              // Add to Wellness Program
+              CheckboxListTile(
+                title: Text(
+                  'Add to Wellness Program',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+                subtitle: Text(
+                  'Post will be available in the Wellness Dashboard',
+                  style: GoogleFonts.judson(
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                value: _addToWellnessProgram,
+                onChanged: (bool? value) {
+                  setState(() {
+                    _addToWellnessProgram = value ?? false;
+                  });
+                },
+                activeColor: Colors.black,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              const SizedBox(height: 16),
 
               // Submit Button
               SizedBox(

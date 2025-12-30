@@ -426,7 +426,10 @@ async function handleUploadVideo(request, env, corsHeaders) {
           category,
           object_key: objectKey,
           file_size: fileSize,
-          content_type: file.type
+          content_type: file.type,
+          signed_url: signedUrl,
+          video_thumbnail_url: thumbnailUrl,
+          signed_url_expires_at: signedUrlExpiresAt
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
