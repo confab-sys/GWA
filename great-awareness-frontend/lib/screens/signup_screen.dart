@@ -465,7 +465,7 @@ class _SignupScreenState extends State<SignupScreen> {
         Center(
           child: GestureDetector(
             onTap: () {
-              Navigator.of(context).pushReplacementNamed('/login'); // Assuming '/login' is the route for login screen
+              Navigator.of(context).pushReplacementNamed('/login1'); // Changed to '/login1' which is the actual login form
             },
             child: RichText(
               text: TextSpan(
