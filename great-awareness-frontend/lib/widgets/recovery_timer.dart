@@ -6,11 +6,13 @@ import 'package:google_fonts/google_fonts.dart';
 class RecoveryTimer extends StatefulWidget {
   final DateTime startTime;
   final VoidCallback? onMilestoneReached;
+  final Color? textColor;
 
   const RecoveryTimer({
     super.key,
     required this.startTime,
     this.onMilestoneReached,
+    this.textColor,
   });
 
   @override
@@ -89,7 +91,7 @@ class _RecoveryTimerState extends State<RecoveryTimer>
     TextStyle valueStyle = GoogleFonts.chivoMono(
       fontSize: 24,
       fontWeight: FontWeight.bold,
-      color: theme.primaryColor,
+      color: widget.textColor ?? theme.primaryColor,
     );
     
     TextStyle labelStyle = GoogleFonts.inter(

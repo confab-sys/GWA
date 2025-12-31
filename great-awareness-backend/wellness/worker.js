@@ -411,6 +411,45 @@ export default {
         });
       }
 
+      // POST /api/wellness/admin/set-start-date
+      // Body: { user_id, start_date }
+      if (path === "/api/wellness/admin/set-start-date" && request.method === "POST") {
+        const { user_id, start_date } = await request.json();
+        
+        if (!user_id || !start_date) {
+          return new Response("Missing user_id or start_date", { status: 400, headers: corsHeaders });
+        }
+
+        // Validate date format
+        if (isNaN(Date.parse(start_date))) {
+             return new Response("Invalid date format", { status: 400, headers: corsHeaders });
+        }
+
+        // Update or Insert
+        const startDateObj = new Date(start_date);
+        const nowObj = new Date();
+        const diffTime = Math.abs(nowObj - startDateObj);
+        const streakDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+        const res = await env.WELLNESS_DB.prepare(`
+          UPDATE recovery_tracking 
+          SET start_date = ?, is_active = 1, streak_days = ?
+          WHERE user_id = ?
+        `).bind(start_date, streakDays, user_id).run();
+
+        if (res.meta.changes === 0) {
+             // User doesn't exist in wellness DB yet. Insert with default addiction type.
+             await env.WELLNESS_DB.prepare(`
+                INSERT INTO recovery_tracking (user_id, addiction_type, start_date, is_active, streak_days)
+                VALUES (?, 'General', ?, 1, ?)
+             `).bind(user_id, start_date, streakDays).run();
+        }
+        
+        return new Response(JSON.stringify({ message: `Start date updated for user ${user_id}` }), { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
+
       // GET /api/wellness/status?user_id=...
       if (path === "/api/wellness/status" && request.method === "GET") {
         const userId = url.searchParams.get("user_id");
@@ -466,6 +505,40 @@ export default {
         return new Response(JSON.stringify(community), { 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
+      }
+
+      // GET /api/wellness/images/:key
+      // Serve images from R2
+      const imageMatch = path.match(/^\/api\/wellness\/images\/(.+)$/);
+      if (imageMatch && (request.method === "GET" || request.method === "HEAD")) {
+        const key = imageMatch[1];
+        console.log(`Attempting to fetch image with key: ${key}`);
+        
+        try {
+          const object = await env.GWA_CONTENT_BUCKET.get(key);
+          console.log(`Object found: ${object ? 'yes' : 'no'}`);
+
+          if (!object) {
+            console.log(`Image not found in bucket for key: ${key}`);
+            return new Response("Image not found", { status: 404, headers: corsHeaders });
+          }
+
+          const headers = new Headers();
+          object.writeHttpMetadata(headers);
+          headers.set("etag", object.httpEtag);
+          
+          // Add CORS headers
+          Object.keys(corsHeaders).forEach(k => headers.set(k, corsHeaders[k]));
+
+          if (request.method === "HEAD") {
+             return new Response(null, { headers });
+          }
+
+          return new Response(object.body, { headers });
+        } catch (err) {
+          console.error(`Error fetching image: ${err.message}`);
+          return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+        }
       }
 
       return new Response("Not Found", { status: 404, headers: corsHeaders });

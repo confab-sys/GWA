@@ -15,6 +15,20 @@ import '../services/wellness_service.dart';
 import '../services/auth_service.dart';
 import 'events_screen.dart';
 
+// Helper to resolve dynamic icons to constants for tree-shaking
+IconData _resolveIcon(int code) {
+  const Map<int, IconData> iconMap = {
+    0xf4d8: FontAwesomeIcons.seedling,      // seedling
+    0xf784: FontAwesomeIcons.calendarWeek,  // calendarWeek
+    0xf554: FontAwesomeIcons.personWalking, // personWalking
+    0xf5a2: FontAwesomeIcons.medal,         // medal
+    0xf005: FontAwesomeIcons.star,          // star
+    0xf4c9: FontAwesomeIcons.shieldHeart,   // shieldHeart
+    0xf091: FontAwesomeIcons.trophy,        // trophy
+  };
+  return iconMap[code] ?? FontAwesomeIcons.seedling;
+}
+
 class WellnessDashboard extends StatefulWidget {
   final User? currentUser;
 
@@ -307,7 +321,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
                   builder: (ctx) => _ShareableTimerDialog(
                     habitStartTime: _status!.startDate!,
                     theme: theme,
-                    milestones: _status!.milestones,
+                    milestones: _milestones,
                   ),
                 );
               }
@@ -328,7 +342,7 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
                       builder: (ctx) => _ShareableTimerDialog(
                         habitStartTime: _status!.startDate!,
                         theme: theme,
-                        milestones: _status!.milestones,
+                        milestones: _milestones,
                       ),
                     );
                   } else {
@@ -937,14 +951,15 @@ class _ShareableTimerDialogState extends State<_ShareableTimerDialog> {
       allBadges = widget.milestones.map((m) => _BadgeData(
         m.label,
         Duration(seconds: m.durationSeconds),
-        IconData(m.iconCode, fontFamily: 'FontAwesomeSolid', fontPackage: 'font_awesome_flutter'),
+        _resolveIcon(m.iconCode),
         _parseColor(m.colorHex),
         m.description,
+        imageUrl: m.badgeImageUrl,
       )).toList();
     } else {
        // Fallback defaults if API returns empty
        allBadges = [
-        _BadgeData('24 Hours', const Duration(hours: 24), FontAwesomeIcons.hourglassStart, Colors.blue, "The first 24 hours."),
+        _BadgeData('24 Hours', const Duration(hours: 24), FontAwesomeIcons.seedling, Colors.blue, "The first 24 hours."),
         _BadgeData('7 Days', const Duration(days: 7), FontAwesomeIcons.calendarWeek, Colors.cyan, "One week of clarity."),
         _BadgeData('21 Days', const Duration(days: 21), FontAwesomeIcons.personWalking, Colors.teal, "21 days to form a habit."),
         _BadgeData('30 Days', const Duration(days: 30), FontAwesomeIcons.medal, Colors.green, "One month strong."),
@@ -1003,7 +1018,10 @@ class _ShareableTimerDialogState extends State<_ShareableTimerDialog> {
                     ),
                     const SizedBox(height: 10),
                     // The Circular Timer
-                    RecoveryTimer(startTime: widget.habitStartTime),
+                    RecoveryTimer(
+                      startTime: widget.habitStartTime,
+                      textColor: Colors.black,
+                    ),
                     
                     if (displayBadges.isNotEmpty) ...[
                       const SizedBox(height: 20),
@@ -1027,16 +1045,54 @@ class _ShareableTimerDialogState extends State<_ShareableTimerDialog> {
                             decoration: BoxDecoration(
                               color: badge.color.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: badge.color.withOpacity(0.3)),
+                              border: Border.all(color: Colors.black, width: 2),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                FaIcon(
-                                  badge.icon,
-                                  size: 14,
-                                  color: badge.color,
-                                ),
+                                badge.imageUrl != null && badge.imageUrl!.isNotEmpty
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          badge.imageUrl!,
+                                          width: 28,
+                                          height: 28,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return badge.icon is IconData
+                                                ? FaIcon(
+                                                    badge.icon as IconData,
+                                                    size: 24,
+                                                    color: badge.color,
+                                                  )
+                                                : Text(
+                                                    String.fromCharCode(badge.icon as int),
+                                                    style: TextStyle(
+                                                      fontFamily: 'FontAwesomeSolid',
+                                                      package: 'font_awesome_flutter',
+                                                      fontSize: 24,
+                                                      color: badge.color,
+                                                      height: 1,
+                                                    ),
+                                                  );
+                                          },
+                                        ),
+                                      )
+                                    : (badge.icon is IconData
+                                        ? FaIcon(
+                                            badge.icon as IconData,
+                                            size: 24,
+                                            color: badge.color,
+                                          )
+                                        : Text(
+                                            String.fromCharCode(badge.icon as int),
+                                            style: TextStyle(
+                                              fontFamily: 'FontAwesomeSolid',
+                                              package: 'font_awesome_flutter',
+                                              fontSize: 24,
+                                              color: badge.color,
+                                              height: 1,
+                                            ),
+                                          )),
                                 const SizedBox(width: 8),
                                 Text(
                                   badge.label,
@@ -1279,13 +1335,15 @@ class _ShareableBadgeDialogState extends State<_ShareableBadgeDialog> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: widget.badge.color.withOpacity(0.3),
+                    color: widget.unlocked 
+                        ? Colors.green.withOpacity(0.5) 
+                        : widget.badge.color.withOpacity(0.3),
                     blurRadius: 30,
                     offset: const Offset(0, 15),
                   ),
                 ],
                 border: Border.all(
-                  color: widget.unlocked ? widget.badge.color.withOpacity(0.5) : Colors.grey.withOpacity(0.2),
+                  color: widget.unlocked ? Colors.black : Colors.grey.withOpacity(0.2),
                   width: 2,
                 ),
               ),
@@ -1354,7 +1412,7 @@ class _ShareableBadgeDialogState extends State<_ShareableBadgeDialog> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: (widget.unlocked ? widget.badge.color : Colors.grey).withOpacity(0.4),
+                                color: (widget.unlocked ? Colors.green : Colors.grey).withOpacity(0.4),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                                 offset: const Offset(0, 10),
@@ -1368,11 +1426,49 @@ class _ShareableBadgeDialogState extends State<_ShareableBadgeDialog> {
                             ],
                           ),
                           child: Center(
-                            child: FaIcon(
-                              widget.badge.icon, 
-                              size: 50, 
-                              color: Colors.white,
-                            ),
+                            child: widget.badge.imageUrl != null && widget.badge.imageUrl!.isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      widget.badge.imageUrl!,
+                                      width: 120,
+                                      height: 120,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return widget.badge.icon is IconData
+                                            ? FaIcon(
+                                                widget.badge.icon as IconData,
+                                                size: 50,
+                                                color: Colors.white,
+                                              )
+                                            : Text(
+                                                String.fromCharCode(widget.badge.icon as int),
+                                                style: const TextStyle(
+                                                  fontFamily: 'FontAwesomeSolid',
+                                                  package: 'font_awesome_flutter',
+                                                  fontSize: 50,
+                                                  color: Colors.white,
+                                                  height: 1,
+                                                ),
+                                              );
+                                      },
+                                    ),
+                                  )
+                                : (widget.badge.icon is IconData
+                                    ? FaIcon(
+                                        widget.badge.icon as IconData,
+                                        size: 50,
+                                        color: Colors.white,
+                                      )
+                                    : Text(
+                                        String.fromCharCode(widget.badge.icon as int),
+                                        style: const TextStyle(
+                                          fontFamily: 'FontAwesomeSolid',
+                                          package: 'font_awesome_flutter',
+                                          fontSize: 50,
+                                          color: Colors.white,
+                                          height: 1,
+                                        ),
+                                      )),
                           ),
                         ),
                         const SizedBox(height: 30),
@@ -1543,11 +1639,12 @@ class _ShareableBadgeDialogState extends State<_ShareableBadgeDialog> {
 class _BadgeData {
   final String label;
   final Duration duration;
-  final IconData icon;
+  final Object icon; // Can be IconData or int (code point)
   final Color color;
   final String description;
+  final String? imageUrl;
 
-  _BadgeData(this.label, this.duration, this.icon, this.color, this.description);
+  _BadgeData(this.label, this.duration, this.icon, this.color, this.description, {this.imageUrl});
 }
 
 class _RealTimeAchievements extends StatefulWidget {
@@ -1611,14 +1708,15 @@ class _RealTimeAchievementsState extends State<_RealTimeAchievements> {
         return _BadgeData(
           m.label,
           Duration(seconds: m.durationSeconds),
-          IconData(m.iconCode, fontFamily: 'FontAwesomeSolid', fontPackage: 'font_awesome_flutter'),
+          _resolveIcon(m.iconCode),
           _parseColor(m.colorHex),
           m.description,
+          imageUrl: m.badgeImageUrl,
         );
       }).toList();
     } else {
       badges = [
-        _BadgeData('24 Hours', const Duration(hours: 24), FontAwesomeIcons.hourglassStart, Colors.blue, "The first 24 hours are the hardest. You've taken the first step!"),
+        _BadgeData('24 Hours', const Duration(hours: 24), FontAwesomeIcons.seedling, Colors.blue, "The first 24 hours are the hardest. You've taken the first step!"),
         _BadgeData('7 Days', const Duration(days: 7), FontAwesomeIcons.calendarWeek, Colors.cyan, "One week of clarity. Keep building your streak!"),
         _BadgeData('21 Days', const Duration(days: 21), FontAwesomeIcons.personWalking, Colors.teal, "21 days to form a habit. You are changing your life."),
         _BadgeData('30 Days', const Duration(days: 30), FontAwesomeIcons.medal, Colors.green, "One month strong. Celebrate this milestone!"),
@@ -1747,13 +1845,23 @@ class _RealTimeAchievementsState extends State<_RealTimeAchievements> {
         decoration: BoxDecoration(
           color: theme.cardTheme.color ?? Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: (unlocked ? badge.color : Colors.black).withOpacity(0.1),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          border: unlocked ? Border.all(color: Colors.black, width: 2) : null,
+          boxShadow: unlocked
+              ? [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.6),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 0),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -1795,11 +1903,49 @@ class _RealTimeAchievementsState extends State<_RealTimeAchievements> {
                     ],
                   ),
                   child: Center(
-                    child: FaIcon(
-                      badge.icon, 
-                      size: 24, 
-                      color: Colors.white,
-                    ),
+                    child: badge.imageUrl != null && badge.imageUrl!.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              badge.imageUrl!,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return badge.icon is IconData
+                                    ? FaIcon(
+                                        badge.icon as IconData,
+                                        size: 24,
+                                        color: Colors.white,
+                                      )
+                                    : Text(
+                                        String.fromCharCode(badge.icon as int),
+                                        style: const TextStyle(
+                                          fontFamily: 'FontAwesomeSolid',
+                                          package: 'font_awesome_flutter',
+                                          fontSize: 24,
+                                          color: Colors.white,
+                                          height: 1,
+                                        ),
+                                      );
+                              },
+                            ),
+                          )
+                        : (badge.icon is IconData
+                            ? FaIcon(
+                                badge.icon as IconData,
+                                size: 24,
+                                color: Colors.white,
+                              )
+                            : Text(
+                                String.fromCharCode(badge.icon as int),
+                                style: const TextStyle(
+                                  fontFamily: 'FontAwesomeSolid',
+                                  package: 'font_awesome_flutter',
+                                  fontSize: 24,
+                                  color: Colors.white,
+                                  height: 1,
+                                ),
+                              )),
                   ),
                 ),
                 const SizedBox(height: 12),

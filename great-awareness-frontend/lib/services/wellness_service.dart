@@ -106,6 +106,7 @@ class Milestone {
   final String colorHex;
   final String description;
   final bool isUnlocked;
+  final String? badgeImageUrl;
 
   Milestone({
     required this.id,
@@ -115,6 +116,7 @@ class Milestone {
     required this.colorHex,
     required this.description,
     required this.isUnlocked,
+    this.badgeImageUrl,
   });
 
   factory Milestone.fromJson(Map<String, dynamic> json) {
@@ -126,6 +128,7 @@ class Milestone {
       colorHex: json['color_hex'],
       description: json['description'],
       isUnlocked: json['is_unlocked'] == true || json['is_unlocked'] == 1,
+      badgeImageUrl: json['badge_image_url'],
     );
   }
 }

@@ -25,3 +25,8 @@ database_id = "2ab787d4-8441-436a-a7e4-61b0807b0bc7"
 binding = "EVENTS_DB"
 database_name = "events"
 database_id = "f943d1f3-1865-4aab-9649-77a1b425e79f"
+
+# R2 Storage Binding
+[[r2_buckets]]
+binding = "GWA_CONTENT_BUCKET"
+bucket_name = "gwa-content"
