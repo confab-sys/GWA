@@ -11,6 +11,7 @@ class WellnessStatus {
   final DateTime? lastResetDate;
   final int streakDays;
   final bool isActive;
+  final List<Milestone> milestones;
 
   WellnessStatus({
     required this.userId,
@@ -19,9 +20,17 @@ class WellnessStatus {
     this.lastResetDate,
     this.streakDays = 0,
     this.isActive = false,
+    this.milestones = const [],
   });
 
   factory WellnessStatus.fromJson(Map<String, dynamic> json) {
+    var milestonesList = <Milestone>[];
+    if (json['milestones'] != null) {
+      milestonesList = (json['milestones'] as List)
+          .map((m) => Milestone.fromJson(m))
+          .toList();
+    }
+
     return WellnessStatus(
       userId: json['user_id'] ?? '',
       addictionType: json['addiction_type'] ?? '',
@@ -29,6 +38,7 @@ class WellnessStatus {
       lastResetDate: json['last_reset_date'] != null ? DateTime.parse(json['last_reset_date']) : null,
       streakDays: json['streak_days'] ?? 0,
       isActive: json['is_active'] == 1 || json['is_active'] == true,
+      milestones: milestonesList,
     );
   }
 }

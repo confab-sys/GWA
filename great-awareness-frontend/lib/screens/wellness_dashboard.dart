@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,9 +13,7 @@ import '../models/user.dart';
 import '../widgets/recovery_timer.dart';
 import '../services/wellness_service.dart';
 import '../services/auth_service.dart';
-import 'event_upload_screen.dart';
 import 'events_screen.dart';
-import 'package:intl/intl.dart';
 
 class WellnessDashboard extends StatefulWidget {
   final User? currentUser;
@@ -301,11 +299,46 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Timer (Left aligned on Top Bar)
-          _RealTimeTimer(habitStartTime: _status?.startDate, theme: theme),
+          GestureDetector(
+            onTap: () {
+              if (_status?.startDate != null) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => _ShareableTimerDialog(
+                    habitStartTime: _status!.startDate!,
+                    theme: theme,
+                    milestones: _status!.milestones,
+                  ),
+                );
+              }
+            },
+            child: _RealTimeTimer(habitStartTime: _status?.startDate, theme: theme),
+          ),
           
           // Notifications / Profile (Mobile only usually, but here for consistency)
           Row(
             children: [
+              IconButton(
+                icon: const Icon(Icons.share),
+                tooltip: 'Share Progress',
+                onPressed: () {
+                  if (_status?.startDate != null) {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => _ShareableTimerDialog(
+                        habitStartTime: _status!.startDate!,
+                        theme: theme,
+                        milestones: _status!.milestones,
+                      ),
+                    );
+                  } else {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Start your journey to share your progress!')),
+                    );
+                  }
+                },
+                color: Colors.grey[600],
+              ),
               IconButton(
                 icon: const Icon(Icons.notifications_none),
                 onPressed: () {},
@@ -395,8 +428,17 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         children: [
           const SizedBox(height: 20),
           // The Timer
-          if (_status?.startDate != null)
+          if (_status?.startDate != null) ...[
              RecoveryTimer(startTime: _status!.startDate!),
+             const SizedBox(height: 30),
+             // Badges Preview
+             _RealTimeAchievements(
+               startTime: _status?.startDate,
+               theme: theme,
+               milestones: _milestones,
+               isPreview: true,
+             ),
+          ],
           
           const SizedBox(height: 10),
           Text(
@@ -734,61 +776,6 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
     )).toList();
   }
 
-  Widget _buildVideoCard(ThemeData theme, String title, String subtitle, String imagePath) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 100,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(15),
-                bottomLeft: Radius.circular(15),
-              ),
-              // image: DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover),
-            ),
-            child: const Center(child: Icon(Icons.play_circle_outline, size: 40, color: Colors.white)),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAchievementsContent(ThemeData theme) {
     return _RealTimeAchievements(
       startTime: _status?.startDate,
@@ -852,43 +839,427 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   }
 }
 
-class _ShareableBadgeDialog extends StatelessWidget {
-  final _BadgeData badge;
+class _ShareableTimerDialog extends StatefulWidget {
+  final DateTime habitStartTime;
   final ThemeData theme;
-  final bool unlocked;
+  final List<Milestone> milestones;
+
+  const _ShareableTimerDialog({
+    required this.habitStartTime,
+    required this.theme,
+    this.milestones = const [],
+  });
+
+  @override
+  State<_ShareableTimerDialog> createState() => _ShareableTimerDialogState();
+}
+
+class _ShareableTimerDialogState extends State<_ShareableTimerDialog> {
   final GlobalKey _globalKey = GlobalKey();
+  bool _isSharing = false;
 
-  _ShareableBadgeDialog({required this.badge, required this.theme, required this.unlocked});
-
-  Future<void> _captureAndShare() async {
+  Future<void> _shareImage() async {
+    setState(() => _isSharing = true);
+    
     try {
-      final boundary = _globalKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
-
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (byteData == null) return;
-
-      final pngBytes = byteData.buffer.asUint8List();
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/milestone_${badge.label.replaceAll(' ', '_')}.png');
-      await file.writeAsBytes(pngBytes);
-
-      final shareText = unlocked 
-          ? 'I just unlocked the ${badge.label} milestone on Great Awareness!'
-          : 'I am working towards the ${badge.label} milestone on Great Awareness!';
+      // 1. Capture the image
+      // Small delay to ensure the timer widget has rendered its first frame
+      await Future.delayed(const Duration(milliseconds: 100));
       
-      await Share.shareXFiles([XFile(file.path)], text: shareText);
+      RenderRepaintBoundary boundary = _globalKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData == null) throw Exception("Could not generate image data");
+      
+      Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      // 2. Share using cross-platform method
+      XFile fileToShare;
+      
+      if (kIsWeb) {
+        // Web sharing
+        fileToShare = XFile.fromData(
+          pngBytes,
+          mimeType: 'image/png',
+          name: 'my_recovery_timer.png',
+        );
+      } else {
+        // Mobile/Desktop sharing
+        final tempDir = await getTemporaryDirectory();
+        final path = '${tempDir.path}/my_recovery_timer.png';
+        
+        // Save using XFile to avoid dart:io dependency
+        final tempFile = XFile.fromData(pngBytes);
+        await tempFile.saveTo(path);
+        
+        fileToShare = XFile(path);
+      }
+
+      if (!mounted) return;
+
+      final days = DateTime.now().difference(widget.habitStartTime).inDays;
+      final shareText = '⏱️ I have been clean for $days days on Great Awareness! #Recovery #WellnessJourney';
+      
+      // Calculate share origin for iPad/tablets
+      final box = context.findRenderObject() as RenderBox?;
+      final shareOrigin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
+      await Share.shareXFiles(
+        [fileToShare], 
+        text: shareText,
+        sharePositionOrigin: shareOrigin,
+      );
+      
     } catch (e) {
       debugPrint('Error sharing: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not share image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSharing = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 1. Prepare data (normalize to _BadgeData)
+    List<_BadgeData> allBadges;
+    if (widget.milestones.isNotEmpty) {
+      allBadges = widget.milestones.map((m) => _BadgeData(
+        m.label,
+        Duration(seconds: m.durationSeconds),
+        IconData(m.iconCode, fontFamily: 'FontAwesomeSolid', fontPackage: 'font_awesome_flutter'),
+        _parseColor(m.colorHex),
+        m.description,
+      )).toList();
+    } else {
+       // Fallback defaults if API returns empty
+       allBadges = [
+        _BadgeData('24 Hours', const Duration(hours: 24), FontAwesomeIcons.hourglassStart, Colors.blue, "The first 24 hours."),
+        _BadgeData('7 Days', const Duration(days: 7), FontAwesomeIcons.calendarWeek, Colors.cyan, "One week of clarity."),
+        _BadgeData('21 Days', const Duration(days: 21), FontAwesomeIcons.personWalking, Colors.teal, "21 days to form a habit."),
+        _BadgeData('30 Days', const Duration(days: 30), FontAwesomeIcons.medal, Colors.green, "One month strong."),
+        _BadgeData('60 Days', const Duration(days: 60), FontAwesomeIcons.star, Colors.lime, "Two months of dedication."),
+        _BadgeData('180 Days', const Duration(days: 180), FontAwesomeIcons.shieldHeart, Colors.orange, "Six months."),
+        _BadgeData('1 Year', const Duration(days: 365), FontAwesomeIcons.trophy, Colors.amber, "One year."),
+      ];
+    }
+
+    // 2. Filter unlocked based on actual elapsed time
+    final elapsed = DateTime.now().difference(widget.habitStartTime);
+    final unlockedBadges = allBadges.where((b) => elapsed >= b.duration).toList();
+
+    // 3. Sort by duration
+    unlockedBadges.sort((a, b) => a.duration.compareTo(b.duration));
+
+    // 4. Limit to most recent 4
+    final displayBadges = unlockedBadges.length > 4 
+        ? unlockedBadges.sublist(unlockedBadges.length - 4) 
+        : unlockedBadges;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(20),
+      insetPadding: const EdgeInsets.all(15),
+      child: SingleChildScrollView( // Added scroll view in case content is tall
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RepaintBoundary(
+              key: _globalKey,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: widget.theme.cardColor,
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 30,
+                      offset: const Offset(0, 15),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "RECOVERY STREAK",
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                        color: widget.theme.textTheme.bodyLarge?.color?.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // The Circular Timer
+                    RecoveryTimer(startTime: widget.habitStartTime),
+                    
+                    if (displayBadges.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      Text(
+                        "UNLOCKED ACHIEVEMENTS",
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                          color: widget.theme.textTheme.bodyLarge?.color?.withOpacity(0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: displayBadges.map((badge) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: badge.color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: badge.color.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FaIcon(
+                                  badge.icon,
+                                  size: 14,
+                                  color: badge.color,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  badge.label,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: badge.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
+                    Text(
+                      "Great Awareness",
+                      style: GoogleFonts.judson(
+                        fontSize: 18,
+                        color: widget.theme.primaryColor,
+                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FloatingActionButton.extended(
+                  onPressed: _isSharing ? null : _shareImage,
+                  backgroundColor: widget.theme.primaryColor,
+                  foregroundColor: Colors.white,
+                  icon: _isSharing 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.share),
+                  label: Text(_isSharing ? "Preparing..." : "Share Streak"),
+                ),
+                const SizedBox(width: 15),
+                FloatingActionButton(
+                  onPressed: () => Navigator.pop(context),
+                  backgroundColor: Colors.grey[800],
+                  child: const Icon(Icons.close, color: Colors.white),
+                  mini: true,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _parseColor(String hexString) {
+    try {
+      final buffer = StringBuffer();
+      if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
+      buffer.write(hexString.replaceFirst('#', ''));
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (e) {
+      return Colors.grey;
+    }
+  }
+}
+
+class _ShareableBadgeDialog extends StatefulWidget {
+  final _BadgeData badge;
+  final ThemeData theme;
+  final bool unlocked;
+  final DateTime? habitStartTime;
+
+  const _ShareableBadgeDialog({
+    super.key,
+    required this.badge,
+    required this.theme,
+    required this.unlocked,
+    this.habitStartTime,
+  });
+
+  @override
+  State<_ShareableBadgeDialog> createState() => _ShareableBadgeDialogState();
+}
+
+class _ShareableBadgeDialogState extends State<_ShareableBadgeDialog> {
+  final GlobalKey _globalKey = GlobalKey();
+  bool _isSharing = false;
+  late Timer _timer;
+  Duration _elapsed = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTime();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTime());
+  }
+
+  void _updateTime() {
+    if (widget.habitStartTime != null) {
+      setState(() {
+        _elapsed = DateTime.now().difference(widget.habitStartTime!);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  Future<void> _captureAndShare() async {
+    if (_isSharing) return;
+    
+    setState(() => _isSharing = true);
+    
+    try {
+      // Small delay to ensure UI updates and boundary is ready
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      final boundary = _globalKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception("Could not render badge image. Please try again.");
+      }
+
+      // Capture with pixel ratio 3.0 (good balance of quality and performance)
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData == null) {
+        throw Exception("Failed to process image data.");
+      }
+
+      final pngBytes = byteData.buffer.asUint8List();
+      
+      // Clean filename
+      final safeLabel = widget.badge.label.replaceAll(RegExp(r'[^\w\s]+'), '').replaceAll(' ', '_');
+      final fileName = 'milestone_${safeLabel}_${DateTime.now().millisecondsSinceEpoch}.png';
+      
+      XFile fileToShare;
+
+      if (kIsWeb) {
+        fileToShare = XFile.fromData(
+          pngBytes, 
+          mimeType: 'image/png', 
+          name: fileName
+        );
+      } else {
+        final directory = await getTemporaryDirectory();
+        final path = '${directory.path}/$fileName';
+        
+        // Save using XFile to avoid dart:io dependency
+        final tempFile = XFile.fromData(pngBytes);
+        await tempFile.saveTo(path);
+        
+        fileToShare = XFile(path);
+      }
+
+      if (!mounted) return;
+
+      final shareText = widget.unlocked 
+          ? '🏆 I just unlocked the ${widget.badge.label} milestone on Great Awareness! #Recovery #Wellness'
+          : '🎯 I am working towards the ${widget.badge.label} milestone on Great Awareness! #Goals';
+      
+      // Calculate share origin for iPad/tablets
+      final box = context.findRenderObject() as RenderBox?;
+      final shareOrigin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
+      await Share.shareXFiles(
+        [fileToShare], 
+        text: shareText,
+        sharePositionOrigin: shareOrigin,
+      );
+      
+    } catch (e) {
+      debugPrint('Error sharing: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not share image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSharing = false);
+      }
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    if (duration.isNegative) return "SOON";
+    
+    final days = duration.inDays;
+    final hours = duration.inHours % 24;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+
+    if (days > 0) {
+      return "${days}d ${hours}h ${minutes}m ${seconds}s";
+    } else if (hours > 0) {
+      return "${hours}h ${minutes}m ${seconds}s";
+    } else {
+      return "${minutes}m ${seconds}s";
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Determine gradient based on unlock status and badge color
+    final gradientColors = widget.unlocked 
+        ? [widget.badge.color.withOpacity(0.8), widget.badge.color]
+        : [Colors.grey.shade400, Colors.grey.shade600];
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(15),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -896,124 +1267,268 @@ class _ShareableBadgeDialog extends StatelessWidget {
             key: _globalKey,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
-                color: theme.cardTheme.color ?? Colors.white,
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(30),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    widget.theme.cardTheme.color ?? Colors.white,
+                    widget.theme.cardTheme.color?.withOpacity(0.9) ?? Colors.grey.shade50,
+                  ],
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    color: widget.badge.color.withOpacity(0.3),
+                    blurRadius: 30,
+                    offset: const Offset(0, 15),
                   ),
                 ],
+                border: Border.all(
+                  color: widget.unlocked ? widget.badge.color.withOpacity(0.5) : Colors.grey.withOpacity(0.2),
+                  width: 2,
+                ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
                 children: [
-                  // App Branding
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(FontAwesomeIcons.heartPulse, color: theme.primaryColor, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        "GREAT AWARENESS",
-                        style: GoogleFonts.judson(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                          color: theme.primaryColor,
+                  // Decorative background elements
+                  Positioned(
+                    top: -50,
+                    right: -50,
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: widget.badge.color.withOpacity(0.05),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -30,
+                    left: -30,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: widget.badge.color.withOpacity(0.05),
+                      ),
+                    ),
+                  ),
+                  
+                  Padding(
+                    padding: const EdgeInsets.all(35),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // App Branding
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(FontAwesomeIcons.heartPulse, color: widget.theme.primaryColor, size: 14),
+                            const SizedBox(width: 8),
+                            Text(
+                              "GREAT AWARENESS",
+                              style: GoogleFonts.judson(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 3,
+                                color: widget.theme.primaryColor,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  
-                  // Icon
-                  Container(
-                    padding: const EdgeInsets.all(25),
-                    decoration: BoxDecoration(
-                      color: (unlocked ? badge.color : Colors.grey).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: FaIcon(
-                      badge.icon, 
-                      size: 50, 
-                      color: unlocked ? badge.color : Colors.grey[400]
-                    ),
-                  ),
-                  const SizedBox(height: 25),
-                  
-                  // Title
-                  Text(
-                    unlocked ? "MILESTONE UNLOCKED" : "UPCOMING MILESTONE",
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    badge.label,
-                    style: GoogleFonts.judson(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: unlocked ? theme.textTheme.bodyLarge?.color : Colors.grey[500],
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  
-                  // Description
-                  Text(
-                    badge.description,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      height: 1.5,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  
-                  // Footer/Link
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      "greatawareness.app",
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                        const SizedBox(height: 35),
+                        
+                        // Badge Icon with Glow
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: gradientColors,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (widget.unlocked ? widget.badge.color : Colors.grey).withOpacity(0.4),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                                offset: const Offset(0, 10),
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.5),
+                                blurRadius: 10,
+                                spreadRadius: -5,
+                                offset: const Offset(-5, -5),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: FaIcon(
+                              widget.badge.icon, 
+                              size: 50, 
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        
+                        // Status Label
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: (widget.unlocked ? widget.badge.color : Colors.grey).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: (widget.unlocked ? widget.badge.color : Colors.grey).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.timer, size: 12, color: widget.unlocked ? widget.badge.color : Colors.grey),
+                              const SizedBox(width: 6),
+                              Builder(
+                                builder: (context) {
+                                  if (widget.unlocked) {
+                                    // Show time since unlocked
+                                    final timeSinceUnlock = _elapsed - widget.badge.duration;
+                                    final label = timeSinceUnlock.isNegative 
+                                        ? "JUST UNLOCKED" 
+                                        : "Active: ${_formatDuration(timeSinceUnlock)}";
+                                    return Text(
+                                      label,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.5,
+                                        color: widget.badge.color,
+                                      ),
+                                    );
+                                  } else {
+                                    // Show time remaining
+                                    final remaining = widget.badge.duration - _elapsed;
+                                    return Text(
+                                      remaining.isNegative 
+                                          ? "SOON" 
+                                          : "UNLOCKS IN ${_formatDuration(remaining)}",
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.5,
+                                        color: Colors.grey,
+                                      ),
+                                    );
+                                  }
+                                }
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        
+                        // Badge Title
+                        Text(
+                          widget.badge.label,
+                          style: GoogleFonts.judson(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: widget.theme.textTheme.bodyLarge?.color,
+                            shadows: widget.unlocked ? [
+                              Shadow(
+                                color: widget.badge.color.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              )
+                            ] : null,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        
+                        // Description
+                        Text(
+                          widget.badge.description,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            height: 1.6,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 40),
+                        
+                        // Footer / Branding Link
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.link, size: 14, color: Colors.grey[500]),
+                              const SizedBox(width: 5),
+                              Text(
+                                "greatawareness.app",
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 25),
+          
+          // Action Buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Close", style: TextStyle(color: Colors.white)),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 15),
+                ),
+                child: Text(
+                  "Close", 
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  )
+                ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 15),
               ElevatedButton.icon(
-                onPressed: _captureAndShare,
-                icon: const Icon(Icons.share, size: 18),
-                label: Text(unlocked ? "Share Milestone" : "Share Goal"),
+                onPressed: _isSharing ? null : _captureAndShare,
+                icon: _isSharing 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.share_rounded, size: 20),
+                label: Text(
+                  _isSharing ? "Generating..." : "Share Achievement",
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primaryColor,
+                  backgroundColor: widget.unlocked ? widget.theme.primaryColor : Colors.grey,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  elevation: 8,
+                  shadowColor: widget.theme.primaryColor.withOpacity(0.5),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 ),
               ),
@@ -1039,11 +1554,13 @@ class _RealTimeAchievements extends StatefulWidget {
   final DateTime? startTime;
   final ThemeData theme;
   final List<Milestone> milestones;
+  final bool isPreview;
 
   const _RealTimeAchievements({
     required this.startTime,
     required this.theme,
     required this.milestones,
+    this.isPreview = false,
   });
 
   @override
@@ -1111,6 +1628,45 @@ class _RealTimeAchievementsState extends State<_RealTimeAchievements> {
       ];
     }
 
+    if (widget.isPreview) {
+      final unlockedBadges = badges.where((b) => _elapsed >= b.duration).toList();
+      
+      if (unlockedBadges.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              "Recent Achievements",
+              style: GoogleFonts.judson(
+                fontSize: 20, 
+                fontWeight: FontWeight.bold,
+                color: widget.theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+          ),
+          const SizedBox(height: 15),
+          SizedBox(
+            height: 180,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              itemCount: unlockedBadges.length,
+              separatorBuilder: (ctx, i) => const SizedBox(width: 15),
+              itemBuilder: (ctx, i) {
+                final badge = unlockedBadges[i];
+                return _buildBadge(widget.theme, badge, true);
+              },
+            ),
+          ),
+        ],
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -1152,38 +1708,161 @@ class _RealTimeAchievementsState extends State<_RealTimeAchievements> {
     }
   }
 
+  String _formatCompactDuration(Duration duration) {
+    if (duration.inDays > 0) {
+      return '${duration.inDays}d ${duration.inHours % 24}h';
+    } else if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else {
+      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    }
+  }
+
   Widget _buildBadge(ThemeData theme, _BadgeData badge, bool unlocked) {
+    // Determine gradient based on unlock status
+    final gradientColors = unlocked 
+        ? [badge.color.withOpacity(0.8), badge.color]
+        : [Colors.grey.shade300, Colors.grey.shade400];
+
+    // Calculate time remaining if locked
+    String timeRemaining = '';
+    if (!unlocked) {
+      final remaining = badge.duration - _elapsed;
+      if (remaining.isNegative) {
+        timeRemaining = 'Soon';
+      } else if (remaining.inDays > 0) {
+        timeRemaining = '${remaining.inDays}d left';
+      } else if (remaining.inHours > 0) {
+        timeRemaining = '${remaining.inHours}h left';
+      } else {
+        timeRemaining = '${remaining.inMinutes}m left';
+      }
+    }
+
     return GestureDetector(
       onTap: () => _showShareDialog(context, badge, unlocked),
       child: Container(
-        width: 100,
-        height: 120,
-        padding: const EdgeInsets.all(15),
+        width: 110,
+        height: 155, // Increased height for timer
         decoration: BoxDecoration(
           color: theme.cardTheme.color ?? Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: unlocked ? badge.color.withOpacity(0.5) : Colors.grey.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: (unlocked ? badge.color : Colors.grey).withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: (unlocked ? badge.color : Colors.black).withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            FaIcon(badge.icon, size: 30, color: unlocked ? badge.color : Colors.grey[300]),
-            const SizedBox(height: 10),
-            Text(
-              badge.label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: unlocked ? theme.textTheme.bodyLarge?.color : Colors.grey,
+            // Background Decoration
+            Positioned(
+              top: -20,
+              right: -20,
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: (unlocked ? badge.color : Colors.grey).withOpacity(0.05),
+                ),
               ),
+            ),
+
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Icon Circle
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: gradientColors,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (unlocked ? badge.color : Colors.grey).withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: FaIcon(
+                      badge.icon, 
+                      size: 24, 
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Label
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    badge.label,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.judson(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: unlocked ? theme.textTheme.bodyLarge?.color : Colors.grey,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                
+                const SizedBox(height: 4),
+                
+                // Status Indicator or Timer
+                if (unlocked)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: badge.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "Active: ${_formatCompactDuration(_elapsed - badge.duration)}",
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: badge.color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.timer, size: 10, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          timeRemaining,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -1194,7 +1873,12 @@ class _RealTimeAchievementsState extends State<_RealTimeAchievements> {
   void _showShareDialog(BuildContext context, _BadgeData badge, bool unlocked) {
     showDialog(
       context: context,
-      builder: (ctx) => _ShareableBadgeDialog(badge: badge, theme: widget.theme, unlocked: unlocked),
+      builder: (ctx) => _ShareableBadgeDialog(
+        badge: badge, 
+        theme: widget.theme, 
+        unlocked: unlocked,
+        habitStartTime: widget.startTime,
+      ),
     );
   }
 }

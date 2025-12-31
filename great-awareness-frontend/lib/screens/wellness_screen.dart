@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'wellness_dashboard.dart';
 import '../services/auth_service.dart';
+import '../services/wellness_service.dart';
 
 class WellnessScreen extends StatefulWidget {
   const WellnessScreen({super.key});
@@ -53,6 +54,23 @@ class _WellnessScreenState extends State<WellnessScreen> {
   @override
   void initState() {
     super.initState();
+    _checkStatus();
+  }
+
+  Future<void> _checkStatus() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final wellnessService = WellnessService(authService);
+    
+    try {
+      final status = await wellnessService.getStatus();
+      if (status != null && status.startDate != null) {
+        setState(() {
+          _showIntro = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking wellness status: $e');
+    }
   }
 
   @override

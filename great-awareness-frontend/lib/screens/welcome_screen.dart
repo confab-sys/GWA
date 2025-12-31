@@ -33,10 +33,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
       }
     });
 
-    // Navigate to login1 after 10 seconds
+    // Navigate to signup after 10 seconds
     Timer(const Duration(seconds: 10), () {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login1');
+        Navigator.of(context).pushReplacementNamed('/signup');
       }
     });
   }

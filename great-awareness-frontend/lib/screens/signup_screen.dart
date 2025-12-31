@@ -173,11 +173,16 @@ class _SignupScreenState extends State<SignupScreen> {
       
       if (user != null) {
         if (!mounted) return;
+        
+        // Auto-login the user
+        final authService = Provider.of<AuthService>(context, listen: false);
+        authService.login(user);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully!')),
         );
         
-        Navigator.pushReplacementNamed(context, '/login');
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         // This shouldn't happen if the API service is working correctly
         throw Exception('Account creation failed - no user data returned');

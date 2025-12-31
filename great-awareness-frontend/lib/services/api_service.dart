@@ -516,6 +516,37 @@ class ApiService {
     }
   }
 
+  Future<void> changePassword(String email, String oldPassword, String newPassword) async {
+    debugPrint('=== CHANGE PASSWORD ATTEMPT ===');
+    debugPrint('Email: $email');
+    
+    // Use Cloudflare Worker directly for authentication
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/auth/change-password');
+    debugPrint('Change Password URI: $uri');
+    
+    try {
+      final res = await _postWithRetry(
+        uri.toString(),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'old_password': oldPassword,
+          'new_password': newPassword
+        }),
+      );
+      
+      if (res.statusCode == 200) {
+        return;
+      } else {
+        final errorData = json.decode(res.body);
+        throw Exception(errorData['error'] ?? 'Failed to change password');
+      }
+    } catch (e) {
+      debugPrint('Change password failed: $e');
+      rethrow;
+    }
+  }
+
   Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
     debugPrint('=== SIGNUP ATTEMPT (DEBUG MODE v2) ===');
     debugPrint('Email: $email');
@@ -955,44 +986,59 @@ class ApiService {
 
   // Q&A related methods
   Future<List<Map<String, dynamic>>?> getQuestions(String token, {int skip = 0, String? category}) async {
-    final uri = Uri.parse('$apiBaseUrl/api/qa/questions?skip=$skip${category != null ? '&category=$category' : ''}');
-    final res = await _client.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      final questions = data['questions'] ?? [];
+    // Switch to Cloudflare Worker for questions
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/questions?skip=$skip${category != null ? '&category=$category' : ''}');
+    debugPrint('Fetching questions from Cloudflare: $uri');
+
+    try {
+      final res = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+      );
       
-      // Transform the API data to match the expected format
-      return List<Map<String, dynamic>>.from(questions.map((question) => {
-        'id': question['id'],
-        'category': question['category'],
-        'title': question['title'], // Keep title for the card header
-        'question': question['content'], // API uses 'content', app expects 'question' (full content)
-        'author': question['author_name'], // API uses 'author_name', app expects 'author'
-        'time': question['created_at'], // API uses 'created_at', app expects 'time'
-        'likes': question['likes_count'] ?? 0, // API uses 'likes_count', app expects 'likes'
-        'comments': question['comments_count'] ?? 0, // API uses 'comments_count', app expects 'comments'
-        'isLiked': question['is_liked'] ?? false, // Map is_liked from API
-        'isSaved': question['is_saved'] ?? false, // Map is_saved from API
-        'hasImage': question['has_image'] ?? false, // API uses 'has_image', app expects 'hasImage'
-      }));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        // Cloudflare returns a direct list
+        final List<dynamic> questions = data is List ? data : (data['questions'] ?? []);
+        
+        // Transform the API data to match the expected format
+        return List<Map<String, dynamic>>.from(questions.map((question) => {
+          'id': question['id'],
+          'category': question['category'] ?? 'General',
+          'title': question['title'] ?? 'No Title', // Keep title for the card header
+          'question': question['content'] ?? question['question'] ?? '', // Handle potential field names
+          'author': question['author_name'] ?? question['author'] ?? 'Anonymous',
+          'time': question['created_at'] ?? DateTime.now().toIso8601String(),
+          'likes': question['likes_count'] ?? 0,
+          'comments': question['comments_count'] ?? 0,
+          'isLiked': question['is_liked'] ?? false, // Map is_liked from API
+          'isSaved': question['is_saved'] ?? false, // Map is_saved from API
+          'hasImage': question['has_image'] ?? false, // API uses 'has_image', app expects 'hasImage'
+        }));
+      }
+    } catch (e) {
+      debugPrint('Error fetching questions: $e');
     }
     return null;
   }
 
   Future<Map<String, dynamic>?> getQuestion(String token, int questionId) async {
-    final uri = Uri.parse('$apiBaseUrl/api/qa/questions/$questionId');
-    final res = await _client.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    
-    if (res.statusCode == 200) {
-      final data = json.decode(res.body);
-      return data as Map<String, dynamic>;
+    // Switch to Cloudflare Worker
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/questions/$questionId');
+    debugPrint('Fetching question $questionId from Cloudflare');
+
+    try {
+      final res = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        return data as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('Error fetching question: $e');
     }
     return null;
   }
@@ -1061,8 +1107,13 @@ class ApiService {
     String? category,
     String? imagePath,
     bool isAnonymous = false,
+    int? userId,
+    String? authorName,
   }) async {
-    final uri = Uri.parse('$apiBaseUrl/api/qa/questions');
+    // Switch to Cloudflare Worker
+    final uri = Uri.parse('$cloudflareWorkerUrl/api/questions');
+    debugPrint('Creating question on Cloudflare: $uri');
+
     final res = await _client.post(
       uri,
       headers: {
@@ -1075,6 +1126,8 @@ class ApiService {
         'category': category,
         'image_path': imagePath,
         'is_anonymous': isAnonymous,
+        'user_id': userId,
+        'author_name': authorName,
       }),
     );
     
@@ -1086,7 +1139,7 @@ class ApiService {
       return data as Map<String, dynamic>;
     } else {
       final errorData = json.decode(res.body);
-      throw Exception('API Error ${res.statusCode}: ${errorData['detail'] ?? 'Unknown error'}');
+      throw Exception('API Error ${res.statusCode}: ${errorData['detail'] ?? errorData['error'] ?? 'Unknown error'}');
     }
   }
 

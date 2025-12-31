@@ -31,6 +31,10 @@ export default {
       if (url.pathname === "/api/auth/login" && method === "POST") {
         return await handleLogin(request, env, corsHeaders);
       }
+
+      if (url.pathname === "/api/auth/change-password" && method === "POST") {
+        return await handleChangePassword(request, env, corsHeaders);
+      }
       
       // Upload Profile Image
       if (url.pathname === "/api/users/upload-profile" && method === "POST") {
@@ -81,6 +85,48 @@ export default {
           )
         `).run();
         return new Response("Likes table created", { headers: corsHeaders });
+      }
+
+      if (url.pathname === "/api/db/init-contents" && method === "POST") {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS contents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            topic TEXT NOT NULL,
+            post_type TEXT DEFAULT 'text' NOT NULL,
+            image_path TEXT,
+            is_text_only INTEGER DEFAULT 1 NOT NULL,
+            author_name TEXT DEFAULT 'Admin' NOT NULL,
+            author_avatar TEXT,
+            likes_count INTEGER DEFAULT 0 NOT NULL,
+            comments_count INTEGER DEFAULT 0 NOT NULL,
+            status TEXT DEFAULT 'published' NOT NULL,
+            is_featured INTEGER DEFAULT 0 NOT NULL,
+            created_by INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            published_at TEXT,
+            FOREIGN KEY (created_by) REFERENCES users(id)
+          )
+        `).run();
+        return new Response("Contents table created", { headers: corsHeaders });
+      }
+
+      if (url.pathname === "/api/db/init-comments" && method === "POST") {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            content_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            text TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (content_id) REFERENCES contents(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+          )
+        `).run();
+        return new Response("Comments table created", { headers: corsHeaders });
       }
 
       if (url.pathname === "/api/contents" && method === "GET") {
@@ -261,9 +307,75 @@ export default {
       }
 
       // --- Questions Endpoints ---
+      if (url.pathname === "/api/db/init-questions" && method === "POST") {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT,
+            title TEXT,
+            content TEXT,
+            author_name TEXT,
+            user_id INTEGER,
+            is_anonymous INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            likes_count INTEGER DEFAULT 0,
+            comments_count INTEGER DEFAULT 0,
+            has_image INTEGER DEFAULT 0,
+            image_path TEXT,
+            is_liked INTEGER DEFAULT 0,
+            is_saved INTEGER DEFAULT 0
+          )
+        `).run();
+        return new Response("Questions table created", { headers: corsHeaders });
+      }
+
       if (url.pathname === "/api/questions" && method === "GET") {
-        const { results } = await env.DB.prepare("SELECT * FROM questions ORDER BY created_at DESC").all();
+        const skip = parseInt(url.searchParams.get("skip") || "0");
+        const category = url.searchParams.get("category");
+        const limit = 20;
+
+        let query = "SELECT * FROM questions";
+        let params = [];
+
+        if (category && category !== "All") {
+          query += " WHERE category = ?";
+          params.push(category);
+        }
+
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        params.push(limit, skip);
+
+        const { results } = await env.DB.prepare(query).bind(...params).all();
         return Response.json(results, { headers: corsHeaders });
+      }
+
+      if (url.pathname === "/api/questions" && method === "POST") {
+        const { title, content, category, image_path, is_anonymous, user_id, author_name } = await request.json();
+        
+        if (!title || !content) return new Response("Missing fields", { status: 400, headers: corsHeaders });
+
+        const { success } = await env.DB.prepare(
+          `INSERT INTO questions (title, content, category, image_path, is_anonymous, user_id, author_name) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          title, 
+          content, 
+          category || 'General', 
+          image_path || null, 
+          is_anonymous ? 1 : 0,
+          user_id,
+          author_name || 'Anonymous'
+        ).run();
+        
+        return Response.json({ success }, { headers: corsHeaders });
+      }
+
+      // Get Single Question
+      const questionIdMatch = url.pathname.match(/^\/api\/questions\/(\d+)$/);
+      if (questionIdMatch && method === "GET") {
+        const id = questionIdMatch[1];
+        const result = await env.DB.prepare("SELECT * FROM questions WHERE id = ?").bind(id).first();
+        if (!result) return new Response("Not Found", { status: 404, headers: corsHeaders });
+        return Response.json(result, { headers: corsHeaders });
       }
 
       return new Response("Not Found", { status: 404, headers: corsHeaders });
@@ -274,6 +386,43 @@ export default {
 };
 
 // --- Handlers ---
+
+async function handleChangePassword(request, env, corsHeaders) {
+  try {
+    const { email, old_password, new_password } = await request.json();
+
+    if (!email || !old_password || !new_password) {
+      return new Response(JSON.stringify({ error: "Missing fields" }), { status: 400, headers: corsHeaders });
+    }
+
+    const user = await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "User not found" }), { status: 404, headers: corsHeaders });
+    }
+
+    const [saltHex, hashHex] = user.password_hash.split(":");
+    const salt = fromHex(saltHex);
+    const hash = await hashPassword(old_password, salt);
+    
+    if (toHex(hash) !== hashHex) {
+      return new Response(JSON.stringify({ error: "Invalid old password" }), { status: 401, headers: corsHeaders });
+    }
+
+    // Hash new password
+    const newSalt = crypto.getRandomValues(new Uint8Array(16));
+    const newHash = await hashPassword(new_password, newSalt);
+    const newStoredHash = `${toHex(newSalt)}:${toHex(newHash)}`;
+
+    // Update password
+    const { success } = await env.DB.prepare("UPDATE users SET password_hash = ? WHERE id = ?").bind(newStoredHash, user.id).run();
+
+    if (!success) throw new Error("Failed to update password");
+
+    return new Response(JSON.stringify({ message: "Password updated successfully" }), { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+  }
+}
 
 async function handleUploadProfileImage(request, env, corsHeaders) {
   const formData = await request.formData();

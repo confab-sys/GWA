@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 class RecoveryTimer extends StatefulWidget {
   final DateTime startTime;
@@ -33,7 +32,7 @@ class _RecoveryTimerState extends State<RecoveryTimer>
     _currentTime = DateTime.now();
     _duration = RecoveryDuration.from(widget.startTime.toLocal(), _currentTime);
     
-    _ticker = createTicker((elapsed) {
+    _ticker = createTicker((_) {
       final now = DateTime.now();
       if (now.difference(_currentTime).inMilliseconds > 0) {
         setState(() {
@@ -369,7 +368,6 @@ class _TimerRingsPainter extends CustomPainter {
     final spacing = 6.0;
     
     // Colors
-    final baseColor = theme.primaryColor;
     final bgRingColor = isDark ? Colors.white10 : Colors.black12;
     
     // Helper to draw ring

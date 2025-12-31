@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../services/theme_provider.dart';
 import '../models/user.dart';
 import 'admin_posting_screen.dart';
@@ -30,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _profileImagePath;
   Uint8List? _profileImageBytes; // For web compatibility
   late final AuthService _authService;
+  late final ApiService _apiService;
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
@@ -37,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     // Initialize AuthService via Provider to access app-wide instance
     _authService = Provider.of<AuthService>(context, listen: false);
+    _apiService = ApiService();
     _loadUserSettings();
     
     // Listen for auth changes to update user data
@@ -804,7 +807,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 24),
             
             // Admin Section (only visible to admins)
-            if (_authService.isAdmin) ...[
+            if (Provider.of<AuthService>(context).isAdmin) ...[
               _buildSettingsSection(
                 'Admin Tools',
                 [
@@ -933,7 +936,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Change Password',
                   subtitle: 'Update your password',
                   onTap: () {
-                    // Navigate to change password screen
+                    _showChangePasswordDialog();
                   },
                 ),
                 _buildSettingsItem(
@@ -949,6 +952,195 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                'Change Password',
+                style: GoogleFonts.judson(
+                  textStyle: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: oldPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Current Password',
+                          labelStyle: GoogleFonts.judson(),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          prefixIcon: const Icon(Icons.lock_outline),
+                        ),
+                        style: GoogleFonts.judson(),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your current password';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: newPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'New Password',
+                          labelStyle: GoogleFonts.judson(),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          prefixIcon: const Icon(Icons.lock),
+                        ),
+                        style: GoogleFonts.judson(),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a new password';
+                          }
+                          if (value.length < 6) {
+                            return 'Password must be at least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: confirmPasswordController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm New Password',
+                          labelStyle: GoogleFonts.judson(),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          prefixIcon: const Icon(Icons.lock),
+                        ),
+                        style: GoogleFonts.judson(),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please confirm your new password';
+                          }
+                          if (value != newPasswordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.judson(
+                      textStyle: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setState(() {
+                              isLoading = true;
+                            });
+
+                            try {
+                              final email = _authService.currentUser?.email;
+                              if (email == null) {
+                                throw Exception('User email not found');
+                              }
+
+                              await _apiService.changePassword(
+                                email,
+                                oldPasswordController.text,
+                                newPasswordController.text,
+                              );
+
+                              if (context.mounted) {
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Password changed successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                setState(() {
+                                  isLoading = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      e.toString().replaceAll('Exception: ', ''),
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD3E4DE),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : Text(
+                          'Change',
+                          style: GoogleFonts.judson(
+                            textStyle: const TextStyle(color: Colors.black),
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

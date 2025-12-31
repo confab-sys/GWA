@@ -257,6 +257,8 @@ class _QAScreenState extends State<QAScreen> {
                                   body: contentText.trim(),
                                   category: categoryText.isEmpty ? 'General' : categoryText,
                                   isAnonymous: isAnonymous,
+                                  userId: int.tryParse(user?.id ?? ''),
+                                  authorName: user?.name ?? 'Anonymous',
                                 );
                                 
                                 // Close the dialog first
