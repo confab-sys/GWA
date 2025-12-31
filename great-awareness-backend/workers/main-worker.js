@@ -58,15 +58,22 @@ export default {
             password_hash TEXT NOT NULL,
             profile_image TEXT,
             device_id TEXT,
+            first_name TEXT,
+            last_name TEXT,
+            phone_number TEXT,
+            county TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
           )
         `).run();
         
-        // Add device_id column if it doesn't exist (migration)
-        try {
-          await env.DB.prepare("ALTER TABLE users ADD COLUMN device_id TEXT").run();
-        } catch (e) {
-          // Column likely already exists
+        // Add columns if they don't exist (migrations)
+        const columns = ['device_id', 'first_name', 'last_name', 'phone_number', 'county'];
+        for (const col of columns) {
+          try {
+            await env.DB.prepare(`ALTER TABLE users ADD COLUMN ${col} TEXT`).run();
+          } catch (e) {
+            // Column likely already exists
+          }
         }
         
         return new Response("Users table initialized/updated", { headers: corsHeaders });
@@ -498,7 +505,7 @@ async function handleServeImage(bucket, key, corsHeaders) {
 
 async function handleSignup(request, env, corsHeaders) {
   try {
-    const { username, email, password, device_id_hash } = await request.json();
+    const { username, email, password, device_id_hash, first_name, last_name, phone_number, county } = await request.json();
 
     if (!username || !email || !password) {
       return new Response(JSON.stringify({ error: "Missing fields" }), { status: 400, headers: corsHeaders });
@@ -517,8 +524,17 @@ async function handleSignup(request, env, corsHeaders) {
 
     // Insert user
     const { success } = await env.DB.prepare(
-      `INSERT INTO users (username, email, password_hash, device_id) VALUES (?, ?, ?, ?)`
-    ).bind(username, email, storedHash, device_id_hash || null).run();
+      `INSERT INTO users (username, email, password_hash, device_id, first_name, last_name, phone_number, county) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      username, 
+      email, 
+      storedHash, 
+      device_id_hash || null,
+      first_name || null,
+      last_name || null,
+      phone_number || null,
+      county || null
+    ).run();
 
     if (!success) throw new Error("Failed to create user");
 

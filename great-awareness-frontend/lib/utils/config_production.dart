@@ -4,8 +4,8 @@
 // Development (local) backend
 const String apiBaseUrlDev = 'http://localhost:8000';
 
-// Production (Render) backend - UPDATE THIS with your actual Render URL
-const String apiBaseUrlProd = 'https://gwa-enus.onrender.com';
+// Production (Cloudflare) backend
+const String apiBaseUrlProd = 'https://gwa-main-worker.aashardcustomz.workers.dev';
 
 // Current environment - change this to 'production' when ready to deploy
 const String currentEnvironment = 'production'; // or 'production'

@@ -5,8 +5,8 @@
 // Development (local) backend
 const String apiBaseUrlDev = 'http://localhost:8000';
 
-// Production (Neon) backend - UPDATE THIS with your actual Neon URL
-const String apiBaseUrlProd = 'https://gwa-enus.onrender.com';
+// Production (Cloudflare) backend
+const String apiBaseUrlProd = 'https://gwa-main-worker.aashardcustomz.workers.dev';
 
 // Vercel deployment URL (for web proxy)
 const String apiBaseUrlVercel = '/api';

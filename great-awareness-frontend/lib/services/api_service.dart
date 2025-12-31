@@ -21,7 +21,7 @@ class ApiService {
         final ioClient = HttpClient()
           ..badCertificateCallback = (X509Certificate cert, String host, int port) {
             // Allow certificates from our known backend domains
-            if (host.endsWith('.onrender.com') || host == 'gwa-enus.onrender.com') {
+            if (host.endsWith('.workers.dev') || host == 'gwa-main-worker.aashardcustomz.workers.dev') {
               debugPrint('Allowing certificate for known backend: $host');
               return true;
             }
@@ -55,7 +55,7 @@ class ApiService {
         'google.com',
         'cloudflare.com', 
         '8.8.8.8',
-        'gwa-enus.onrender.com'
+        'gwa-main-worker.aashardcustomz.workers.dev'
       ];
       
       Map<String, bool> dnsResults = {};
@@ -74,7 +74,7 @@ class ApiService {
       final hasBasicInternet = dnsResults['google.com'] == true || dnsResults['cloudflare.com'] == true;
       
       // Step 3: Check our specific backend
-      final backendReachable = dnsResults['gwa-enus.onrender.com'] == true;
+      final backendReachable = dnsResults['gwa-main-worker.aashardcustomz.workers.dev'] == true;
       
       return {
         'success': hasBasicInternet,
@@ -151,7 +151,7 @@ class ApiService {
       // Try multiple DNS resolution methods for better mobile compatibility
       try {
         // Method 1: Direct lookup
-        final result = await InternetAddress.lookup('gwa-enus.onrender.com');
+        final result = await InternetAddress.lookup('gwa-main-worker.aashardcustomz.workers.dev');
         debugPrint('DNS lookup result: $result');
         if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
           return true;
@@ -160,18 +160,7 @@ class ApiService {
         debugPrint('Direct DNS lookup failed: $e');
       }
       
-      // Method 2: Try alternative hostname (in case of typo)
-      try {
-        final altResult = await InternetAddress.lookup('gwa.enus.onrender.com');
-        debugPrint('Alternative DNS lookup result: $altResult');
-        if (altResult.isNotEmpty && altResult[0].rawAddress.isNotEmpty) {
-          return true;
-        }
-      } catch (e) {
-        debugPrint('Alternative DNS lookup failed: $e');
-      }
-      
-      // Method 3: Try Google DNS as fallback
+      // Method 2: Try Google DNS as fallback
       try {
         final googleResult = await InternetAddress.lookup('8.8.8.8');
         debugPrint('Google DNS reachable: $googleResult');
@@ -204,16 +193,33 @@ class ApiService {
     for (final url in urls) {
       try {
         debugPrint('Testing backend URL: $url');
-        final response = await _client.get(
-          Uri.parse('$url/'),
-        ).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => throw TimeoutException('URL test timeout'),
-        );
         
-        if (response.statusCode < 500) { // Not a server error
-          debugPrint('Working backend URL found: $url');
-          return url;
+        // Cloudflare health check
+        if (url.contains('workers.dev')) {
+           final response = await _client.get(
+            Uri.parse('$url/api/health'),
+          ).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => throw TimeoutException('URL test timeout'),
+          );
+          
+          if (response.statusCode == 200 || response.body == 'OK') {
+            debugPrint('Working backend URL found: $url');
+            return url;
+          }
+        } else {
+          // Standard check for other environments
+          final response = await _client.get(
+            Uri.parse('$url/'),
+          ).timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => throw TimeoutException('URL test timeout'),
+          );
+          
+          if (response.statusCode < 500) {
+            debugPrint('Working backend URL found: $url');
+            return url;
+          }
         }
       } catch (e) {
         debugPrint('URL $url failed: $e');
@@ -268,7 +274,7 @@ class ApiService {
         return {
           'success': false,
           'error': 'Network connectivity check failed',
-          'details': 'Cannot resolve DNS for gwa-enus.onrender.com. This may be due to:\n1. No internet connection\n2. DNS resolution issues on mobile networks\n3. Hostname configuration problem\n\nPlease check your internet connection and try again.',
+          'details': 'Cannot resolve DNS for gwa-main-worker.aashardcustomz.workers.dev. This may be due to:\n1. No internet connection\n2. DNS resolution issues on mobile networks\n3. Hostname configuration problem\n\nPlease check your internet connection and try again.',
           'suggestions': [
             'Check if your device has internet access',
             'Try switching between WiFi and mobile data',
@@ -278,9 +284,9 @@ class ApiService {
         };
       }
 
-      // Try to make a simple GET request to the base URL
+      // Try to make a simple GET request to the health endpoint
       final response = await _client.get(
-        Uri.parse('$apiBaseUrl/'),
+        Uri.parse('$apiBaseUrl/api/health'),
       ).timeout(
         const Duration(seconds: 10),
         onTimeout: () => throw TimeoutException('Connection test timed out'),
@@ -548,7 +554,7 @@ class ApiService {
   }
 
   Future<User?> signup(String firstName, String lastName, String email, String phone, String county, String password) async {
-    debugPrint('=== SIGNUP ATTEMPT (DEBUG MODE v2) ===');
+    debugPrint('=== SIGNUP ATTEMPT (Cloudflare Only) ===');
     debugPrint('Email: $email');
     
     try {
@@ -582,54 +588,67 @@ class ApiService {
         'device_id_hash': deviceIdHash,
       };
       
-      debugPrint('Signup Body Keys: ${signupBody.keys.toList()}');
-      signupBody.forEach((key, value) {
-        debugPrint('Field $key: "$value" (Type: ${value.runtimeType})');
-        if (value is! String) {
-           debugPrint('WARNING: Field $key is not a String! It is ${value.runtimeType}');
-        }
-      });
+      // 2. Signup on Cloudflare
+      final cloudflareUri = Uri.parse('$cloudflareWorkerUrl/api/auth/signup');
+      debugPrint('Signup URI: $cloudflareUri');
       
-      // 2. Signup on Render (Primary)
-      debugPrint('Step 2: Getting backend URL...');
-      final baseUrl = await getWorkingBackendUrl();
-      // NOTE: Backend endpoint is /register, not /signup
-      final renderUri = Uri.parse('$baseUrl/api/auth/register');
-      debugPrint('Primary Signup URI (Render): $renderUri');
-      
-      debugPrint('Step 3: Sending POST request...');
-      final res = await _postWithRetry(
-        renderUri.toString(),
+      debugPrint('Step 2: Sending POST request...');
+      final res = await _client.post(
+        cloudflareUri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode(signupBody),
-      );
+      ).timeout(const Duration(seconds: 15));
       
-      debugPrint('Render Signup response status: ${res.statusCode}');
-      // Print response body for debugging
-      debugPrint('Render Signup response body: ${res.body.length > 2000 ? res.body.substring(0, 2000) + '...' : res.body}');
+      debugPrint('Signup response status: ${res.statusCode}');
+      debugPrint('Signup response body: ${res.body}');
       
+      // Self-healing: If 500 (Internal Server Error), it might be due to missing 'users' table or columns
+      if (res.statusCode == 500) {
+        debugPrint('Signup failed with 500. Attempting to initialize Users table...');
+        try {
+          final initUri = Uri.parse('$cloudflareWorkerUrl/api/db/init-users');
+          final initRes = await _client.post(
+            initUri,
+            headers: {'Content-Type': 'application/json'},
+          ).timeout(const Duration(seconds: 10));
+          
+          debugPrint('Init table response: ${initRes.statusCode} - ${initRes.body}');
+          
+          if (initRes.statusCode == 200) {
+             debugPrint('Table initialized. Retrying signup...');
+             final retryRes = await _client.post(
+              cloudflareUri,
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(signupBody),
+            ).timeout(const Duration(seconds: 15));
+            
+            if (retryRes.statusCode == 200 || retryRes.statusCode == 201) {
+              debugPrint('Retry Signup successful!');
+              // Auto-login
+              return await login(email, password);
+            }
+          }
+        } catch (e) {
+          debugPrint('Failed to auto-initialize table: $e');
+        }
+      }
+
       if (res.statusCode == 200 || res.statusCode == 201) {
-        debugPrint('Signup successful on Render');
+        debugPrint('Signup successful on Cloudflare');
         
-        // 3. Sync to Cloudflare (Critical for Login)
-        debugPrint('Step 4: Syncing to Cloudflare...');
-        await _syncToCloudflare(signupBody);
-        debugPrint('Cloudflare sync process completed');
-        
-        // 4. Auto-login (using Cloudflare)
-        debugPrint('Step 5: Auto-login (Cloudflare)...');
+        // 3. Auto-login
+        debugPrint('Step 3: Auto-login...');
         try {
           final user = await login(email, password);
           debugPrint('Auto-login result: ${user != null ? "Success" : "Failed (null)"}');
           return user;
         } catch (e) {
           debugPrint('Auto-login failed with error: $e');
-          // If login fails but signup succeeded, return basic user manually to allow progression
-          // This avoids the user being stuck on signup screen when account IS created
+          // If login fails but signup succeeded, return basic user manually
           return User(
             id: email.hashCode.toString(),
             email: email,
-            token: null, // User will need to login again or token is missing
+            token: null,
             role: 'user',
             firstName: firstName,
             lastName: lastName,
@@ -645,64 +664,11 @@ class ApiService {
     } catch (e, stackTrace) {
       debugPrint('CRITICAL SIGNUP ERROR: $e');
       debugPrint('Stack trace: $stackTrace');
-      if (e is TypeError) {
-         debugPrint('TYPE ERROR DETAILS: $e');
-         debugPrint('This often happens when a JSON field has an unexpected type (e.g. double instead of int).');
-      }
       rethrow;
     }
   }
 
-  Future<void> _syncToCloudflare(Map<String, dynamic> body) async {
-    debugPrint('=== SYNCING TO CLOUDFLARE ===');
-    try {
-      final cloudflareUri = Uri.parse('$cloudflareWorkerUrl/api/auth/signup');
-      debugPrint('Cloudflare Sync URI: $cloudflareUri');
-      
-      // Use configured client instead of raw http to benefit from SSL config
-      var res = await _client.post(
-        cloudflareUri,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(body),
-      ).timeout(const Duration(seconds: 15));
-      
-      debugPrint('Cloudflare Sync status: ${res.statusCode}');
-      debugPrint('Cloudflare Sync body: ${res.body}');
 
-      // Self-healing: If 500 (Internal Server Error), it might be due to missing 'users' table
-      if (res.statusCode == 500) {
-        debugPrint('Cloudflare sync failed with 500. Attempting to initialize Users table...');
-        try {
-          final initUri = Uri.parse('$cloudflareWorkerUrl/api/db/init-users');
-          final initRes = await _client.post(
-            initUri,
-            headers: {'Content-Type': 'application/json'},
-          ).timeout(const Duration(seconds: 10));
-          
-          debugPrint('Init table response: ${initRes.statusCode} - ${initRes.body}');
-          
-          if (initRes.statusCode == 200) {
-             debugPrint('Table initialized. Retrying sync...');
-             res = await _client.post(
-              cloudflareUri,
-              headers: {'Content-Type': 'application/json'},
-              body: json.encode(body),
-            ).timeout(const Duration(seconds: 15));
-            debugPrint('Retry Cloudflare Sync status: ${res.statusCode}');
-            debugPrint('Retry Cloudflare Sync body: ${res.body}');
-          }
-        } catch (e) {
-          debugPrint('Failed to auto-initialize table: $e');
-        }
-      }
-      
-      if (res.statusCode >= 400) {
-        debugPrint('Cloudflare Sync error body: ${res.body}');
-      }
-    } catch (e) {
-      debugPrint('Error syncing to Cloudflare: $e');
-    }
-  }
 
   Future<List<Content>> fetchFeed(String token, {int skip = 0}) async {
     debugPrint('=== FETCHING FEED (Cloudflare) ===');

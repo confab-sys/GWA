@@ -44,8 +44,8 @@ class NetworkImageWidget extends StatelessWidget {
       return '$baseImageUrl/$cleanPath';
     }
     
-    // If it starts with /, it's a relative path
-    const baseUrl = 'https://gwa-enus.onrender.com';
+    // If it starts with /, it's a relative path - use Cloudflare Worker
+    const baseUrl = 'https://gwa-main-worker.aashardcustomz.workers.dev';
     return '$baseUrl$cleanPath';
   }
 

@@ -1,3 +1,3 @@
 
 // For web, use the same environment-based configuration
-const String apiBaseUrl = 'https://gwa-enus.onrender.com'; // Always use production backend for web
+const String apiBaseUrl = 'https://gwa-main-worker.aashardcustomz.workers.dev'; // Always use production backend for web
