@@ -1,0 +1,17 @@
+name = "gwa-chat-worker"
+main = "chat-worker.js"
+compatibility_date = "2024-12-01"
+
+[durable_objects]
+bindings = [
+  { name = "CHAT_ROOM", class_name = "ChatRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatRoom"]
+
+[[d1_databases]]
+binding = "GWA_CHAT_DB"
+database_name = "gwa-main-db"
+database_id = "71bfffe9-e765-4929-94ce-f71187ab0214"

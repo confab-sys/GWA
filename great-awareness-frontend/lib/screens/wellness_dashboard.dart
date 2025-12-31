@@ -14,6 +14,7 @@ import '../widgets/recovery_timer.dart';
 import '../services/wellness_service.dart';
 import '../services/auth_service.dart';
 import 'events_screen.dart';
+import 'wellness_chats_screen.dart';
 
 // Helper to resolve dynamic icons to constants for tree-shaking
 IconData _resolveIcon(int code) {
@@ -803,16 +804,87 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_communityMembers.isEmpty) {
-      return Center(child: Text("No active members yet. Be the first!", style: GoogleFonts.inter()));
-    }
-
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        // Wellness Chat Entry
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const WellnessChatsScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [const Color(0xFF6B9080), const Color(0xFFA4C3B2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6B9080).withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const FaIcon(FontAwesomeIcons.comments, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Wellness Chat",
+                        style: GoogleFonts.judson(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "A safe space for support & connection.",
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+              ],
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 30),
+
         Text('Active Members', style: GoogleFonts.judson(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
-        ..._communityMembers.map((member) {
+
+        if (_communityMembers.isEmpty)
+          Center(child: Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: Text("No active members yet. Be the first!", style: GoogleFonts.inter(color: Colors.grey)),
+          ))
+        else
+          ..._communityMembers.map((member) {
           final streak = DateTime.now().difference(member.startDate).inDays;
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
