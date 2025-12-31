@@ -461,6 +461,33 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
           style: GoogleFonts.judson(color: Colors.black),
         ),
+        const SizedBox(height: 24),
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              Navigator.of(context).pushReplacementNamed('/login'); // Assuming '/login' is the route for login screen
+            },
+            child: RichText(
+              text: TextSpan(
+                text: 'Do you have an account? ',
+                style: GoogleFonts.judson(
+                  color: Colors.black,
+                  fontSize: 16,
+                ),
+                children: [
+                  TextSpan(
+                    text: 'Login',
+                    style: GoogleFonts.judson(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

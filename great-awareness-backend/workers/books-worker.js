@@ -71,6 +71,8 @@ async function handleUpload(request, env, corsHeaders) {
     access_level: formData.get("access_level") || "free",
     download_allowed: formData.get("download_allowed") === "true" ? 1 : 0,
     stream_read_allowed: formData.get("stream_read_allowed") === "true" ? 1 : 0,
+    on_sale: formData.get("on_sale") === "YES" ? "YES" : "NO",
+    available_to_read: formData.get("available_to_read") === "YES" ? "YES" : "NO",
     status: "active",
   };
 
@@ -101,9 +103,9 @@ async function handleUpload(request, env, corsHeaders) {
       id, title, author, category, description, cover_image_url, 
       file_key, file_type, file_size, page_count, language, 
       estimated_read_time_minutes, access_level, download_allowed, 
-      stream_read_allowed, checksum, status, created_at, updated_at
+      stream_read_allowed, on_sale, available_to_read, checksum, status, created_at, updated_at
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     )
   `;
 
@@ -112,7 +114,7 @@ async function handleUpload(request, env, corsHeaders) {
       bookId, metadata.title, metadata.author, metadata.category, metadata.description,
       coverKey, fileKey, file.type, file.size, metadata.page_count,
       metadata.language, metadata.estimated_read_time_minutes, metadata.access_level,
-      metadata.download_allowed, metadata.stream_read_allowed, checksum, metadata.status
+      metadata.download_allowed, metadata.stream_read_allowed, metadata.on_sale, metadata.available_to_read, checksum, metadata.status
     )
     .run();
 
@@ -278,12 +280,12 @@ async function handleSyncBooks(env, corsHeaders) {
           id, title, author, category, description, cover_image_url, 
           file_key, file_type, file_size, page_count, language, 
           estimated_read_time_minutes, access_level, download_allowed, 
-          stream_read_allowed, checksum, status, created_at, updated_at
+          stream_read_allowed, on_sale, available_to_read, checksum, status, created_at, updated_at
         ) VALUES (
           ?, ?, 'Unknown Author', 'Uncategorized', 'Synced from storage', '', 
           ?, 'application/octet-stream', ?, 0, 'en', 
           0, 'free', 1, 
-          1, '', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          1, 'NO', 'YES', '', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
       `).bind(bookId, title, key, object.size).run();
       

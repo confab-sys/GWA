@@ -17,6 +17,8 @@ CREATE TABLE books (
   stream_read_allowed INTEGER,
   checksum TEXT,
   status TEXT,
+  on_sale TEXT DEFAULT 'NO',
+  available_to_read TEXT DEFAULT 'NO',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
