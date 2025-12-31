@@ -913,7 +913,7 @@ class _ShareableTimerDialogState extends State<_ShareableTimerDialog> {
       if (!mounted) return;
 
       final days = DateTime.now().difference(widget.habitStartTime).inDays;
-      final shareText = '⏱️ I have been clean for $days days on Great Awareness! #Recovery #WellnessJourney';
+      final shareText = 'This is my milestone, thanks to Great awareness. I have been clean for $days days! https://great-awareness-frontend.vercel.app/';
       
       // Calculate share origin for iPad/tablets
       final box = context.findRenderObject() as RenderBox?;
