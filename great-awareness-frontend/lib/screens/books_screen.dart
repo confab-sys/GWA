@@ -433,6 +433,69 @@ class _BooksScreenState extends State<BooksScreen> {
                             ),
                           ),
                         ),
+                      // Status Badges - Full width banner
+                      if (book.onSale)
+                        Positioned(
+                          top: 12,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            color: Colors.red.withValues(alpha: 0.9),
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'On Sale',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (book.availableToRead)
+                        Positioned(
+                          top: 12,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            color: Colors.green.withValues(alpha: 0.9),
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'Available to Read',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Price Tag (only if On Sale and price > 0)
+                      if (book.onSale && book.price > 0)
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.amber, width: 1),
+                            ),
+                            child: Text(
+                              'KES ${book.price.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

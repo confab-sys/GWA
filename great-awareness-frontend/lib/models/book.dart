@@ -14,6 +14,9 @@ class Book {
   final String accessLevel;
   final bool downloadAllowed;
   final bool streamReadAllowed;
+  final bool onSale;
+  final bool availableToRead;
+  final double price;
   bool isFavorite;
   double readingProgress;
   bool isDownloaded;
@@ -34,6 +37,9 @@ class Book {
     this.accessLevel = 'free',
     this.downloadAllowed = true,
     this.streamReadAllowed = true,
+    this.onSale = false,
+    this.availableToRead = false,
+    this.price = 0.0,
     this.isFavorite = false,
     this.readingProgress = 0.0,
     this.isDownloaded = false,
@@ -66,6 +72,9 @@ class Book {
       accessLevel: json['access_level'] ?? 'free',
       downloadAllowed: (json['download_allowed'] == 1 || json['download_allowed'] == true),
       streamReadAllowed: (json['stream_read_allowed'] == 1 || json['stream_read_allowed'] == true),
+      onSale: json['on_sale'].toString().toUpperCase() == 'YES' || json['on_sale'] == true || json['on_sale'] == 1,
+      availableToRead: json['available_to_read'].toString().toUpperCase() == 'YES' || json['available_to_read'] == true || json['available_to_read'] == 1,
+      price: json['price']?.toDouble() ?? 0.0,
       isFavorite: json['isFavorite'] ?? false,
       readingProgress: json['readingProgress']?.toDouble() ?? 0.0,
       isDownloaded: json['isDownloaded'] ?? false,
@@ -85,6 +94,9 @@ class Book {
       'epubUrl': epubUrl,
       'download_count': downloadCount,
       'created_at': createdAt?.toIso8601String(),
+      'on_sale': onSale ? 'YES' : 'NO',
+      'available_to_read': availableToRead ? 'YES' : 'NO',
+      'price': price,
       'isFavorite': isFavorite,
       'readingProgress': readingProgress,
       'isDownloaded': isDownloaded,
