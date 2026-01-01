@@ -95,6 +95,7 @@ class AuthService extends ChangeNotifier {
         'phone_number': user.phoneNumber,
         'county': user.county,
         'role': user.role,
+        'profile_image': user.profileImage,
       }));
       await prefs.setString('auth_token', user.token ?? '');
     } catch (e) {

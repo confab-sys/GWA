@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import 'events_screen.dart';
 import 'wellness_chats_screen.dart';
 import 'people_wellness_screen.dart';
+import 'members_wellness_screen.dart';
 
 // Helper to resolve dynamic icons to constants for tree-shaking
 IconData _resolveIcon(int code) {
@@ -47,7 +48,6 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   int _selectedIndex = 0; // 0: Home (Videos), 1: Achievements, 2: Community, 3: Events
   WellnessStatus? _status;
   bool _isLoading = true;
-  List<CommunityMember> _communityMembers = [];
   List<WellnessResource> _resources = [];
   List<Milestone> _milestones = [];
   
@@ -81,18 +81,9 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         _resources = resources;
         _milestones = milestonesData['milestones'] as List<Milestone>;
       });
-      
-      if (_selectedIndex == 2) { // Load community if tab selected
-        _loadCommunity();
-      }
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  Future<void> _loadCommunity() async {
-    final members = await _wellnessService.getCommunity();
-    setState(() => _communityMembers = members);
   }
 
   Future<void> _handleJoin(String addictionType) async {
@@ -277,7 +268,6 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
     return InkWell(
       onTap: () {
         setState(() => _selectedIndex = index);
-        if (index == 2) _loadCommunity();
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -880,113 +870,71 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           ),
         ),
         
-        const SizedBox(height: 30),
-
-        Text('Active Members', style: GoogleFonts.judson(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
 
-        if (_communityMembers.isEmpty)
-          Center(child: Padding(
-            padding: const EdgeInsets.only(top: 20),
-            child: Text("No active members yet. Be the first!", style: GoogleFonts.inter(color: Colors.grey)),
-          ))
-        else
-          ..._communityMembers.map((member) {
-          final streak = DateTime.now().difference(member.startDate).inDays;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PeopleWellnessScreen(
-                      userId: member.userId,
-                      userName: member.name,
-                    ),
-                  ),
-                );
-              },
-              borderRadius: BorderRadius.circular(15),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: theme.primaryColor.withOpacity(0.1),
-                  child: Text(
-                    member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
-                    style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold),
-                  ),
+        // Community Members Entry
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const MembersWellnessScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: theme.cardTheme.color ?? Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
                 ),
-                title: Text(member.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('$streak Day Streak', style: GoogleFonts.inter(fontSize: 12)),
-                    Text('Recovering from: ${member.addictionType}', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey)),
-                  ],
+              ],
+              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: FaIcon(FontAwesomeIcons.users, color: theme.primaryColor, size: 24),
                 ),
-                trailing: member.latestMilestone != null
-                    ? _buildMilestoneBadge(member.latestMilestone!, theme)
-                    : Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Community Members",
+                        style: GoogleFonts.judson(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: theme.textTheme.bodyLarge?.color,
                         ),
                       ),
-              ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Connect with others on the same journey.",
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
+              ],
             ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildMilestoneBadge(CommunityMilestone milestone, ThemeData theme) {
-    if (milestone.badgeImageUrl != null && milestone.badgeImageUrl!.isNotEmpty) {
-      return Tooltip(
-        message: milestone.label,
-        child: ClipOval(
-          child: Image.network(
-            milestone.badgeImageUrl!,
-            width: 40,
-            height: 40,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-               return _buildMilestoneIcon(milestone, theme);
-            },
           ),
         ),
-      );
-    }
-    return Tooltip(message: milestone.label, child: _buildMilestoneIcon(milestone, theme));
-  }
-
-  Widget _buildMilestoneIcon(CommunityMilestone milestone, ThemeData theme) {
-    Color badgeColor = theme.primaryColor;
-    try {
-      String hex = milestone.colorHex.replaceAll('#', '');
-      if (hex.length == 6) hex = 'FF$hex';
-      badgeColor = Color(int.parse(hex, radix: 16));
-    } catch (e) {
-      // ignore
-    }
-
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
-        shape: BoxShape.circle,
-        border: Border.all(color: badgeColor, width: 2),
-      ),
-      alignment: Alignment.center,
-      child: FaIcon(
-        _resolveIcon(milestone.iconCode),
-        size: 20,
-        color: badgeColor,
-      ),
+      ],
     );
   }
 

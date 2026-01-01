@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
 import 'people_wellness_screen.dart';
+import '../utils/config.dart';
 
 class WellnessChatsScreen extends StatefulWidget {
   const WellnessChatsScreen({super.key});
@@ -646,6 +647,11 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
     return "${names.length} people are typing...";
   }
 
+  String _getProfileImageUrl(String path) {
+    if (path.startsWith('http')) return path;
+    return '$apiBaseUrl$path';
+  }
+
   Widget _buildMessageBubble(ChatMessage msg) {
     return Align(
       alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -683,7 +689,7 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
                     color: Colors.blueGrey[100],
                     image: msg.senderProfilePic != null 
                       ? DecorationImage(
-                          image: NetworkImage(msg.senderProfilePic!),
+                          image: NetworkImage(_getProfileImageUrl(msg.senderProfilePic!)),
                           fit: BoxFit.cover
                         )
                       : null,
