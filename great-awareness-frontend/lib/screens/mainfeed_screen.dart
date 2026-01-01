@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'post_detail_screen.dart';
 import 'admin_posting_screen.dart';
+import 'wellness_chats_screen.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/cache_service.dart';
@@ -53,12 +54,33 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
       debugPrint('MainFeedScreen received notification: ${notification.title}');
       // Optional: Show a snackbar for new notifications
       if (mounted) {
+        String message;
+        if (notification.type == NotificationType.chat) {
+          message = notification.content; // "User: Message"
+        } else if (notification.type == NotificationType.post) {
+          message = 'New post in ${notification.category}: ${notification.title}';
+        } else if (notification.type == NotificationType.question) {
+          message = 'New question in ${notification.category}: ${notification.title}';
+        } else {
+          message = notification.title;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('New ${notification.type == NotificationType.post ? 'post' : 'question'} in ${notification.category}: ${notification.title}'),
+            content: Text(message),
             duration: const Duration(seconds: 4),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
+            action: notification.type == NotificationType.chat ? SnackBarAction(
+               label: 'VIEW',
+               textColor: Colors.white,
+               onPressed: () {
+                 Navigator.push(
+                   context,
+                   MaterialPageRoute(builder: (context) => const WellnessChatsScreen()),
+                 );
+               },
+             ) : null,
           ),
         );
       }

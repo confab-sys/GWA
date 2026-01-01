@@ -86,6 +86,22 @@ export class ChatRoom {
            this.env.GWA_CHAT_DB.prepare(
              "INSERT INTO chat_messages (id, room_id, user_name, content, created_at, user_id, user_avatar) VALUES (?, ?, ?, ?, ?, ?, ?)"
            ).bind(messageEntry.id, messageEntry.room_id, messageEntry.user_name, messageEntry.content, messageEntry.created_at, messageEntry.user_id, messageEntry.user_avatar).run().catch(e => console.error(e));
+
+           // 3. Trigger Global Notification (fire and forget)
+           fetch("https://gwa-notifications-worker.aashardcustomz.workers.dev/notifications/broadcast", {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({
+               title: "New Wellness Chat",
+               body: `${messageEntry.user_name}: ${messageEntry.content}`,
+               type: "chat",
+               excludeUserId: messageEntry.user_id,
+               metadata: { 
+                 roomId: "wellness", // Or extract from path if possible, but "wellness" is the main one
+                 messageId: messageEntry.id 
+               }
+             })
+           }).catch(e => console.error("Failed to trigger notification:", e));
         }
       } catch (err) {
         console.error("Error handling message", err);
