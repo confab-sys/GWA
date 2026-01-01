@@ -147,6 +147,20 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
                  const SizedBox(width: 8),
                  GestureDetector(
                     onTap: () {
+                      Provider.of<NotificationService>(context, listen: false).toggleMute();
+                      if (overlayEntry.mounted) overlayEntry.remove();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Notifications muted'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.notifications_off, color: Colors.white, size: 18),
+                 ),
+                 const SizedBox(width: 12),
+                 GestureDetector(
+                    onTap: () {
                       if (overlayEntry.mounted) overlayEntry.remove();
                     },
                     child: const Icon(Icons.close, color: Colors.white, size: 18),
@@ -1265,27 +1279,6 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
-          Consumer<NotificationService>(
-            builder: (context, notificationService, _) {
-              return IconButton(
-                icon: Icon(
-                  notificationService.isMuted ? Icons.notifications_off : Icons.notifications_active,
-                  color: notificationService.isMuted ? Colors.grey : Colors.black,
-                ),
-                tooltip: notificationService.isMuted ? 'Unmute notifications' : 'Mute notifications',
-                onPressed: () {
-                  notificationService.toggleMute();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(notificationService.isMuted ? 'Notifications muted' : 'Notifications enabled'),
-                      duration: const Duration(seconds: 2),
-                      backgroundColor: notificationService.isMuted ? Colors.grey : Colors.green,
-                    ),
-                  );
-                },
-              );
-            },
-          ),
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search, color: Colors.black),
             onPressed: () {
