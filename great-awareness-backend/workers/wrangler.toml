@@ -12,3 +12,7 @@ bucket_name = "gwa-videos"
 binding = "GWA_VIDEOS_DB"
 database_name = "gwa-videos"
 database_id = "99e1c188-d81a-4fe8-aba9-a491b78ea542"
+
+[[services]]
+binding = "NOTIFICATIONS"
+service = "gwa-notifications-worker"

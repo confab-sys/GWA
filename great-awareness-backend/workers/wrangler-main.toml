@@ -15,3 +15,7 @@ bucket_name = "gwa-users"
 [[r2_buckets]]
 binding = "GWA_CONTENT_BUCKET"
 bucket_name = "gwa-content"
+
+[[services]]
+binding = "NOTIFICATIONS"
+service = "gwa-notifications-worker"

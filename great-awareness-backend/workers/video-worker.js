@@ -31,7 +31,7 @@ export default {
       } else if (pathname === '/api/videos/sync' && method === 'POST') {
         return await handleSyncVideos(request, env, CORS_HEADERS);
       } else if (pathname === '/api/videos/upload' && method === 'POST') {
-        return await handleUploadVideo(request, env, CORS_HEADERS);
+        return await handleUploadVideo(request, env, ctx, CORS_HEADERS);
       } else if (pathname.startsWith('/api/videos/') && pathname.endsWith('/signed-url') && method === 'GET') {
         const pathParts = pathname.split('/');
         const videoId = pathParts[3]; // /api/videos/{id}/signed-url
@@ -341,7 +341,7 @@ async function handleListMasterClasses(request, env, corsHeaders) {
 /**
  * Upload video directly to R2 and save metadata
  */
-async function handleUploadVideo(request, env, corsHeaders) {
+async function handleUploadVideo(request, env, ctx, corsHeaders) {
   try {
     const formData = await request.formData();
     const file = formData.get('file');
@@ -416,6 +416,44 @@ async function handleUploadVideo(request, env, corsHeaders) {
     
     console.log(`Successfully uploaded video: ${file.name} (ID: ${videoId})`);
     
+    // Trigger Broadcast Notification for new video
+    ctx.waitUntil((async () => {
+        try {
+            const notificationPayload = {
+                title: `New Video: ${title}`,
+                body: description.length > 50 ? description.substring(0, 50) + "..." : description,
+                type: "video",
+                metadata: {
+                    videoId: videoId,
+                    category: category
+                }
+            };
+            
+            let notifRes;
+            if (env.NOTIFICATIONS) {
+                notifRes = await env.NOTIFICATIONS.fetch("https://notifications/notifications/broadcast", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(notificationPayload)
+                });
+            } else {
+                notifRes = await fetch("https://gwa-notifications-worker.aashardcustomz.workers.dev/notifications/broadcast", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(notificationPayload)
+                });
+            }
+            
+            if (!notifRes.ok) {
+                console.error("Video notification broadcast failed:", await notifRes.text());
+            } else {
+                console.log("Video notification broadcast initiated");
+            }
+        } catch (e) {
+            console.error("Video notification broadcast error:", e);
+        }
+    })());
+
     return new Response(
       JSON.stringify({
         success: true,

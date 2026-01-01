@@ -300,7 +300,7 @@ export default {
       if (url.pathname === "/api/contents" && method === "POST") {
         const data = await request.json();
         // Insert content with all fields
-        const { success } = await env.DB.prepare(
+        const result = await env.DB.prepare(
           `INSERT INTO contents (title, body, topic, post_type, author_name, image_path, is_text_only, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           data.title, 
@@ -312,6 +312,51 @@ export default {
           data.is_text_only ? 1 : 0,
           data.status || 'published'
         ).run();
+
+        const success = result.success;
+
+        if (success) {
+             // Trigger Broadcast Notification
+             ctx.waitUntil((async () => {
+                 try {
+                     const notificationPayload = {
+                         title: `New Post: ${data.title}`,
+                         body: data.body.length > 50 ? data.body.substring(0, 50) + "..." : data.body,
+                         type: "post",
+                         metadata: {
+                             postId: result.meta?.last_row_id,
+                             topic: data.topic
+                         }
+                     };
+                     
+                     // Using Service Binding for reliability
+                     let notifRes;
+                     if (env.NOTIFICATIONS) {
+                         notifRes = await env.NOTIFICATIONS.fetch("https://notifications/notifications/broadcast", {
+                             method: "POST",
+                             headers: { "Content-Type": "application/json" },
+                             body: JSON.stringify(notificationPayload)
+                         });
+                     } else {
+                         // Fallback to public URL if binding not present
+                         notifRes = await fetch("https://gwa-notifications-worker.aashardcustomz.workers.dev/notifications/broadcast", {
+                             method: "POST",
+                             headers: { "Content-Type": "application/json" },
+                             body: JSON.stringify(notificationPayload)
+                         });
+                     }
+                     
+                     if (!notifRes.ok) {
+                         console.error("Notification broadcast failed:", await notifRes.text());
+                     } else {
+                         console.log("Notification broadcast initiated");
+                     }
+                 } catch (e) {
+                     console.error("Notification broadcast error:", e);
+                 }
+             })());
+        }
+
         return Response.json({ success }, { headers: corsHeaders });
       }
 
