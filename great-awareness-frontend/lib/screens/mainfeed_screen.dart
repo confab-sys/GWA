@@ -65,24 +65,97 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
           message = notification.title;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            duration: const Duration(seconds: 4),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            action: notification.type == NotificationType.chat ? SnackBarAction(
-               label: 'VIEW',
-               textColor: Colors.white,
-               onPressed: () {
-                 Navigator.push(
-                   context,
-                   MaterialPageRoute(builder: (context) => const WellnessChatsScreen()),
-                 );
-               },
-             ) : null,
+        _showTopNotification(notification);
+      }
+    });
+  }
+
+  void _showTopNotification(AppNotification notification) {
+    if (!mounted) return;
+    
+    String message;
+    if (notification.type == NotificationType.chat) {
+      message = notification.content; // "User: Message"
+    } else if (notification.type == NotificationType.post) {
+      message = 'New post in ${notification.category}: ${notification.title}';
+    } else if (notification.type == NotificationType.question) {
+      message = 'New question in ${notification.category}: ${notification.title}';
+    } else {
+      message = notification.title;
+    }
+
+    final overlay = Overlay.of(context);
+    late OverlayEntry overlayEntry;
+    
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade600,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.notifications_active, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (notification.type == NotificationType.chat)
+                  TextButton(
+                    onPressed: () {
+                      overlayEntry.remove();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const WellnessChatsScreen()),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('VIEW', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  ),
+                 const SizedBox(width: 8),
+                 GestureDetector(
+                    onTap: () {
+                      if (overlayEntry.mounted) overlayEntry.remove();
+                    },
+                    child: const Icon(Icons.close, color: Colors.white, size: 18),
+                 ),
+              ],
+            ),
           ),
-        );
+        ),
+      ),
+    );
+
+    overlay.insert(overlayEntry);
+
+    // Auto remove after 4 seconds
+    Future.delayed(const Duration(seconds: 4), () {
+      if (overlayEntry.mounted) {
+        overlayEntry.remove();
       }
     });
   }
