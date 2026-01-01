@@ -19,8 +19,21 @@ export default {
 
       // --- Users Endpoints ---
       if (url.pathname === "/api/users" && method === "GET") {
-        const { results } = await env.DB.prepare("SELECT * FROM users").all();
+        const { results } = await env.DB.prepare("SELECT id, username, profile_image, first_name, last_name FROM users").all();
         return Response.json(results, { headers: corsHeaders });
+      }
+
+      // Get Single User Profile (Public)
+      const userIdMatch = url.pathname.match(/^\/api\/users\/(\d+)$/);
+      if (userIdMatch && method === "GET") {
+        const id = userIdMatch[1];
+        const user = await env.DB.prepare(
+          "SELECT id, username, profile_image, first_name, last_name, county FROM users WHERE id = ?"
+        ).bind(id).first();
+        
+        if (!user) return new Response("User not found", { status: 404, headers: corsHeaders });
+        
+        return Response.json(user, { headers: corsHeaders });
       }
 
       // User Authentication

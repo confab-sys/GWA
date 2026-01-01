@@ -8,6 +8,7 @@ class User {
   final String? lastName;
   final String? phoneNumber;
   final String? county;
+  final String? profileImage;
   
   User({
     required this.id, 
@@ -19,19 +20,21 @@ class User {
     this.lastName,
     this.phoneNumber,
     this.county,
+    this.profileImage,
   });
   
   factory User.fromJson(Map<String, dynamic> json, {String? token}) {
     return User(
       id: json['id']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      name: json['name']?.toString() ?? '${json['first_name']?.toString() ?? ''} ${json['last_name']?.toString() ?? ''}'.trim(),
+      name: json['name']?.toString() ?? json['username']?.toString() ?? '${json['first_name']?.toString() ?? ''} ${json['last_name']?.toString() ?? ''}'.trim(),
       token: token ?? json['token']?.toString(),
       role: json['role']?.toString() ?? 'user',
       firstName: json['first_name']?.toString(),
       lastName: json['last_name']?.toString(),
       phoneNumber: json['phone_number']?.toString(),
       county: json['county']?.toString(),
+      profileImage: json['profile_image']?.toString(),
     );
   }
   

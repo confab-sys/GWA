@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
+import 'people_wellness_screen.dart';
 
 class WellnessChatsScreen extends StatefulWidget {
   const WellnessChatsScreen({super.key});
@@ -21,6 +22,13 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
   final ScrollController _scrollController = ScrollController();
   WebSocketChannel? _channel;
   final List<ChatMessage> _messages = [];
+  
+  // Presence State
+  List<Map<String, dynamic>> _onlineUsers = [];
+  final Map<String, String> _typingUsers = {}; // userId -> userName
+  Timer? _typingDebounce;
+  bool _isTyping = false;
+
   bool _isConnected = false;
   String? _errorMessage;
   late User _currentUser;
@@ -69,6 +77,8 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
         final history = data.map((msgData) => ChatMessage(
           id: msgData['id'] ?? 'unknown',
           senderName: msgData['user_name'] ?? 'Anonymous',
+          senderId: msgData['user_id'],
+          senderProfilePic: msgData['user_avatar'],
           content: msgData['content'] ?? '',
           timestamp: DateTime.fromMillisecondsSinceEpoch(msgData['created_at'] ?? 0),
           isMe: msgData['user_name'] == _currentUser.name,
@@ -100,14 +110,19 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
       });
 
       // Send join message
-      _sendMessage({'type': 'join', 'user': {'id': _currentUser.id, 'name': _currentUser.name}});
+      _sendMessage({
+        'type': 'join', 
+        'user': {
+          'id': _currentUser.id, 
+          'name': _currentUser.name,
+          'profilePictureUrl': _currentUser.profileImage,
+        }
+      });
 
       _channel!.stream.listen(
         (message) {
           final data = jsonDecode(message);
-          if (data['type'] == 'new_message') {
-            _handleNewMessage(data['message']);
-          }
+          _handleWebSocketMessage(data);
         },
         onError: (error) {
           if (mounted) {
@@ -130,10 +145,37 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
     }
   }
 
+  void _handleWebSocketMessage(Map<String, dynamic> data) {
+    if (!mounted) return;
+
+    switch (data['type']) {
+      case 'new_message':
+        _handleNewMessage(data['message']);
+        break;
+      case 'presence_update':
+        setState(() {
+          _onlineUsers = List<Map<String, dynamic>>.from(data['users']);
+        });
+        break;
+      case 'typing_start':
+        setState(() {
+          _typingUsers[data['userId']] = data['userName'];
+        });
+        break;
+      case 'typing_stop':
+        setState(() {
+          _typingUsers.remove(data['userId']);
+        });
+        break;
+    }
+  }
+
   void _handleNewMessage(Map<String, dynamic> msgData) {
     final newMessage = ChatMessage(
       id: msgData['id'],
       senderName: msgData['user_name'],
+      senderId: msgData['user_id'],
+      senderProfilePic: msgData['user_avatar'],
       content: msgData['content'],
       timestamp: DateTime.fromMillisecondsSinceEpoch(msgData['created_at']),
       isMe: msgData['user_name'] == _currentUser.name, // Simple check, ideally use ID
@@ -147,11 +189,33 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
     }
   }
 
+  void _onTyping() {
+    if (!_isConnected) return;
+
+    if (!_isTyping) {
+      _isTyping = true;
+      _sendMessage({'type': 'typing_start'});
+    }
+
+    _typingDebounce?.cancel();
+    _typingDebounce = Timer(const Duration(seconds: 2), () {
+      if (mounted && _isTyping) {
+        _isTyping = false;
+        _sendMessage({'type': 'typing_stop'});
+      }
+    });
+  }
+
   void _sendMessagePayload() {
     if (_messageController.text.trim().isEmpty) return;
 
     final content = _messageController.text.trim();
     
+    // Stop typing immediately
+    _isTyping = false;
+    _typingDebounce?.cancel();
+    _sendMessage({'type': 'typing_stop'});
+
     // Send to WebSocket
     _sendMessage({
       'type': 'message',
@@ -179,11 +243,157 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
     });
   }
 
+  void _showParticipantsPanel() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Live Participants",
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green[100]!),
+                      ),
+                      child: Text(
+                        "${_onlineUsers.length} Online",
+                        style: GoogleFonts.inter(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _onlineUsers.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemBuilder: (context, index) {
+                    final user = _onlineUsers[index];
+                    final isMe = user['id'] == _currentUser.id;
+                    
+                    return InkWell(
+                      onTap: () {
+                        Navigator.pop(context); // Close sheet
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PeopleWellnessScreen(
+                              userId: user['id'],
+                              userName: user['name'],
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.blueGrey[100],
+                                image: user['profilePictureUrl'] != null 
+                                  ? DecorationImage(
+                                      image: NetworkImage(user['profilePictureUrl']),
+                                      fit: BoxFit.cover
+                                    )
+                                  : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: user['profilePictureUrl'] == null
+                                  ? Text(
+                                      (user['name'] ?? "?")[0].toUpperCase(),
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user['name'] ?? "Anonymous",
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  if (isMe)
+                                    Text(
+                                      "You",
+                                      style: GoogleFonts.inter(
+                                        color: Colors.grey[500],
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.green[400],
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _channel?.sink.close();
     _messageController.dispose();
     _scrollController.dispose();
+    _typingDebounce?.cancel();
     super.dispose();
   }
 
@@ -197,38 +407,43 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Wellness Chat",
-              style: GoogleFonts.inter(
-                color: Colors.black87,
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
+        title: GestureDetector(
+          onTap: _showParticipantsPanel,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Wellness Chat",
+                style: GoogleFonts.inter(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
               ),
-            ),
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _isConnected ? Colors.green[400] : Colors.red[300],
-                    shape: BoxShape.circle,
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _isConnected ? Colors.green[400] : Colors.red[300],
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _isConnected ? "Live • ${(_messages.length > 0 ? _messages.length : 1)} Online" : "Connecting...",
-                  style: GoogleFonts.inter(
-                    color: Colors.grey[500],
-                    fontSize: 12,
+                  const SizedBox(width: 6),
+                  Text(
+                    _isConnected ? "Live • ${_onlineUsers.length} Online" : "Connecting...",
+                    style: GoogleFonts.inter(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 4),
+                  Icon(Icons.keyboard_arrow_down_rounded, size: 14, color: Colors.grey[400]),
+                ],
+              ),
+            ],
+          ),
         ),
         iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
@@ -332,6 +547,31 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
                         ),
             ),
 
+            // Typing Indicator
+            if (_typingUsers.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey[400]),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _getTypingText(),
+                      style: GoogleFonts.inter(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // Input Area
             Container(
               padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 24),
@@ -355,6 +595,7 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
                       ),
                       child: TextField(
                         controller: _messageController,
+                        onChanged: (_) => _onTyping(),
                         style: GoogleFonts.inter(fontSize: 15),
                         decoration: InputDecoration(
                           hintText: "Share a thought...",
@@ -397,55 +638,118 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
     );
   }
 
+  String _getTypingText() {
+    if (_typingUsers.isEmpty) return "";
+    final names = _typingUsers.values.toList();
+    if (names.length == 1) return "${names[0]} is typing...";
+    if (names.length == 2) return "${names[0]} and ${names[1]} are typing...";
+    return "${names.length} people are typing...";
+  }
+
   Widget _buildMessageBubble(ChatMessage msg) {
     return Align(
       alignment: msg.isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        child: Column(
-          crossAxisAlignment: msg.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            if (!msg.isMe)
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 4),
-                child: Text(
-                  msg.senderName,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+      child: GestureDetector(
+        onTap: () {
+          // Navigate to profile if senderId is available and not me
+          if (!msg.isMe && msg.senderId != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PeopleWellnessScreen(
+                  userId: msg.senderId,
+                  userName: msg.senderName,
+                ),
+              ),
+            );
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: msg.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              if (!msg.isMe) ...[
+                // Tiny Profile Picture
+                Container(
+                  margin: const EdgeInsets.only(right: 8, bottom: 4),
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.blueGrey[100],
+                    image: msg.senderProfilePic != null 
+                      ? DecorationImage(
+                          image: NetworkImage(msg.senderProfilePic!),
+                          fit: BoxFit.cover
+                        )
+                      : null,
                   ),
+                  alignment: Alignment.center,
+                  child: msg.senderProfilePic == null
+                      ? Text(
+                          (msg.senderName.isNotEmpty ? msg.senderName[0] : "?").toUpperCase(),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+              
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: msg.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    if (!msg.isMe)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 4),
+                        child: Text(
+                          msg.senderName,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: msg.isMe ? const Color(0xFFEAF4F4) : Colors.white, // Gentle mint for me, white for others
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(18),
+                          topRight: const Radius.circular(18),
+                          bottomLeft: Radius.circular(msg.isMe ? 18 : 4),
+                          bottomRight: Radius.circular(msg.isMe ? 4 : 18),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        msg.content,
+                        style: GoogleFonts.inter(
+                          color: Colors.black87,
+                          fontSize: 15,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: msg.isMe ? const Color(0xFFEAF4F4) : Colors.white, // Gentle mint for me, white for others
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(msg.isMe ? 18 : 4),
-                  bottomRight: Radius.circular(msg.isMe ? 4 : 18),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Text(
-                msg.content,
-                style: GoogleFonts.inter(
-                  color: Colors.black87,
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -455,6 +759,8 @@ class _WellnessChatsScreenState extends State<WellnessChatsScreen> with TickerPr
 class ChatMessage {
   final String id;
   final String senderName;
+  final String? senderId;
+  final String? senderProfilePic;
   final String content;
   final DateTime timestamp;
   final bool isMe;
@@ -462,6 +768,8 @@ class ChatMessage {
   ChatMessage({
     required this.id,
     required this.senderName,
+    this.senderId,
+    this.senderProfilePic,
     required this.content,
     required this.timestamp,
     required this.isMe,

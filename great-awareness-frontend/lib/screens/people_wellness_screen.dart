@@ -45,19 +45,26 @@ class _PeopleWellnessScreenState extends State<PeopleWellnessScreen> {
       return;
     }
 
-    // Fetch status and milestones in parallel
-    final results = await Future.wait([
+    // Fetch status, milestones, and profile (if not current user) in parallel
+    final futures = <Future<dynamic>>[
       wellnessService.getStatus(userId: targetUserId),
       wellnessService.getMilestones(userId: targetUserId),
-    ]);
+    ];
+
+    if (targetUserId != currentUser?.id) {
+      futures.add(authService.getUserProfile(targetUserId));
+    }
+
+    final results = await Future.wait(futures);
     
     final status = results[0] as WellnessStatus?;
     final milestonesData = results[1] as Map<String, dynamic>;
+    final fetchedUser = (results.length > 2) ? results[2] as User? : null;
 
     if (mounted) {
       setState(() {
-        _currentUser = currentUser;
-        _displayName = widget.userName ?? currentUser?.name;
+        _currentUser = fetchedUser ?? currentUser;
+        _displayName = fetchedUser?.name ?? widget.userName ?? currentUser?.name;
         _status = status;
         _milestones = milestonesData['milestones'] as List<Milestone>;
         _isLoading = false;
@@ -172,17 +179,22 @@ class _PeopleWellnessScreenState extends State<PeopleWellnessScreen> {
             child: CircleAvatar(
               radius: 50,
               backgroundColor: theme.primaryColor.withOpacity(0.1),
+              backgroundImage: _currentUser?.profileImage != null 
+                  ? NetworkImage(_currentUser!.profileImage!) 
+                  : null,
               // Use first letter if no image, or generic icon
-              child: _displayName != null && _displayName!.isNotEmpty
-                  ? Text(
-                      _displayName![0].toUpperCase(),
-                      style: GoogleFonts.judson(
-                        fontSize: 40,
-                        color: theme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : FaIcon(FontAwesomeIcons.user, size: 40, color: theme.primaryColor),
+              child: _currentUser?.profileImage == null
+                  ? (_displayName != null && _displayName!.isNotEmpty
+                      ? Text(
+                          _displayName![0].toUpperCase(),
+                          style: GoogleFonts.judson(
+                            fontSize: 40,
+                            color: theme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : FaIcon(FontAwesomeIcons.user, size: 40, color: theme.primaryColor))
+                  : null,
             ),
           ),
           const SizedBox(height: 20),

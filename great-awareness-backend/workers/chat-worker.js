@@ -40,7 +40,8 @@ export class ChatRoom {
 
   async handleSession(webSocket) {
     webSocket.accept();
-    this.sessions.push({ webSocket });
+    const session = { webSocket, user: null };
+    this.sessions.push(session);
 
     webSocket.addEventListener("message", async (msg) => {
       try {
@@ -48,21 +49,29 @@ export class ChatRoom {
         
         if (data.type === 'join') {
            // Tag session with user info
-           const session = this.sessions.find(s => s.webSocket === webSocket);
-           if (session) {
-             session.user = data.user; // { id, name, alias }
-           }
-           // Optionally broadcast join? Prompt says "Handle join/leave events gracefully" but also "No reaction spam".
-           // Maybe just silent join or subtle.
+           session.user = data.user; // { id, name, alias, profilePictureUrl }
+           this.broadcastPresence();
+        } else if (data.type === 'typing_start') {
+           this.broadcast(JSON.stringify({
+             type: 'typing_start',
+             userId: session.user?.id,
+             userName: session.user?.name || "Someone"
+           }), webSocket); // Exclude sender
+        } else if (data.type === 'typing_stop') {
+           this.broadcast(JSON.stringify({
+             type: 'typing_stop',
+             userId: session.user?.id
+           }), webSocket); // Exclude sender
         } else if (data.type === 'message') {
            // Broadcast
-           const session = this.sessions.find(s => s.webSocket === webSocket);
-           const user = session?.user || { name: 'Anonymous' };
+           const user = session.user || { name: 'Anonymous' };
            
            const messageEntry = {
              id: crypto.randomUUID(),
              room_id: this.state.id.toString(),
              user_name: user.name || user.alias || "Anonymous",
+             user_id: user.id || null,
+             user_avatar: user.profilePictureUrl || null,
              content: data.content,
              created_at: Date.now() // Server-generated timestamp
            };
@@ -75,8 +84,8 @@ export class ChatRoom {
 
            // 2. Persist to D1 (fire and forget to not block)
            this.env.GWA_CHAT_DB.prepare(
-             "INSERT INTO chat_messages (id, room_id, user_name, content, created_at) VALUES (?, ?, ?, ?, ?)"
-           ).bind(messageEntry.id, messageEntry.room_id, messageEntry.user_name, messageEntry.content, messageEntry.created_at).run().catch(e => console.error(e));
+             "INSERT INTO chat_messages (id, room_id, user_name, content, created_at, user_id, user_avatar) VALUES (?, ?, ?, ?, ?, ?, ?)"
+           ).bind(messageEntry.id, messageEntry.room_id, messageEntry.user_name, messageEntry.content, messageEntry.created_at, messageEntry.user_id, messageEntry.user_avatar).run().catch(e => console.error(e));
         }
       } catch (err) {
         console.error("Error handling message", err);
@@ -84,12 +93,31 @@ export class ChatRoom {
     });
 
     webSocket.addEventListener("close", () => {
-      this.sessions = this.sessions.filter((session) => session.webSocket !== webSocket);
+      this.sessions = this.sessions.filter((s) => s !== session);
+      if (session.user) {
+        this.broadcastPresence();
+      }
     });
   }
 
-  broadcast(message) {
+  broadcastPresence() {
+    const onlineUsers = this.sessions
+      .filter(s => s.user)
+      .map(s => s.user);
+      
+    // Deduplicate by ID
+    const uniqueUsers = Array.from(new Map(onlineUsers.map(u => [u.id, u])).values());
+
+    this.broadcast(JSON.stringify({
+      type: 'presence_update',
+      count: uniqueUsers.length,
+      users: uniqueUsers
+    }));
+  }
+
+  broadcast(message, excludeSocket = null) {
     this.sessions = this.sessions.filter((session) => {
+      if (excludeSocket && session.webSocket === excludeSocket) return true;
       try {
         session.webSocket.send(message);
         return true;

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/user.dart';
+import '../utils/config.dart';
 
 class AuthService extends ChangeNotifier {
   User? _currentUser;
@@ -53,6 +55,22 @@ class AuthService extends ChangeNotifier {
     return isAuthenticated;
   }
   
+  Future<User?> getUserProfile(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/api/users/$userId'),
+      );
+      
+      if (response.statusCode == 200) {
+        return User.fromJson(json.decode(response.body));
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+      return null;
+    }
+  }
+
   Future<void> login(User user) async {
     _currentUser = user;
     await _saveUserToStorage(user);
