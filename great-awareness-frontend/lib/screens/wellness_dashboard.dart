@@ -15,6 +15,7 @@ import '../services/wellness_service.dart';
 import '../services/auth_service.dart';
 import 'events_screen.dart';
 import 'wellness_chats_screen.dart';
+import 'people_wellness_screen.dart';
 
 // Helper to resolve dynamic icons to constants for tree-shaking
 IconData _resolveIcon(int code) {
@@ -52,12 +53,13 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
   
   late WellnessService _wellnessService;
 
-  final List<String> _menuItems = ['Home', 'Achievements', 'Community', 'Events'];
+  final List<String> _menuItems = ['Home', 'Achievements', 'Community', 'Events', 'My Profile'];
   final List<IconData> _menuIcons = [
     FontAwesomeIcons.house,
     FontAwesomeIcons.trophy,
     FontAwesomeIcons.users,
     FontAwesomeIcons.calendarDay,
+    FontAwesomeIcons.user,
   ];
 
   @override
@@ -273,7 +275,10 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
 
   Widget _buildMenuItem(ThemeData theme, int index, bool isSelected) {
     return InkWell(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () {
+        setState(() => _selectedIndex = index);
+        if (index == 2) _loadCommunity();
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
@@ -384,6 +389,8 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
         return _buildCommunityContent(theme);
       case 3:
         return _buildEventsContent(theme);
+      case 4:
+        return const PeopleWellnessScreen();
       default:
         return _buildHomeContent(theme);
     }
@@ -889,34 +896,97 @@ class _WellnessDashboardState extends State<WellnessDashboard> {
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: theme.primaryColor.withOpacity(0.1),
-                child: Text(
-                  member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
-                  style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PeopleWellnessScreen(
+                      userId: member.userId,
+                      userName: member.name,
+                    ),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(15),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: theme.primaryColor.withOpacity(0.1),
+                  child: Text(
+                    member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+                    style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold),
+                  ),
                 ),
-              ),
-              title: Text(member.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('$streak Day Streak', style: GoogleFonts.inter(fontSize: 12)),
-                  Text('Recovering from: ${member.addictionType}', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey)),
-                ],
-              ),
-              trailing: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.green, // Assuming active if in list
-                  shape: BoxShape.circle,
+                title: Text(member.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$streak Day Streak', style: GoogleFonts.inter(fontSize: 12)),
+                    Text('Recovering from: ${member.addictionType}', style: GoogleFonts.inter(fontSize: 10, color: Colors.grey)),
+                  ],
                 ),
+                trailing: member.latestMilestone != null
+                    ? _buildMilestoneBadge(member.latestMilestone!, theme)
+                    : Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
               ),
             ),
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildMilestoneBadge(CommunityMilestone milestone, ThemeData theme) {
+    if (milestone.badgeImageUrl != null && milestone.badgeImageUrl!.isNotEmpty) {
+      return Tooltip(
+        message: milestone.label,
+        child: ClipOval(
+          child: Image.network(
+            milestone.badgeImageUrl!,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+               return _buildMilestoneIcon(milestone, theme);
+            },
+          ),
+        ),
+      );
+    }
+    return Tooltip(message: milestone.label, child: _buildMilestoneIcon(milestone, theme));
+  }
+
+  Widget _buildMilestoneIcon(CommunityMilestone milestone, ThemeData theme) {
+    Color badgeColor = theme.primaryColor;
+    try {
+      String hex = milestone.colorHex.replaceAll('#', '');
+      if (hex.length == 6) hex = 'FF$hex';
+      badgeColor = Color(int.parse(hex, radix: 16));
+    } catch (e) {
+      // ignore
+    }
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: badgeColor.withOpacity(0.1),
+        shape: BoxShape.circle,
+        border: Border.all(color: badgeColor, width: 2),
+      ),
+      alignment: Alignment.center,
+      child: FaIcon(
+        _resolveIcon(milestone.iconCode),
+        size: 20,
+        color: badgeColor,
+      ),
     );
   }
 

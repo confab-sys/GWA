@@ -43,17 +43,42 @@ class WellnessStatus {
   }
 }
 
+class CommunityMilestone {
+  final String label;
+  final int iconCode;
+  final String colorHex;
+  final String? badgeImageUrl;
+
+  CommunityMilestone({
+    required this.label,
+    required this.iconCode,
+    required this.colorHex,
+    this.badgeImageUrl,
+  });
+
+  factory CommunityMilestone.fromJson(Map<String, dynamic> json) {
+    return CommunityMilestone(
+      label: json['label'],
+      iconCode: json['icon_code'],
+      colorHex: json['color_hex'],
+      badgeImageUrl: json['badge_image_url'],
+    );
+  }
+}
+
 class CommunityMember {
   final String userId;
   final String name;
   final String addictionType;
   final DateTime startDate;
+  final CommunityMilestone? latestMilestone;
 
   CommunityMember({
     required this.userId,
     required this.name,
     required this.addictionType,
     required this.startDate,
+    this.latestMilestone,
   });
 
   factory CommunityMember.fromJson(Map<String, dynamic> json) {
@@ -62,6 +87,9 @@ class CommunityMember {
       name: json['name'] ?? 'Anonymous',
       addictionType: json['addiction_type'] ?? 'Unknown',
       startDate: DateTime.parse(json['start_date']),
+      latestMilestone: json['latest_milestone'] != null
+          ? CommunityMilestone.fromJson(json['latest_milestone'])
+          : null,
     );
   }
 }
@@ -176,13 +204,13 @@ class WellnessService extends ChangeNotifier {
   
   WellnessService(this._authService);
 
-  Future<WellnessStatus?> getStatus() async {
-    final user = _authService.currentUser;
-    if (user == null) return null;
+  Future<WellnessStatus?> getStatus({String? userId}) async {
+    final targetUserId = userId ?? _authService.currentUser?.id;
+    if (targetUserId == null) return null;
 
     try {
       final response = await http.get(
-        Uri.parse('$wellnessWorkerUrl/api/wellness/status?user_id=${user.id}'),
+        Uri.parse('$wellnessWorkerUrl/api/wellness/status?user_id=$targetUserId'),
       );
 
       if (response.statusCode == 200) {
@@ -279,13 +307,13 @@ class WellnessService extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> getMilestones() async {
-    final user = _authService.currentUser;
-    if (user == null) return {'milestones': <Milestone>[], 'new_unlocks': <String>[]};
+  Future<Map<String, dynamic>> getMilestones({String? userId}) async {
+    final targetUserId = userId ?? _authService.currentUser?.id;
+    if (targetUserId == null) return {'milestones': <Milestone>[], 'new_unlocks': <String>[]};
 
     try {
       final response = await http.get(
-        Uri.parse('$wellnessWorkerUrl/api/wellness/milestones?user_id=${user.id}'),
+        Uri.parse('$wellnessWorkerUrl/api/wellness/milestones?user_id=$targetUserId'),
       );
 
       if (response.statusCode == 200) {

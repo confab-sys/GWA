@@ -50,6 +50,7 @@ export default {
             icon_code INTEGER NOT NULL,
             color_hex TEXT NOT NULL,
             description TEXT NOT NULL,
+            badge_image_url TEXT,
             is_active BOOLEAN DEFAULT 1,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
           )
@@ -202,36 +203,37 @@ export default {
       // Populates default milestones
       if (path === "/api/wellness/milestones/seed" && request.method === "POST") {
         const defaults = [
-          { label: "24 Hours", duration_seconds: 86400, icon_code: 61943, color_hex: "#4CAF50", description: "First 24 hours complete!" },
-          { label: "7 Days", duration_seconds: 604800, icon_code: 61769, color_hex: "#8BC34A", description: "One week down." },
-          { label: "14 Days", duration_seconds: 1209600, icon_code: 61769, color_hex: "#CDDC39", description: "Two weeks strong." },
-          { label: "21 Days", duration_seconds: 1814400, icon_code: 61769, color_hex: "#FFEB3B", description: "Three weeks. Habit forming." },
-          { label: "30 Days", duration_seconds: 2592000, icon_code: 61943, color_hex: "#FFC107", description: "One month milestone." },
-          { label: "60 Days", duration_seconds: 5184000, icon_code: 61943, color_hex: "#FF9800", description: "Two months of progress." },
-          { label: "90 Days", duration_seconds: 7776000, icon_code: 61943, color_hex: "#FF5722", description: "Three months! Quarter year." },
-          { label: "180 Days", duration_seconds: 15552000, icon_code: 61943, color_hex: "#F44336", description: "180 days achieved." },
-          { label: "6 Months", duration_seconds: 15811200, icon_code: 61943, color_hex: "#E91E63", description: "Half a year of dedication." },
-          { label: "9 Months", duration_seconds: 23673600, icon_code: 61943, color_hex: "#9C27B0", description: "Nine months strong." },
-          { label: "1 Year", duration_seconds: 31536000, icon_code: 61943, color_hex: "#673AB7", description: "One full year. Incredible." },
-          { label: "1.5 Years", duration_seconds: 47304000, icon_code: 61943, color_hex: "#3F51B5", description: "18 months of freedom." },
-          { label: "2 Years", duration_seconds: 63072000, icon_code: 61943, color_hex: "#2196F3", description: "Two years." },
-          { label: "3 Years", duration_seconds: 94608000, icon_code: 61943, color_hex: "#03A9F4", description: "Three years." },
-          { label: "5 Years", duration_seconds: 157680000, icon_code: 61943, color_hex: "#00BCD4", description: "Five years." },
-          { label: "10 Years+", duration_seconds: 315360000, icon_code: 61943, color_hex: "#009688", description: "A decade of wellness." }
+          { label: "24 Hours", duration_seconds: 86400, icon_code: 61943, color_hex: "#4CAF50", description: "First 24 hours complete!", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/24h.png" },
+          { label: "7 Days", duration_seconds: 604800, icon_code: 61769, color_hex: "#8BC34A", description: "One week down.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/7d.png" },
+          { label: "14 Days", duration_seconds: 1209600, icon_code: 61769, color_hex: "#CDDC39", description: "Two weeks strong.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/14d.png" },
+          { label: "21 Days", duration_seconds: 1814400, icon_code: 61769, color_hex: "#FFEB3B", description: "Three weeks. Habit forming.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/21d.png" },
+          { label: "30 Days", duration_seconds: 2592000, icon_code: 61943, color_hex: "#FFC107", description: "One month milestone.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/30d.png" },
+          { label: "60 Days", duration_seconds: 5184000, icon_code: 61943, color_hex: "#FF9800", description: "Two months of progress.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/60d.png" },
+          { label: "90 Days", duration_seconds: 7776000, icon_code: 61943, color_hex: "#FF5722", description: "Three months! Quarter year.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/90d.png" },
+          { label: "180 Days", duration_seconds: 15552000, icon_code: 61943, color_hex: "#F44336", description: "180 days achieved.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/180d.png" },
+          { label: "6 Months", duration_seconds: 15811200, icon_code: 61943, color_hex: "#E91E63", description: "Half a year of dedication.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/6m.png" },
+          { label: "9 Months", duration_seconds: 23673600, icon_code: 61943, color_hex: "#9C27B0", description: "Nine months strong.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/9m.png" },
+          { label: "1 Year", duration_seconds: 31536000, icon_code: 61943, color_hex: "#673AB7", description: "One full year. Incredible.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/1y.png" },
+          { label: "1.5 Years", duration_seconds: 47304000, icon_code: 61943, color_hex: "#3F51B5", description: "18 months of freedom.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/1.5y.png" },
+          { label: "2 Years", duration_seconds: 63072000, icon_code: 61943, color_hex: "#2196F3", description: "Two years.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/2y.png" },
+          { label: "3 Years", duration_seconds: 94608000, icon_code: 61943, color_hex: "#03A9F4", description: "Three years.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/3y.png" },
+          { label: "5 Years", duration_seconds: 157680000, icon_code: 61943, color_hex: "#00BCD4", description: "Five years.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/5y.png" },
+          { label: "10 Years+", duration_seconds: 315360000, icon_code: 61943, color_hex: "#009688", description: "A decade of wellness.", badge_image_url: "https://pub-1c8c879e41fe4ff48de96ceabce671a2.r2.dev/badges/10y.png" }
         ];
 
         let added = 0;
         for (const m of defaults) {
           // Upsert logic to ensure labels match user request
           await env.MILESTONE_DB.prepare(`
-            INSERT INTO milestones (label, duration_seconds, icon_code, color_hex, description)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO milestones (label, duration_seconds, icon_code, color_hex, description, badge_image_url)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(duration_seconds) DO UPDATE SET
               label = excluded.label,
               icon_code = excluded.icon_code,
               color_hex = excluded.color_hex,
-              description = excluded.description
-          `).bind(m.label, m.duration_seconds, m.icon_code, m.color_hex, m.description).run();
+              description = excluded.description,
+              badge_image_url = excluded.badge_image_url
+          `).bind(m.label, m.duration_seconds, m.icon_code, m.color_hex, m.description, m.badge_image_url).run();
           added++;
         }
         
@@ -469,7 +471,7 @@ export default {
       }
 
       // GET /api/wellness/community
-      // Returns list of users in wellness program with their names from USERS_DB
+      // Returns list of users in wellness program with their names from USERS_DB and latest milestone
       if (path === "/api/wellness/community" && request.method === "GET") {
         // 1. Get all active wellness participants
         const { results: wellnessUsers } = await env.WELLNESS_DB.prepare(
@@ -481,9 +483,6 @@ export default {
         }
 
         // 2. Get details for these users from USERS_DB
-        // D1 doesn't support cross-DB joins, so we query manually or use IN clause if list is small
-        // For 50 users, we can loop or do a bulk query. Bulk query with IN is better.
-        
         const userIds = wellnessUsers.map(u => u.user_id);
         const placeholders = userIds.map(() => '?').join(',');
         
@@ -491,14 +490,35 @@ export default {
           `SELECT id, username, first_name FROM users WHERE id IN (${placeholders})`
         ).bind(...userIds).all();
 
-        // 3. Merge data
+        // 3. Get latest milestone for these users from MILESTONE_DB
+        // We want the milestone with the highest duration_seconds that is unlocked
+        // Using a join to get milestone details
+        const { results: userMilestones } = await env.MILESTONE_DB.prepare(`
+          SELECT um.user_id, m.label, m.icon_code, m.color_hex, m.badge_image_url
+          FROM user_milestones um
+          JOIN milestones m ON um.milestone_id = m.id
+          WHERE um.user_id IN (${placeholders})
+          ORDER BY m.duration_seconds DESC
+        `).bind(...userIds).all();
+
+        // 4. Merge data
         const community = wellnessUsers.map(w => {
-          const user = userDetails.find(u => u.id === w.user_id);
+          // Convert IDs to strings for reliable comparison
+          const userIdStr = String(w.user_id);
+          const user = userDetails.find(u => String(u.id) === userIdStr);
+          const latestMilestone = userMilestones.find(m => String(m.user_id) === userIdStr);
+          
           return {
             user_id: w.user_id,
             name: user ? (user.username || user.first_name) : 'Anonymous',
             addiction_type: w.addiction_type,
-            start_date: w.start_date
+            start_date: w.start_date,
+            latest_milestone: latestMilestone ? {
+              label: latestMilestone.label,
+              icon_code: latestMilestone.icon_code,
+              color_hex: latestMilestone.color_hex,
+              badge_image_url: latestMilestone.badge_image_url
+            } : null
           };
         });
 
