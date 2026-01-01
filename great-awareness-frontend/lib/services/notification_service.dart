@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification.dart';
 import '../services/auth_service.dart';
 
@@ -27,11 +28,19 @@ class NotificationService extends ChangeNotifier {
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   bool _isInitialized = false;
+  bool _isMuted = false;
+
+  bool get isMuted => _isMuted;
 
   // Initialize service
   Future<void> init(AuthService authService) async {
     _authService = authService;
     
+    // Load mute preference
+    final prefs = await SharedPreferences.getInstance();
+    _isMuted = prefs.getBool('notifications_muted') ?? false;
+    notifyListeners();
+
     // Only set up FCM listeners once
     if (!_isInitialized) {
       _setupFCM();
@@ -99,6 +108,14 @@ class NotificationService extends ChangeNotifier {
         }
       });
     }
+  }
+
+  Future<void> toggleMute() async {
+    _isMuted = !_isMuted;
+    notifyListeners();
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notifications_muted', _isMuted);
   }
 
   // Called when user logs in or app resumes

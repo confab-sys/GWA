@@ -52,6 +52,14 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     // Listen for new notifications
     Provider.of<NotificationService>(context, listen: false).notificationStream.listen((notification) {
       debugPrint('MainFeedScreen received notification: ${notification.title}');
+      
+      // Check if notifications are muted
+      final isMuted = Provider.of<NotificationService>(context, listen: false).isMuted;
+      if (isMuted) {
+        debugPrint('Notification suppressed due to mute setting');
+        return;
+      }
+
       // Optional: Show a snackbar for new notifications
       if (mounted) {
         String message;
@@ -1257,6 +1265,27 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
+          Consumer<NotificationService>(
+            builder: (context, notificationService, _) {
+              return IconButton(
+                icon: Icon(
+                  notificationService.isMuted ? Icons.notifications_off : Icons.notifications_active,
+                  color: notificationService.isMuted ? Colors.grey : Colors.black,
+                ),
+                tooltip: notificationService.isMuted ? 'Unmute notifications' : 'Mute notifications',
+                onPressed: () {
+                  notificationService.toggleMute();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(notificationService.isMuted ? 'Notifications muted' : 'Notifications enabled'),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: notificationService.isMuted ? Colors.grey : Colors.green,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           IconButton(
             icon: Icon(_showSearch ? Icons.close : Icons.search, color: Colors.black),
             onPressed: () {

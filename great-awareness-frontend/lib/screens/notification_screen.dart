@@ -45,6 +45,20 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ),
         ),
         actions: [
+          Consumer<NotificationService>(
+            builder: (context, notificationService, _) {
+              return IconButton(
+                icon: Icon(
+                  notificationService.isMuted ? Icons.notifications_off : Icons.notifications_active,
+                  color: notificationService.isMuted ? Colors.grey : Colors.black,
+                ),
+                tooltip: notificationService.isMuted ? 'Unmute notifications' : 'Mute notifications',
+                onPressed: () {
+                  notificationService.toggleMute();
+                },
+              );
+            },
+          ),
           TextButton(
             onPressed: () {
               Provider.of<NotificationService>(context, listen: false).clearAll();
