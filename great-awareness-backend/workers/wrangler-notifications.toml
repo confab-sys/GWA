@@ -1,0 +1,23 @@
+
+name = "gwa-notifications-worker"
+main = "notifications-worker.js"
+compatibility_date = "2023-10-30"
+
+[[durable_objects.bindings]]
+name = "NOTIFICATIONS_DO"
+class_name = "NotificationsDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["NotificationsDO"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gwa-db"
+database_id = "71bfffe9-e765-4929-94ce-f71187ab0214" # You must replace this with your actual D1 ID
+preview_database_id = "DB"
+
+[vars]
+FCM_PROJECT_ID = "great-awareness-gwa-2026"
+# FCM_CLIENT_EMAIL = "..."
+# FCM_PRIVATE_KEY = "..." 

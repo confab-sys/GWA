@@ -1,9 +1,16 @@
 
+import 'dart:convert';
+
 enum NotificationType {
   post,
   question,
   comment,
   like,
+  badge,
+  milestone,
+  chat,
+  event,
+  system,
 }
 
 class AppNotification {
@@ -33,6 +40,42 @@ class AppNotification {
     this.questionId,
   });
 
+  factory AppNotification.fromJson(Map<String, dynamic> json) {
+    final metadata = json['metadata'] != null 
+        ? (json['metadata'] is String ? jsonDecode(json['metadata']) : json['metadata']) 
+        : {};
+    
+    NotificationType parseType(String typeStr) {
+      switch (typeStr) {
+        case 'post': return NotificationType.post;
+        case 'question': return NotificationType.question;
+        case 'comment': return NotificationType.comment;
+        case 'like': return NotificationType.like;
+        case 'badge': return NotificationType.badge;
+        case 'milestone': return NotificationType.milestone;
+        case 'chat': return NotificationType.chat;
+        case 'event': return NotificationType.event;
+        default: return NotificationType.system;
+      }
+    }
+
+    return AppNotification(
+      id: json['id']?.toString() ?? '',
+      type: parseType(json['type'] ?? 'system'),
+      title: json['title'] ?? '',
+      content: json['body'] ?? '',
+      authorName: metadata['authorName'] ?? 'System',
+      authorAvatar: metadata['authorAvatar'],
+      category: metadata['category'] ?? 'General',
+      timestamp: json['created_at'] != null 
+          ? DateTime.fromMillisecondsSinceEpoch(json['created_at']) 
+          : (json['createdAt'] != null ? DateTime.fromMillisecondsSinceEpoch(json['createdAt']) : DateTime.now()),
+      isRead: json['is_read'] == 1 || json['isRead'] == true,
+      postId: metadata['postId'] != null ? int.tryParse(metadata['postId'].toString()) : null,
+      questionId: metadata['questionId'] != null ? int.tryParse(metadata['questionId'].toString()) : null,
+    );
+  }
+
   AppNotification copyWith({
     String? id,
     NotificationType? type,
@@ -59,38 +102,5 @@ class AppNotification {
       postId: postId ?? this.postId,
       questionId: questionId ?? this.questionId,
     );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    
-    return other is AppNotification &&
-      other.id == id &&
-      other.type == type &&
-      other.title == title &&
-      other.content == content &&
-      other.authorName == authorName &&
-      other.authorAvatar == authorAvatar &&
-      other.category == category &&
-      other.timestamp == timestamp &&
-      other.isRead == isRead &&
-      other.postId == postId &&
-      other.questionId == questionId;
-  }
-
-  @override
-  int get hashCode {
-    return id.hashCode ^
-      type.hashCode ^
-      title.hashCode ^
-      content.hashCode ^
-      authorName.hashCode ^
-      authorAvatar.hashCode ^
-      category.hashCode ^
-      timestamp.hashCode ^
-      isRead.hashCode ^
-      postId.hashCode ^
-      questionId.hashCode;
   }
 }

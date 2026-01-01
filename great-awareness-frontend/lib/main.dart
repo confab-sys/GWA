@@ -18,7 +18,18 @@ import 'services/theme_provider.dart';
 import 'services/notification_service.dart';
 import 'services/wellness_service.dart';
 
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase init failed: $e");
+  }
   runApp(const MyApp());
 }
 
@@ -31,7 +42,14 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => AuthService()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
-        ChangeNotifierProvider(create: (context) => NotificationService()),
+        ChangeNotifierProxyProvider<AuthService, NotificationService>(
+          create: (context) => NotificationService(),
+          update: (context, auth, previous) {
+            final service = previous ?? NotificationService();
+            service.init(auth);
+            return service;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthService, WellnessService>(
           create: (context) => WellnessService(Provider.of<AuthService>(context, listen: false)),
           update: (context, auth, previous) => previous ?? WellnessService(auth),

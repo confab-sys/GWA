@@ -50,13 +50,15 @@ class _MainFeedScreenState extends State<MainFeedScreen> {
     
     // Listen for new notifications
     Provider.of<NotificationService>(context, listen: false).notificationStream.listen((notification) {
+      debugPrint('MainFeedScreen received notification: ${notification.title}');
       // Optional: Show a snackbar for new notifications
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('New ${notification.type == NotificationType.post ? 'post' : 'question'} in ${notification.category}'),
-            duration: const Duration(seconds: 2),
+            content: Text('New ${notification.type == NotificationType.post ? 'post' : 'question'} in ${notification.category}: ${notification.title}'),
+            duration: const Duration(seconds: 4),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }

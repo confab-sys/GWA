@@ -136,18 +136,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: notification.type == NotificationType.post
-                      ? Colors.blue[100]
-                      : Colors.green[100],
+                  color: _getIconBackgroundColor(notification.type),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  notification.type == NotificationType.post
-                      ? Icons.article
-                      : Icons.help_outline,
-                  color: notification.type == NotificationType.post
-                      ? Colors.blue[700]
-                      : Colors.green[700],
+                  _getNotificationIcon(notification.type),
+                  color: _getIconColor(notification.type),
                   size: 20,
                 ),
               ),
@@ -307,6 +301,66 @@ class _NotificationScreenState extends State<NotificationScreen> {
       return '${difference.inMinutes}m ago';
     } else {
       return 'Just now';
+    }
+  }
+
+  IconData _getNotificationIcon(NotificationType type) {
+    switch (type) {
+      case NotificationType.badge:
+        return Icons.emoji_events;
+      case NotificationType.milestone:
+        return Icons.flag;
+      case NotificationType.chat:
+        return Icons.chat_bubble;
+      case NotificationType.event:
+        return Icons.event;
+      case NotificationType.post:
+        return Icons.article;
+      case NotificationType.question:
+        return Icons.help;
+      case NotificationType.system:
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color _getIconColor(NotificationType type) {
+    switch (type) {
+      case NotificationType.badge:
+        return Colors.orange;
+      case NotificationType.milestone:
+        return Colors.green;
+      case NotificationType.chat:
+        return Colors.blue;
+      case NotificationType.event:
+        return Colors.purple;
+      case NotificationType.post:
+        return Colors.teal;
+      case NotificationType.question:
+        return Colors.red;
+      case NotificationType.system:
+      default:
+        return Colors.grey[700]!;
+    }
+  }
+
+  Color _getIconBackgroundColor(NotificationType type) {
+    switch (type) {
+      case NotificationType.badge:
+        return Colors.orange.withOpacity(0.1);
+      case NotificationType.milestone:
+        return Colors.green.withOpacity(0.1);
+      case NotificationType.chat:
+        return Colors.blue.withOpacity(0.1);
+      case NotificationType.event:
+        return Colors.purple.withOpacity(0.1);
+      case NotificationType.post:
+        return Colors.teal.withOpacity(0.1);
+      case NotificationType.question:
+        return Colors.red.withOpacity(0.1);
+      case NotificationType.system:
+      default:
+        return Colors.grey.withOpacity(0.1);
     }
   }
 }

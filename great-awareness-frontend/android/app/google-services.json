@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1018308476546",
+    "project_id": "great-awareness-gwa-2026",
+    "storage_bucket": "great-awareness-gwa-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1018308476546:android:226c38bffbcf17c056be9b",
+        "android_client_info": {
+          "package_name": "com.example.great_awareness_frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5GxO0dZCEwwPYDZ0YLA0-AdAPme6sF7k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
