@@ -12,3 +12,8 @@ bucket_name = "books"
 binding = "GWA_BOOKS_DB"
 database_name = "gwa-books"
 database_id = "115d4f98-c6cf-4fe8-8362-0040f02fbbad"
+
+# Service Binding for Notifications
+[[services]]
+binding = "NOTIFICATIONS"
+service = "gwa-notifications-worker"

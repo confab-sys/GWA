@@ -119,6 +119,44 @@ async function handleUpload(request, env, corsHeaders) {
     )
     .run();
 
+  // Trigger Broadcast Notification for new book
+  ctx.waitUntil((async () => {
+      try {
+          const notificationPayload = {
+              title: `New Book: ${metadata.title}`,
+              body: metadata.description.length > 50 ? metadata.description.substring(0, 50) + "..." : metadata.description,
+              type: "book",
+              metadata: {
+                  bookId: bookId,
+                  category: metadata.category
+              }
+          };
+          
+          let notifRes;
+          if (env.NOTIFICATIONS) {
+              notifRes = await env.NOTIFICATIONS.fetch("https://notifications/notifications/broadcast", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(notificationPayload)
+              });
+          } else {
+              notifRes = await fetch("https://gwa-notifications-worker.aashardcustomz.workers.dev/notifications/broadcast", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(notificationPayload)
+              });
+          }
+          
+          if (!notifRes.ok) {
+              console.error("Book notification broadcast failed:", await notifRes.text());
+          } else {
+              console.log("Book notification broadcast initiated");
+          }
+      } catch (e) {
+          console.error("Book notification broadcast error:", e);
+      }
+  })());
+
   return new Response(JSON.stringify({ message: "Book uploaded successfully", bookId }), {
     headers: { "Content-Type": "application/json", ...corsHeaders },
   });

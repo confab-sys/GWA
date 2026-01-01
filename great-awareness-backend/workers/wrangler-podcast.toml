@@ -12,3 +12,8 @@ bucket_name = "gwa-podcasts"
 binding = "GWA_PODCASTS_DB"
 database_name = "gwa-podcasts"
 database_id = "0f961373-542e-4208-92a1-a21124c216a7"
+
+# Service Binding for Notifications
+[[services]]
+binding = "NOTIFICATIONS"
+service = "gwa-notifications-worker"

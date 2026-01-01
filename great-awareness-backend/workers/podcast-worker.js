@@ -31,7 +31,7 @@ export default {
       } else if (pathname === '/api/podcasts/sync' && method === 'POST') {
         return await handleSyncPodcasts(request, env, CORS_HEADERS);
       } else if (pathname === '/api/podcasts/upload' && method === 'POST') {
-        return await handleUploadPodcast(request, env, CORS_HEADERS);
+        return await handleUploadPodcast(request, env, ctx, CORS_HEADERS);
       } else if (pathname.startsWith('/api/podcasts/') && pathname.endsWith('/signed-url') && method === 'GET') {
         const pathParts = pathname.split('/');
         const podcastId = pathParts[3]; // /api/podcasts/{id}/signed-url
@@ -379,6 +379,44 @@ async function handleUploadPodcast(request, env, corsHeaders) {
       podcastId, title, subtitle, description, category, objectKey, createdAt, fileSize, file.type, file.name, duration, thumbnailUrl, signedUrl, signedUrlExpiresAt
     ).run();
     
+    // Trigger Broadcast Notification for new podcast
+    ctx.waitUntil((async () => {
+        try {
+            const notificationPayload = {
+                title: `New Podcast: ${title}`,
+                body: description.length > 50 ? description.substring(0, 50) + "..." : description,
+                type: "podcast",
+                metadata: {
+                    podcastId: podcastId,
+                    category: category
+                }
+            };
+            
+            let notifRes;
+            if (env.NOTIFICATIONS) {
+                notifRes = await env.NOTIFICATIONS.fetch("https://notifications/notifications/broadcast", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(notificationPayload)
+                });
+            } else {
+                notifRes = await fetch("https://gwa-notifications-worker.aashardcustomz.workers.dev/notifications/broadcast", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(notificationPayload)
+                });
+            }
+            
+            if (!notifRes.ok) {
+                console.error("Podcast notification broadcast failed:", await notifRes.text());
+            } else {
+                console.log("Podcast notification broadcast initiated");
+            }
+        } catch (e) {
+            console.error("Podcast notification broadcast error:", e);
+        }
+    })());
+
     return new Response(
       JSON.stringify({
         success: true,
